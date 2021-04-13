@@ -1,0 +1,65 @@
+syntax = "proto3";
+package toxicblend;
+
+option java_package = "org.toxicblend.protobuf";
+option java_outer_classname = "ToxicBlendProtos";
+
+service ToxicBlendService {
+  rpc execute (Command) returns (Reply);
+}
+
+message Vertex {
+  float x = 2; // todo, switch to double
+  float y = 3;
+  float z = 4;
+}
+
+message Face {
+   repeated int32 vertices = 1; // todo, switch to usize
+}
+
+message Matrix4x4 {
+   float m00 = 1; // todo, switch to double
+   float m01 = 2;
+   float m02 = 3;
+   float m03 = 4;
+   
+   float m10 = 5;
+   float m11 = 6;
+   float m12 = 7;
+   float m13 = 8;
+   
+   float m20 = 9;
+   float m21 = 10;
+   float m22 = 11;
+   float m23 = 12;
+   
+   float m30 = 13;
+   float m31 = 14;
+   float m32 = 15;
+   float m33 = 16;
+}
+
+message Model {
+  string name = 1;
+  Matrix4x4 worldOrientation = 2;
+  repeated Vertex vertices = 3;
+  repeated Face faces = 4;
+}
+
+message KeyValuePair {
+  string key = 1;
+  string value = 2;
+}
+
+message Command {
+  string command = 1;
+  repeated KeyValuePair options = 2;
+  repeated Model models = 3;
+}
+
+message Reply {
+  repeated KeyValuePair options = 2;
+  repeated Model models = 3;
+}
+

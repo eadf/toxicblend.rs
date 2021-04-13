@@ -7,6 +7,28 @@ description = "work in progress"
 readme = "README.md"
 repository = "https://github.com/eadf/toxicblend.rs"
 license = "AGPL-3.0"
-#keywords = ["geometry", "intersection", "douglas-peucker", "visvalingam-whyatt"]
 
 [dependencies]
+tonic = "^0.4.1"
+prost = "^0.7.0"
+fnv = "^1.0.7"
+tokio = { version = "^1.4.0", features = ["macros", "rt-multi-thread"] }
+thiserror = "^1.0.24"
+linestring = {version="^0.1.0",default-features=false,features=["impl-cgmath", "impl-rayon"]}
+yabf = {version="^0.1.0",default-features=false}
+boostvoronoi = "^0.8.1"
+centerline = "^0.1.0"
+rayon = "^1.5.0"
+smallvec = "^1.6.1"
+cgmath = "^0.18.0"
+
+[[bin]]
+name = "server"
+path = "src/server.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
+
+[build-dependencies]
+tonic-build = "^0.4.1"
