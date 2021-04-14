@@ -26,7 +26,7 @@ pub fn find_linestrings(
         }
         if face.vertices.len() > 2 {
             return Err(TBError::InvalidData(
-                "Edge containing only one vertex".to_string()
+                "Edge containing only one vertex".to_string(),
             ));
         }
         let v0 = *face.vertices.get(0).unwrap() as usize;
@@ -239,7 +239,7 @@ fn traverse_edges(
                     )?;
                 } else {
                     return Err(TBError::InternalError(
-                        "edge ended unexpectedly #2".to_string()
+                        "edge ended unexpectedly #2".to_string(),
                     ));
                 }
             } else {
@@ -249,7 +249,7 @@ fn traverse_edges(
             }
         } else {
             return Err(TBError::InternalError(
-                "edge ended unexpectedly #1".to_string()
+                "edge ended unexpectedly #1".to_string(),
             ));
         }
     } /*else {
@@ -262,27 +262,21 @@ fn traverse_edges(
 }
 
 /// Simplify the line-strings using the Ramer–Douglas–Peucker algorithm
-pub fn simplify_rdp_percent(
+pub fn centerline(
     pb_model: &PB_Model,
-    percent: f64,
+    angle: f64,
     lines: Vec<(usize, cgmath_3d::LineString3<f64>, usize)>,
 ) -> Result<Vec<(usize, cgmath_3d::LineString3<f64>, usize)>, TBError> {
     let mut aabb = linestring::cgmath_3d::Aabb3::<f64>::default();
     for v in pb_model.vertices.iter() {
         aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
-    let dimensions = aabb.get_high().unwrap() - aabb.get_low().unwrap();
-    let max_dim = dimensions.x.max(dimensions.y).max(dimensions.z);
-    let distance = max_dim * percent;
 
-    println!(
-        "Simplifying using percentage. Distance={}, MaxDim={}, Percent={}",
-        distance, max_dim, percent
-    );
+    println!("Centerlining using Angle={},", angle);
 
     let rv: Vec<(usize, cgmath_3d::LineString3<f64>, usize)> = lines
         .into_par_iter()
-        .map(|(v0, ls, v1)| (v0, ls.simplify(percent), v1))
+        .map(|(v0, ls, v1)| (v0, ls.simplify(angle), v1))
         .collect();
     Ok(rv)
 }
@@ -301,7 +295,7 @@ pub fn build_bp_model(
     };
 
     // map between old and new vertex number
-    let mut v_map = fnv::FnvHashMap::<usize,usize>::default();
+    let mut v_map = fnv::FnvHashMap::<usize, usize>::default();
 
     for ls in lines.into_iter() {
         let v0 = ls.0;
@@ -309,20 +303,34 @@ pub fn build_bp_model(
         let v1 = ls.2;
         let v0_mapped = *v_map.entry(v0).or_insert(output_pb_model.vertices.len());
         if v0_mapped == output_pb_model.vertices.len() {
-            output_pb_model.vertices.push(input_pb_model.vertices[v0].clone());
+            output_pb_model
+                .vertices
+                .push(input_pb_model.vertices[v0].clone());
         }
-        output_pb_model.faces.push(PB_Face{vertices:vec!(v0_mapped as u64, (v0_mapped+1) as u64)});
+        output_pb_model.faces.push(PB_Face {
+            vertices: vec![v0_mapped as u64, (v0_mapped + 1) as u64],
+        });
         let mut last_p = v0_mapped;
-        for p in l.points().iter().skip(1).take(l.points().len()-2) {
-            output_pb_model.faces.push(PB_Face{vertices:vec!(last_p as u64, output_pb_model.vertices.len() as u64)});
+        for p in l.points().iter().skip(1).take(l.points().len() - 2) {
+            output_pb_model.faces.push(PB_Face {
+                vertices: vec![last_p as u64, output_pb_model.vertices.len() as u64],
+            });
             last_p = output_pb_model.vertices.len();
-            output_pb_model.vertices.push(PB_Vertex{x:p.x as f64, y: p.y as f64, z: p.z as f64});
+            output_pb_model.vertices.push(PB_Vertex {
+                x: p.x as f64,
+                y: p.y as f64,
+                z: p.z as f64,
+            });
         }
         let v1_mapped = *v_map.entry(v1).or_insert(output_pb_model.vertices.len());
         if v1_mapped == output_pb_model.vertices.len() {
-            output_pb_model.vertices.push(input_pb_model.vertices[v1].clone());
+            output_pb_model
+                .vertices
+                .push(input_pb_model.vertices[v1].clone());
         }
-        output_pb_model.faces.push(PB_Face{vertices:vec!(last_p as u64, v1_mapped as u64)});
+        output_pb_model.faces.push(PB_Face {
+            vertices: vec![last_p as u64, v1_mapped as u64],
+        });
     }
     Ok(output_pb_model)
     //return Err(TBError::InvalidData(format!("not implemented")));
@@ -332,7 +340,7 @@ pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    println!("simplify got command: {}", a_command.command);
+    println!("centerline got command: {}", a_command.command);
     for model in a_command.models.iter() {
         println!("model.name:{:?}, ", model.name);
         println!("model.vertices:{:?}, ", model.vertices.len());
@@ -345,21 +353,21 @@ pub fn command(
     }
     if a_command.models.is_empty() {
         return Err(TBError::InvalidData(
-            "Model did not contain any data".to_string()
+            "Model did not contain any data".to_string(),
         ));
     }
-    let distance = options
-        .get("DISTANCE")
+    let angle = options
+        .get("CENTERLINE_ANGLE")
         .ok_or_else(||TBError::InvalidData(
-            "Missing the DISTANCE parameter".to_string(),
+            "Missing the CENTERLINE_ANGLE parameter".to_string(),
         ))?
         .parse::<f64>()
         .map_err(|_|TBError::InvalidData(
-            "Could not parse the DISTANCE parameter".to_string(),
+            "Could not parse the CENTERLINE_ANGLE parameter".to_string(),
         ))?;
 
     let lines = find_linestrings(&a_command.models[0])?;
-    let lines = simplify_rdp_percent(&a_command.models[0], distance, lines)?;
+    let lines = centerline(&a_command.models[0], angle, lines)?;
     let model = build_bp_model(&a_command, lines)?;
 
     let mut reply = PB_Reply {

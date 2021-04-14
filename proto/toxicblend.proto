@@ -9,35 +9,35 @@ service ToxicBlendService {
 }
 
 message Vertex {
-  float x = 2; // todo, switch to double
-  float y = 3;
-  float z = 4;
+  double x = 2; // todo, switch to double
+  double y = 3;
+  double z = 4;
 }
 
 message Face {
-   repeated int32 vertices = 1; // todo, switch to usize
+   repeated uint64 vertices = 1; // todo, switch to usize
 }
 
 message Matrix4x4 {
-   float m00 = 1; // todo, switch to double
-   float m01 = 2;
-   float m02 = 3;
-   float m03 = 4;
+   double m00 = 1; // todo, switch to double
+   double m01 = 2;
+   double m02 = 3;
+   double m03 = 4;
    
-   float m10 = 5;
-   float m11 = 6;
-   float m12 = 7;
-   float m13 = 8;
+   double m10 = 5;
+   double m11 = 6;
+   double m12 = 7;
+   double m13 = 8;
    
-   float m20 = 9;
-   float m21 = 10;
-   float m22 = 11;
-   float m23 = 12;
+   double m20 = 9;
+   double m21 = 10;
+   double m22 = 11;
+   double m23 = 12;
    
-   float m30 = 13;
-   float m31 = 14;
-   float m32 = 15;
-   float m33 = 16;
+   double m30 = 13;
+   double m31 = 14;
+   double m32 = 15;
+   double m33 = 16;
 }
 
 message Model {

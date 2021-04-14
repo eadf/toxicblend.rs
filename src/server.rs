@@ -1,13 +1,16 @@
 #![feature(hash_drain_filter)]
+//#![feature(hash_set_entry)]
 
 mod cmd_2d_outline;
 mod cmd_simplify;
 mod cmd_knife_intersect;
+mod cmd_centerline;
 
 use crate::toxicblend::Command as PB_Command;
 use crate::toxicblend::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend::Model as PB_Model;
 use crate::toxicblend::Reply as PB_Reply;
+use crate::toxicblend::Vertex as PB_Vertex;
 use tonic::transport::Server;
 use tonic::Request as PB_Request;
 use tonic::Response as PB_Response;
@@ -17,6 +20,15 @@ use std::collections::HashMap;
 
 pub mod toxicblend {
     tonic::include_proto!("toxicblend");
+}
+
+impl PB_Vertex{
+    pub fn distance_squared(&self, other:&PB_Vertex) -> f64 {
+        let x = self.x-other.x;
+        let y = self.y-other.y;
+        let z = self.z-other.z;
+        x*x+y*y+z*z
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -77,6 +89,7 @@ impl ToxicBlendService for TheToxicBlendService {
             "2d_outline" => cmd_2d_outline::command(a_command, map),
             "simplify" => cmd_simplify::command(a_command, map),
             "knife_intersect" => cmd_knife_intersect::command(a_command, map),
+            "centerline" => cmd_centerline::command(a_command, map),
             _ => Err(TBError::UnknownCommand(a_command.command.clone())),
         };
         // convert TBError to a valid Error message

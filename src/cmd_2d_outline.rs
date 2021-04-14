@@ -17,12 +17,13 @@ pub fn remove_internal_edges(
     //println!("Input faces : {:?}", obj.faces);
 
     for f in obj.faces.iter() {
+
         let mut i0 = f.vertices.iter();
         for v1 in f.vertices.iter().skip(1).chain(f.vertices.first()) {
             let v0 = (*i0.next().unwrap()) as usize;
             let v1 = (*v1) as usize;
             //print!("{:?}->{:?},", v0, v1);
-            let key = (*std::cmp::min(&v0, &v1), *std::cmp::max(&v0, &v1));
+            let key = if v0 < v1 {(v0 as usize, v1 as usize)} else {(v1 as usize, v0 as usize)};
             if all_edges.contains(&key) {
                 let _ = internal_edges.insert(key);
             } else {
@@ -119,7 +120,7 @@ pub fn command(a_command: &PB_Command, _options:HashMap<String, String>) -> Resu
             model.vertices.push(v0);
         }
         for l in rv_lines.iter() {
-            let face = vec![l.0 as i32, l.1 as i32];
+            let face = vec![l.0 as u64, l.1 as u64];
             model.faces.push(PB_Face { vertices: face });
         }
 

@@ -5,6 +5,7 @@ use crate::toxicblend::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend::Model as PB_Model;
 use crate::toxicblend::Reply as PB_Reply;
 use crate::toxicblend::Vertex as PB_Vertex;
+use itertools::Itertools;
 use linestring::cgmath_3d::Plane;
 use std::collections::HashMap;
 
@@ -20,7 +21,7 @@ fn transmute_to_f64(a: &(u64, u64)) -> cgmath::Point2<f64> {
 /// converts to a private, comparable and hashable format
 /// only use this for floats that are f64::is_finite()
 fn transmute_to_u64(a: cgmath::Point2<f64>) -> (u64, u64) {
-     (a.x.to_bits(), a.y.to_bits())
+    (a.x.to_bits(), a.y.to_bits())
 }
 
 /// detect self intersections and cut those lines at the intersection
@@ -35,7 +36,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
         "knife_intersect: data was in plane:{:?} aabb:{:?}",
         plane, aabb
     );
-    println!("input Lines:{:?}", input_pb_model.vertices);
+    //println!("input Lines:{:?}", input_pb_model.vertices);
 
     let vertices_2d: Vec<cgmath::Point2<f64>> = match plane {
         Plane::XY => input_pb_model
@@ -78,7 +79,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
         }
     }
     //println!("Lines:{:?}", lines);
-    let mut edge_split = fnv::FnvHashMap::<usize, (u64, u64)>::default();
+    let mut edge_split = fnv::FnvHashMap::<usize, smallvec::SmallVec<[(u64, u64); 1]>>::default();
     let mut edge_is_split = yabf::Yabf::with_capacity(input_pb_model.faces.len());
     {
         let intersection_result =
@@ -97,7 +98,10 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
                         p.pos.x, p.pos.y
                     )));
                 }
-                edge_split.insert(*e, transmute_to_u64(p.pos));
+                edge_split
+                    .entry(*e)
+                    .or_insert_with(smallvec::SmallVec::<[(u64, u64); 1]>::new)
+                    .push(transmute_to_u64(p.pos));
             }
         }
         if intersection_result.is_empty() {
@@ -107,9 +111,10 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
     //println!("Input vertices : {:?}", input_pb_model.vertices.len());
     //println!();
 
-    let mut output_pb_model = PB_Model{name:input_pb_model.name.clone(),
+    let mut output_pb_model = PB_Model {
+        name: input_pb_model.name.clone(),
         world_orientation: input_pb_model.world_orientation.clone(),
-        vertices : Vec::<PB_Vertex>::with_capacity(input_pb_model.vertices.len() + edge_split.len()),
+        vertices: Vec::<PB_Vertex>::with_capacity(input_pb_model.vertices.len() + edge_split.len()),
         faces: Vec::<PB_Face>::with_capacity(input_pb_model.faces.len() + edge_split.len()),
     };
 
@@ -128,32 +133,61 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
     // a map of hashable point to vertex number
     let mut new_vertex_map = fnv::FnvHashMap::<(u64, u64), usize>::default();
     for (edge, hash_pos) in edge_split.into_iter() {
-        let new_vertex_index = new_vertex_map.entry(hash_pos).or_insert_with_key(|k| {
-            let new_vertex = transmute_to_f64(k);
-            let vertex = match plane {
-                Plane::XY => PB_Vertex {
-                        x: new_vertex.x as f32,
-                        y: new_vertex.y as f32,
+        let mut new_edge = smallvec::SmallVec::<[u64; 4]>::new();
+        let old_face = &input_pb_model.faces[edge];
+        new_edge.push(old_face.vertices[0]);
+        for hash_pos in hash_pos.iter() {
+            let new_vertex_index = new_vertex_map.entry(*hash_pos).or_insert_with_key(|k| {
+                let new_vertex = transmute_to_f64(k);
+                let vertex = match plane {
+                    Plane::XY => PB_Vertex {
+                        x: new_vertex.x as f64,
+                        y: new_vertex.y as f64,
                         z: 0.0,
                     },
-                Plane::XZ => PB_Vertex {
-                    x: new_vertex.x as f32,
-                    y: 0.0,
-                    z: new_vertex.y as f32,
-                },
-                Plane::ZY => PB_Vertex {
-                    x: 0.0,
-                    y: new_vertex.y as f32,
-                    z: new_vertex.x as f32,
-                },
-            };
-            output_pb_model.vertices.push(vertex);
-            output_pb_model.vertices.len()-1
-        });
+                    Plane::XZ => PB_Vertex {
+                        x: new_vertex.x as f64,
+                        y: 0.0,
+                        z: new_vertex.y as f64,
+                    },
+                    Plane::ZY => PB_Vertex {
+                        x: 0.0,
+                        y: new_vertex.y as f64,
+                        z: new_vertex.x as f64,
+                    },
+                };
+                output_pb_model.vertices.push(vertex);
+                output_pb_model.vertices.len() - 1
+            });
+            new_edge.push(*new_vertex_index as u64);
+        }
         //println!("hash pos:{:?} has index:{:?} is {:?}",hash_pos, new_vertex_index, transmute_to_f64(&hash_pos));
-        let old_face = &input_pb_model.faces[edge];
-        output_pb_model.faces.push(PB_Face{vertices:vec!(old_face.vertices[0], *new_vertex_index as i32)});
-        output_pb_model.faces.push(PB_Face{vertices:vec!(*new_vertex_index as i32, old_face.vertices[1])});
+        new_edge.push(old_face.vertices[1]);
+        println!("new edge is {:?}", new_edge);
+
+        let origin = &output_pb_model.vertices[old_face.vertices[0] as usize];
+
+        /*for new_edge in new_edge
+            .iter()
+            .map(|x| (origin
+                .distance_squared(&output_pb_model.vertices[*x as usize]), x))
+            .tuple_windows::<(_, _)>()*/
+
+        for new_edge in new_edge
+            .iter()
+            .sorted_unstable_by(|a, b| {
+                (origin
+                    .distance_squared(&output_pb_model.vertices[**a as usize])
+                    .partial_cmp(&origin.distance_squared(&output_pb_model.vertices[**b as usize]))
+                ).unwrap()
+            })
+            .tuple_windows::<(_, _)>()
+        {
+            output_pb_model.faces.push(PB_Face {
+                vertices: vec![*new_edge.0, *new_edge.1],
+            });
+            println!(" step new edge is {:?}-{:?}", new_edge.0, new_edge.1);
+        }
     }
     //for (k,v) in new_vertex_map.into_iter() {
     //    println!("k:{:?} v:{:?} p:{:?}", k, v,  output_pb_model.vertices[v]);
@@ -192,7 +226,7 @@ pub fn command(
         Ok(reply)
     } else {
         Err(TBError::InvalidData(
-            "Model did not contain any data".to_string()
+            "Model did not contain any data".to_string(),
         ))
     }
 }
