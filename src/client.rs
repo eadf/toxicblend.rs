@@ -1,7 +1,7 @@
-use tonic::{transport::Server, Request, Response, Status};
+//use tonic::{transport::Server, Request, Response, Status};
 
 use toxicblend::toxic_blend_service_client::ToxicBlendServiceClient;
-use toxicblend::{Command, KeyValuePair, Model, Reply};
+use toxicblend::{ KeyValuePair, Model};
 
 pub mod toxicblend {
     tonic::include_proto!("toxicblend");

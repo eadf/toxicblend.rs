@@ -14,7 +14,8 @@ prost = "^0.7.0"
 fnv = "^1.0.7"
 tokio = { version = "^1.4.0", features = ["macros", "rt-multi-thread"] }
 thiserror = "^1.0.24"
-linestring = {version="^0.1.0",default-features=false,features=["impl-cgmath", "impl-rayon"]}
+linestring = {version="^0.1.1",default-features=false,features=["impl-cgmath", "impl-rayon"]}
+#linestring = {path = "../linestring.rs",default-features=false,features=["impl-cgmath", "impl-rayon"]}
 yabf = {version="^0.1.0",default-features=false}
 boostvoronoi = "^0.8.1"
 centerline = "^0.1.0"

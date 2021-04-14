@@ -7,6 +7,7 @@ use crate::toxicblend::Reply as PB_Reply;
 use crate::toxicblend::Vertex as PB_Vertex;
 use std::collections::HashMap;
 
+#[allow(clippy::type_complexity)]
 /// remove internal edges from the input model
 pub fn remove_internal_edges(
     obj: &PB_Model,
@@ -85,7 +86,7 @@ pub fn remove_internal_edges(
     Ok((rv_lines, rv_vertices))
 }
 
-pub fn command(a_command: &PB_Command, options:HashMap<String, String>) -> Result<PB_Reply, TBError> {
+pub fn command(a_command: &PB_Command, _options:HashMap<String, String>) -> Result<PB_Reply, TBError> {
     println!("2d_outline got command: {}", a_command.command);
     for model in a_command.models.iter() {
         println!("model.name:{:?}, ", model.name);
@@ -125,8 +126,8 @@ pub fn command(a_command: &PB_Command, options:HashMap<String, String>) -> Resul
         reply.models.push(model);
         Ok(reply)
     } else {
-        Err(TBError::InvalidData(format!(
-            "Model did not contain any data"
-        )))
+        Err(TBError::InvalidData(
+            "Model did not contain any data".to_string()
+        ))
     }
 }

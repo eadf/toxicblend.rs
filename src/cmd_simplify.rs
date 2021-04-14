@@ -25,13 +25,14 @@ pub fn find_linestrings(
             return Err(TBError::ModelContainsFaces);
         }
         if face.vertices.len() > 2 {
-            return Err(TBError::InvalidData(format!(
-                "Edge containing only one vertex"
-            )));
+            return Err(TBError::InvalidData(
+                "Edge containing only one vertex".to_string()
+            ));
         }
         let v0 = *face.vertices.get(0).unwrap() as usize;
         let v1 = *face.vertices.get(1).unwrap() as usize;
 
+        #[allow(clippy::or_fun_call)]
         {
             let entry = connections_map
                 .entry(v0)
@@ -40,6 +41,7 @@ pub fn find_linestrings(
                 entry.push(v1);
             }
         }
+        #[allow(clippy::or_fun_call)]
         {
             let entry = connections_map
                 .entry(v1)
@@ -61,10 +63,6 @@ pub fn find_linestrings(
     for connection in connections_map.iter() {
         let v0 = *connection.0;
 
-        // can not put used_vertices.bit(*x.0) inside the filter b/o the borrow checker
-        //if used_vertices.bit(v0) {
-        //    continue;
-        //}
         let neighbours = connection.1;
         // start looking for vertices with more than 2 connections, or is exactly 1
         // i.e. it is connected to at least three vertices and is therefore a valid start point
@@ -115,18 +113,18 @@ pub fn find_linestrings(
             }
         }
     }
-    println!(
-        "done with the simple edges! connections_map.len():{} edge_set.len():{}",
+    /*println!(
+        "done with the simple edges! connections_map.len():{} edge_set.len():{} linestrings.len():{}",
         connections_map.len(),
-        edge_set.len()
-    );
+        edge_set.len(),
+        linestrings.len()
+    );*/
     let mut something_changed: bool = true;
     while !edge_set.is_empty() && something_changed {
         something_changed = false;
         if let Some(suggested_edge) = edge_set
             .iter()
-            .filter(|x| connections_map.get(&x.0).map_or(0, |y| y.len()) == 2)
-            .next()
+            .find(|x| connections_map.get(&x.0).map_or(0, |y| y.len()) == 2)
         {
             something_changed = true;
             let mut rv = cgmath_3d::LineString3::<f64>::default();
@@ -190,7 +188,7 @@ fn traverse_edges(
     to_v: usize,
     edge_set: &mut fnv::FnvHashSet<(usize, usize)>,
     connections_map: &fnv::FnvHashMap<usize, smallvec::SmallVec<[usize; 2]>>,
-    vertices: &Vec<PB_Vertex>,
+    vertices: &[PB_Vertex],
     result: &mut cgmath_3d::LineString3<f64>,
     end_vertex: &mut usize,
 ) -> Result<(), TBError> {
@@ -225,7 +223,7 @@ fn traverse_edges(
                 )));
             }
             if connection.len() == 2 {
-                if let Some(next_v0) = connection.iter().filter(|x| **x != from_v).next() {
+                if let Some(next_v0) = connection.iter().find(|x| **x != from_v) {
                     /*println!(
                         "recursion continues at {}, connection:{:?}",
                         to_v, connection
@@ -240,9 +238,9 @@ fn traverse_edges(
                         end_vertex,
                     )?;
                 } else {
-                    return Err(TBError::InternalError(format!(
-                        "edge ended unexpectedly #2"
-                    )));
+                    return Err(TBError::InternalError(
+                        "edge ended unexpectedly #2".to_string()
+                    ));
                 }
             } else {
                 //println!("recursion ended at {} {:?}", to_v, connection);
@@ -250,9 +248,9 @@ fn traverse_edges(
                 return Ok(());
             }
         } else {
-            return Err(TBError::InternalError(format!(
-                "edge ended unexpectedly #1"
-            )));
+            return Err(TBError::InternalError(
+                "edge ended unexpectedly #1".to_string()
+            ));
         }
     } /*else {
           return Err(TBError::InternalError(format!(
@@ -346,14 +344,14 @@ pub fn command(
         println!();
     }
     if a_command.models.is_empty() {
-        return Err(TBError::InvalidData(format!(
-            "Model did not contain any data"
-        )));
+        return Err(TBError::InvalidData(
+            "Model did not contain any data".to_string()
+        ));
     }
     let distance: f64 = if options.contains_key("DISTANCE") {
         options.get("DISTANCE").unwrap().parse::<f64>().unwrap()
     } else {
-        return Err(TBError::InvalidData(format!("Missing the DISTANCE option")));
+        return Err(TBError::InvalidData("Missing the DISTANCE option".to_string()));
     };
 
     let lines = find_linestrings(&a_command.models[0])?;

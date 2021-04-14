@@ -2,6 +2,7 @@
 
 mod cmd_2d_outline;
 mod cmd_simplify;
+mod cmd_knife_intersect;
 
 use crate::toxicblend::Command as PB_Command;
 use crate::toxicblend::KeyValuePair as PB_KeyValuePair;
@@ -55,7 +56,7 @@ pub enum TBError {
 pub struct TheToxicBlendService {}
 
 /// convert the options to a hashmap
-fn options_to_map(options: &Vec<PB_KeyValuePair>) -> HashMap<String, String> {
+fn options_to_map(options: &[PB_KeyValuePair]) -> HashMap<String, String> {
     let mut rv = HashMap::<String, String>::new();
     for kv in options.iter() {
         rv.insert(kv.key.clone(), kv.value.clone());
@@ -75,6 +76,7 @@ impl ToxicBlendService for TheToxicBlendService {
         let rv = match a_command.command.as_str() {
             "2d_outline" => cmd_2d_outline::command(a_command, map),
             "simplify" => cmd_simplify::command(a_command, map),
+            "knife_intersect" => cmd_knife_intersect::command(a_command, map),
             _ => Err(TBError::UnknownCommand(a_command.command.clone())),
         };
         // convert TBError to a valid Error message
