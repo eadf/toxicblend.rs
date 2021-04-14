@@ -5,6 +5,7 @@ use crate::toxicblend::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend::Model as PB_Model;
 use crate::toxicblend::Reply as PB_Reply;
 use crate::toxicblend::Vertex as PB_Vertex;
+use itertools::Itertools;
 use linestring::cgmath_3d;
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -27,7 +28,7 @@ pub fn find_linestrings(
         }
         if face.vertices.len() < 2 {
             return Err(TBError::InvalidData(
-                "Edge containing none or only one vertex".to_string()
+                "Edge containing none or only one vertex".to_string(),
             ));
         }
         let v0 = face.vertices[0] as usize;
@@ -51,8 +52,8 @@ pub fn find_linestrings(
         edge_set.insert(make_key(v0, v1));
     }
     // we now know how many times one vertex is connected to other vertices
-    println!("connections_map.len():{}", connections_map.len());
-    println!("connections_map: {:?}", connections_map);
+    //println!("connections_map.len():{}", connections_map.len());
+    //println!("connections_map: {:?}", connections_map);
 
     // connections_map is no longer mutable
     let connections_map = connections_map;
@@ -111,7 +112,7 @@ pub fn find_linestrings(
             }
         }
     }
-    println!(
+    /*println!(
         "done with the simple edges! connections_map.len():{} edge_set.len():{} linestrings.len():{}",
         connections_map.len(),
         edge_set.len(),
@@ -119,7 +120,7 @@ pub fn find_linestrings(
     );
     for ls in linestrings.iter() {
         println!("ls: {:?} {:?} {:?}", ls.0, ls.1.len(), ls.2);
-    }
+    }*/
 
     let mut something_changed: bool = true;
     while !edge_set.is_empty() && something_changed {
@@ -160,21 +161,21 @@ pub fn find_linestrings(
             linestrings.push((v0, rv, end_vertex));
         }
     }
-    println!(
+    /*println!(
         "done! connections_map.len():{} edge_set.len():{} linestrings.len():{}",
         connections_map.len(),
         edge_set.len(),
         linestrings.len()
-    );
+    );*/
     if !edge_set.is_empty() {
         return Err(TBError::InternalError(format!(
             "Could not convert all edges to lines:{:?}",
             edge_set
         )));
     }
-    for ls in linestrings.iter() {
+    /*for ls in linestrings.iter() {
         println!("ls: {:?} {:?} {:?}", ls.0, ls.1.len(), ls.2);
-    }
+    }*/
     Ok(linestrings)
 }
 
@@ -244,7 +245,7 @@ fn traverse_edges(
                     )?;
                 } else {
                     return Err(TBError::InternalError(
-                        "edge ended unexpectedly #1".to_string()
+                        "edge ended unexpectedly #1".to_string(),
                     ));
                 }
             } else {
@@ -254,7 +255,7 @@ fn traverse_edges(
             }
         } else {
             return Err(TBError::InternalError(
-                "edge ended unexpectedly #2".to_string()
+                "edge ended unexpectedly #2".to_string(),
             ));
         }
     }
@@ -281,20 +282,20 @@ fn simplify_rdp_percent(
         distance, max_dim, percent
     );
 
-    println!("b4");
+    /*println!("b4");
     for ls in lines.iter() {
         println!("ls: {:?} {:?} {:?}", ls.0, ls.1.len(), ls.2);
-    }
+    }*/
 
     let rv: Vec<(usize, cgmath_3d::LineString3<f64>, usize)> = lines
         .into_par_iter()
         .map(|(v0, ls, v1)| (v0, ls.simplify(percent), v1))
         .collect();
 
-    println!("after");
+    /*println!("after");
     for ls in rv.iter() {
         println!("ls: {:?} {:?} {:?}", ls.0, ls.1.len(), ls.2);
-    }
+    }*/
     Ok(rv)
 }
 
@@ -305,15 +306,18 @@ fn build_bp_model(
     lines: Vec<(usize, cgmath_3d::LineString3<f64>, usize)>,
 ) -> Result<PB_Model, TBError> {
     let input_pb_model = &a_command.models[0];
+    // capacity is not correct, but in a ballpark range
+    let rough_capacity = lines.iter().map(|x| x.1.len()).sum();
     let mut output_pb_model = PB_Model {
         name: input_pb_model.name.clone(),
         world_orientation: input_pb_model.world_orientation.clone(),
-        vertices: Vec::<PB_Vertex>::new(),
-        faces: Vec::<PB_Face>::new(),
+        vertices: Vec::<PB_Vertex>::with_capacity(rough_capacity),
+        faces: Vec::<PB_Face>::with_capacity(rough_capacity),
     };
 
     // map between old and new vertex number
-    let mut v_map = fnv::FnvHashMap::<usize,usize>::default();
+    let mut v_map = fnv::FnvHashMap::<usize, usize>::default();
+    let mut vertex_list = Vec::<usize>::new();
 
     for ls in lines.into_iter() {
         let v0 = ls.0;
@@ -321,23 +325,57 @@ fn build_bp_model(
         let v1 = ls.2;
         let v0_mapped = *v_map.entry(v0).or_insert(output_pb_model.vertices.len());
         if v0_mapped == output_pb_model.vertices.len() {
-            output_pb_model.vertices.push(input_pb_model.vertices[v0].clone());
-            println!(" v0:{} is mapped to {}", v0, v0_mapped);
+            output_pb_model
+                .vertices
+                .push(input_pb_model.vertices[v0].clone());
+            //println!(" v0:{} is mapped to {}", v0, v0_mapped);
         }
-        output_pb_model.faces.push(PB_Face{vertices:vec!(v0_mapped as u64, (v0_mapped+1) as u64)});
-        let mut last_p = v0_mapped;
-        for p in l.points().iter().skip(1).take(l.points().len()-2) {
-            output_pb_model.faces.push(PB_Face{vertices:vec!(last_p as u64, output_pb_model.vertices.len() as u64)});
-            last_p = output_pb_model.vertices.len();
-            output_pb_model.vertices.push(PB_Vertex{x:p.x, y: p.y, z: p.z});
+        vertex_list.push(v0_mapped);
+
+        //print!("new sequence: {},", v0_mapped);
+        //output_pb_model.faces.push(PB_Face{vertices:vec!(v0_mapped as u64, (v0_mapped+1) as u64)});
+        //println!("1pushed: {:?}", output_pb_model.faces.last());
+        //let mut last_push = v0_mapped;
+        for p in l.points().iter().skip(1).take(l.points().len() - 2) {
+            //output_pb_model.faces.push(PB_Face{vertices:vec!(last_push as u64, output_pb_model.vertices.len() as u64)});
+            //println!("2pushed: {:?}", output_pb_model.faces.last());
+            vertex_list.push(output_pb_model.vertices.len());
+
+            //last_push = output_pb_model.vertices.len();
+            //print!("{},", output_pb_model.vertices.len());
+            output_pb_model.vertices.push(PB_Vertex {
+                x: p.x,
+                y: p.y,
+                z: p.z,
+            });
         }
         let v1_mapped = *v_map.entry(v1).or_insert(output_pb_model.vertices.len());
         if v1_mapped == output_pb_model.vertices.len() {
-            output_pb_model.vertices.push(input_pb_model.vertices[v1].clone());
-            println!(" v1:{} is mapped to {}", v1, v1_mapped);
+            output_pb_model
+                .vertices
+                .push(input_pb_model.vertices[v1].clone());
+            //println!(" v1:{} is mapped to {}", v1, v1_mapped);
         }
-        output_pb_model.faces.push(PB_Face{vertices:vec!(last_p as u64, v1_mapped as u64)});
+        //println!("{}", v1_mapped);
+        vertex_list.push(v1_mapped);
+        //output_pb_model.faces.push(PB_Face{vertices:vec!(last_push as u64, v1_mapped as u64)});
+        //println!("3pushed: {:?}", output_pb_model.faces.last());
+        for v in vertex_list.iter().tuple_windows::<(_, _)>() {
+            output_pb_model.faces.push(PB_Face {
+                vertices: vec![*v.0 as u64, *v.1 as u64],
+            });
+        }
+        vertex_list.clear();
     }
+    /*println!("output_pb_model.faces:");
+    for f in  output_pb_model.faces.iter() {
+        println!(" face:{:?}", f.vertices);
+    }*/
+    println!(
+        "Reduced to {} vertices (from {}) ",
+        output_pb_model.vertices.len(),
+        input_pb_model.vertices.len()
+    );
     Ok(output_pb_model)
     //return Err(TBError::InvalidData(format!("not implemented")));
 }
@@ -359,18 +397,14 @@ pub fn command(
     }
     if a_command.models.is_empty() {
         return Err(TBError::InvalidData(
-            "Model did not contain any data".to_string()
+            "Model did not contain any data".to_string(),
         ));
     }
     let distance = options
         .get("DISTANCE")
-        .ok_or_else(||TBError::InvalidData(
-            "Missing the DISTANCE parameter".to_string(),
-        ))?
+        .ok_or_else(|| TBError::InvalidData("Missing the DISTANCE parameter".to_string()))?
         .parse::<f64>()
-        .map_err(|_|TBError::InvalidData(
-            "Could not parse the DISTANCE parameter".to_string(),
-        ))?;
+        .map_err(|_| TBError::InvalidData("Could not parse the DISTANCE parameter".to_string()))?;
 
     let lines = find_linestrings(&a_command.models[0])?;
     let lines = simplify_rdp_percent(&a_command.models[0], distance, lines)?;
