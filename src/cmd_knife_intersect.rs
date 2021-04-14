@@ -163,7 +163,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
         }
         //println!("hash pos:{:?} has index:{:?} is {:?}",hash_pos, new_vertex_index, transmute_to_f64(&hash_pos));
         new_edge.push(old_face.vertices[1]);
-        println!("new edge is {:?}", new_edge);
+        //println!("new edge is {:?}", new_edge);
 
         let origin = &output_pb_model.vertices[old_face.vertices[0] as usize];
 
@@ -186,7 +186,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
             output_pb_model.faces.push(PB_Face {
                 vertices: vec![*new_edge.0, *new_edge.1],
             });
-            println!(" step new edge is {:?}-{:?}", new_edge.0, new_edge.1);
+            //println!(" step new edge is {:?}-{:?}", new_edge.0, new_edge.1);
         }
     }
     //for (k,v) in new_vertex_map.into_iter() {

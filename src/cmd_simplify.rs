@@ -9,7 +9,8 @@ use linestring::cgmath_3d;
 use rayon::prelude::*;
 use std::collections::HashMap;
 
-/// Simplify the model
+/// Simplify the model into a sequence of connected vertices.
+/// the end and start points has vertex numbers, the 'in the middle' vertexes do not.
 pub fn find_linestrings(
     obj: &PB_Model,
 ) -> Result<Vec<(usize, cgmath_3d::LineString3<f64>, usize)>, TBError> {
@@ -24,28 +25,25 @@ pub fn find_linestrings(
         if face.vertices.len() > 2 {
             return Err(TBError::ModelContainsFaces);
         }
-        if face.vertices.len() > 2 {
+        if face.vertices.len() < 2 {
             return Err(TBError::InvalidData(
-                "Edge containing only one vertex".to_string()
+                "Edge containing none or only one vertex".to_string()
             ));
         }
-        let v0 = *face.vertices.get(0).unwrap() as usize;
-        let v1 = *face.vertices.get(1).unwrap() as usize;
+        let v0 = face.vertices[0] as usize;
+        let v1 = face.vertices[1] as usize;
 
-        #[allow(clippy::or_fun_call)]
         {
             let entry = connections_map
                 .entry(v0)
-                .or_insert(smallvec::SmallVec::<[usize; 2]>::new());
+                .or_insert_with(smallvec::SmallVec::<[usize; 2]>::new);
             if !entry.contains(&v1) {
                 entry.push(v1);
             }
-        }
-        #[allow(clippy::or_fun_call)]
-        {
+
             let entry = connections_map
                 .entry(v1)
-                .or_insert(smallvec::SmallVec::<[usize; 2]>::new());
+                .or_insert_with(smallvec::SmallVec::<[usize; 2]>::new);
             if !entry.contains(&v0) {
                 entry.push(v0);
             }
@@ -53,12 +51,12 @@ pub fn find_linestrings(
         edge_set.insert(make_key(v0, v1));
     }
     // we now know how many times one vertex is connected to other vertices
-    //println!("connections_map.len():{}", connections_map.len());
-    //println!("connections_map: {:?}", connections_map);
+    println!("connections_map.len():{}", connections_map.len());
+    println!("connections_map: {:?}", connections_map);
 
     // connections_map is no longer mutable
     let connections_map = connections_map;
-    // the length of connections_map does not change over this loop
+
     //for v0 in 0..connections_map.len() {
     for connection in connections_map.iter() {
         let v0 = *connection.0;
@@ -86,9 +84,9 @@ pub fn find_linestrings(
                 let mut rv = cgmath_3d::LineString3::<f64>::default();
                 if let Some(v0_value) = obj.vertices.get(v0) {
                     rv.push(cgmath::Point3 {
-                        x: v0_value.x as f64,
-                        y: v0_value.y as f64,
-                        z: v0_value.z as f64,
+                        x: v0_value.x,
+                        y: v0_value.y,
+                        z: v0_value.z,
                     });
                 } else {
                     return Err(TBError::InternalError(format!(
@@ -113,12 +111,16 @@ pub fn find_linestrings(
             }
         }
     }
-    /*println!(
+    println!(
         "done with the simple edges! connections_map.len():{} edge_set.len():{} linestrings.len():{}",
         connections_map.len(),
         edge_set.len(),
         linestrings.len()
-    );*/
+    );
+    for ls in linestrings.iter() {
+        println!("ls: {:?} {:?} {:?}", ls.0, ls.1.len(), ls.2);
+    }
+
     let mut something_changed: bool = true;
     while !edge_set.is_empty() && something_changed {
         something_changed = false;
@@ -130,9 +132,9 @@ pub fn find_linestrings(
             let mut rv = cgmath_3d::LineString3::<f64>::default();
             if let Some(v0_value) = obj.vertices.get(suggested_edge.0) {
                 rv.push(cgmath::Point3 {
-                    x: v0_value.x as f64,
-                    y: v0_value.y as f64,
-                    z: v0_value.z as f64,
+                    x: v0_value.x,
+                    y: v0_value.y,
+                    z: v0_value.z,
                 });
             } else {
                 return Err(TBError::InternalError(format!(
@@ -170,6 +172,9 @@ pub fn find_linestrings(
             edge_set
         )));
     }
+    for ls in linestrings.iter() {
+        println!("ls: {:?} {:?} {:?}", ls.0, ls.1.len(), ls.2);
+    }
     Ok(linestrings)
 }
 
@@ -203,22 +208,22 @@ fn traverse_edges(
     if edge_set.contains(&key) {
         if let Some(v1) = vertices.get(to_v) {
             result.push(cgmath::Point3 {
-                x: v1.x as f64,
-                y: v1.y as f64,
-                z: v1.z as f64,
+                x: v1.x,
+                y: v1.y,
+                z: v1.z,
             });
             edge_set.remove(&key);
             //println!("Removing edge {:?}", key);
         } else {
             return Err(TBError::InternalError(format!(
-                "Lost an vertex somehow.. index:{}",
+                "Lost a vertex somehow.. index:{}",
                 to_v
             )));
         }
         if let Some(connection) = connections_map.get(&to_v) {
             if !connection.contains(&from_v) {
                 return Err(TBError::InternalError(format!(
-                    "edge did not contain from vertex??? {} {:?}",
+                    "edge did not contain 'from' vertex??? {} {:?}",
                     from_v, connection
                 )));
             }
@@ -239,7 +244,7 @@ fn traverse_edges(
                     )?;
                 } else {
                     return Err(TBError::InternalError(
-                        "edge ended unexpectedly #2".to_string()
+                        "edge ended unexpectedly #1".to_string()
                     ));
                 }
             } else {
@@ -249,27 +254,23 @@ fn traverse_edges(
             }
         } else {
             return Err(TBError::InternalError(
-                "edge ended unexpectedly #1".to_string()
+                "edge ended unexpectedly #2".to_string()
             ));
         }
-    } /*else {
-          return Err(TBError::InternalError(format!(
-              "Edge set did not contain suggested edge {}->{} key:{:?}",
-              from_v, to_v, key
-          )));
-      }*/
+    }
     Ok(())
 }
 
 /// Simplify the line-strings using the Ramer–Douglas–Peucker algorithm
-pub fn simplify_rdp_percent(
+/// lines contains a vector of (<first vertex index>,<a list of points><last vertex index>)
+fn simplify_rdp_percent(
     pb_model: &PB_Model,
     percent: f64,
     lines: Vec<(usize, cgmath_3d::LineString3<f64>, usize)>,
 ) -> Result<Vec<(usize, cgmath_3d::LineString3<f64>, usize)>, TBError> {
     let mut aabb = linestring::cgmath_3d::Aabb3::<f64>::default();
     for v in pb_model.vertices.iter() {
-        aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
+        aabb.update_point(&cgmath::Point3::new(v.x, v.y, v.z))
     }
     let dimensions = aabb.get_high().unwrap() - aabb.get_low().unwrap();
     let max_dim = dimensions.x.max(dimensions.y).max(dimensions.z);
@@ -280,15 +281,26 @@ pub fn simplify_rdp_percent(
         distance, max_dim, percent
     );
 
+    println!("b4");
+    for ls in lines.iter() {
+        println!("ls: {:?} {:?} {:?}", ls.0, ls.1.len(), ls.2);
+    }
+
     let rv: Vec<(usize, cgmath_3d::LineString3<f64>, usize)> = lines
         .into_par_iter()
         .map(|(v0, ls, v1)| (v0, ls.simplify(percent), v1))
         .collect();
+
+    println!("after");
+    for ls in rv.iter() {
+        println!("ls: {:?} {:?} {:?}", ls.0, ls.1.len(), ls.2);
+    }
     Ok(rv)
 }
 
 /// Build the return model
-pub fn build_bp_model(
+/// lines contains a vector of (<first vertex index>,<a list of points><last vertex index>)
+fn build_bp_model(
     a_command: &PB_Command,
     lines: Vec<(usize, cgmath_3d::LineString3<f64>, usize)>,
 ) -> Result<PB_Model, TBError> {
@@ -310,17 +322,19 @@ pub fn build_bp_model(
         let v0_mapped = *v_map.entry(v0).or_insert(output_pb_model.vertices.len());
         if v0_mapped == output_pb_model.vertices.len() {
             output_pb_model.vertices.push(input_pb_model.vertices[v0].clone());
+            println!(" v0:{} is mapped to {}", v0, v0_mapped);
         }
         output_pb_model.faces.push(PB_Face{vertices:vec!(v0_mapped as u64, (v0_mapped+1) as u64)});
         let mut last_p = v0_mapped;
         for p in l.points().iter().skip(1).take(l.points().len()-2) {
             output_pb_model.faces.push(PB_Face{vertices:vec!(last_p as u64, output_pb_model.vertices.len() as u64)});
             last_p = output_pb_model.vertices.len();
-            output_pb_model.vertices.push(PB_Vertex{x:p.x as f64, y: p.y as f64, z: p.z as f64});
+            output_pb_model.vertices.push(PB_Vertex{x:p.x, y: p.y, z: p.z});
         }
         let v1_mapped = *v_map.entry(v1).or_insert(output_pb_model.vertices.len());
         if v1_mapped == output_pb_model.vertices.len() {
             output_pb_model.vertices.push(input_pb_model.vertices[v1].clone());
+            println!(" v1:{} is mapped to {}", v1, v1_mapped);
         }
         output_pb_model.faces.push(PB_Face{vertices:vec!(last_p as u64, v1_mapped as u64)});
     }
