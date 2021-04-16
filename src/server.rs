@@ -2,39 +2,41 @@
 //#![feature(hash_set_entry)]
 
 mod cmd_2d_outline;
-mod cmd_simplify;
-mod cmd_knife_intersect;
 mod cmd_centerline;
+mod cmd_knife_intersect;
+mod cmd_simplify;
 
 use crate::toxicblend::Command as PB_Command;
 use crate::toxicblend::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend::Model as PB_Model;
 use crate::toxicblend::Reply as PB_Reply;
 use crate::toxicblend::Vertex as PB_Vertex;
+use std::collections::HashMap;
 use tonic::transport::Server;
 use tonic::Request as PB_Request;
 use tonic::Response as PB_Response;
 use tonic::Status as PB_Status;
 use toxicblend::toxic_blend_service_server::{ToxicBlendService, ToxicBlendServiceServer};
-use std::collections::HashMap;
 
 pub mod toxicblend {
     tonic::include_proto!("toxicblend");
 }
-impl From<cgmath::Point3<f64>> for PB_Vertex{
-    fn from(other:cgmath::Point3<f64>) -> PB_Vertex {
-        PB_Vertex{x:other.x,
-        y:other.y,
-        z:other.z}
+impl From<cgmath::Point3<f64>> for PB_Vertex {
+    fn from(other: cgmath::Point3<f64>) -> PB_Vertex {
+        PB_Vertex {
+            x: other.x,
+            y: other.y,
+            z: other.z,
+        }
     }
 }
 
-impl PB_Vertex{
-    pub fn distance_squared(&self, other:&PB_Vertex) -> f64 {
-        let x = self.x-other.x;
-        let y = self.y-other.y;
-        let z = self.z-other.z;
-        x*x+y*y+z*z
+impl PB_Vertex {
+    pub fn distance_squared(&self, other: &PB_Vertex) -> f64 {
+        let x = self.x - other.x;
+        let y = self.y - other.y;
+        let z = self.z - other.z;
+        x * x + y * y + z * z
     }
 }
 

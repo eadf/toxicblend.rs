@@ -33,8 +33,11 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
         aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
 
-    let plane = Plane::get_plane(&aabb).ok_or_else(||TBError::InputNotPLane(
-        "Input data not in one plane and/or not intersecting origo".to_string()))?;
+    let plane = Plane::get_plane(&aabb).ok_or_else(|| {
+        TBError::InputNotPLane(
+            "Input data not in one plane and/or not intersecting origo".to_string(),
+        )
+    })?;
     println!(
         "knife_intersect: data was in plane:{:?} aabb:{:?}",
         plane, aabb
@@ -171,18 +174,18 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
         let origin = &output_pb_model.vertices[old_face.vertices[0] as usize];
 
         /*for new_edge in new_edge
-            .iter()
-            .map(|x| (origin
-                .distance_squared(&output_pb_model.vertices[*x as usize]), x))
-            .tuple_windows::<(_, _)>()*/
+        .iter()
+        .map(|x| (origin
+            .distance_squared(&output_pb_model.vertices[*x as usize]), x))
+        .tuple_windows::<(_, _)>()*/
 
         for new_edge in new_edge
             .iter()
             .sorted_unstable_by(|a, b| {
                 (origin
                     .distance_squared(&output_pb_model.vertices[**a as usize])
-                    .partial_cmp(&origin.distance_squared(&output_pb_model.vertices[**b as usize]))
-                ).unwrap()
+                    .partial_cmp(&origin.distance_squared(&output_pb_model.vertices[**b as usize])))
+                .unwrap()
             })
             .tuple_windows::<(_, _)>()
         {
@@ -205,7 +208,9 @@ pub fn command(
 ) -> Result<PB_Reply, TBError> {
     println!("knife_intersect got command: {}", a_command.command);
     if a_command.models.len() > 1 {
-        return Err(TBError::InvalidInputData("This operation only supports one model as input".to_string()))
+        return Err(TBError::InvalidInputData(
+            "This operation only supports one model as input".to_string(),
+        ));
     }
     for model in a_command.models.iter() {
         println!("model.name:{:?}, ", model.name);

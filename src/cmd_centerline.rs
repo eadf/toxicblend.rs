@@ -13,6 +13,8 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 
 const EPSILON: f64 = 0.0001;
+// the largest dimension of the voronoi input, totally arbitrarily selected.
+const MAX_VORONOI_DIMENSION: f64 = 256.0 * 800.0;
 
 #[inline(always)]
 /// make a key from v0 and v1, lowest index will always be first
@@ -51,11 +53,11 @@ pub fn parse_input(
     (
         fnv::FnvHashSet<(usize, usize)>,
         Vec<cgmath::Point3<f64>>,
-        linestring::cgmath_3d::Aabb3<f64>,
+        cgmath_3d::Aabb3<f64>,
     ),
     TBError,
 > {
-    let mut aabb = linestring::cgmath_3d::Aabb3::<f64>::default();
+    let mut aabb = cgmath_3d::Aabb3::<f64>::default();
     for v in input_pb_model.vertices.iter() {
         aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
@@ -115,7 +117,7 @@ pub fn build_bp_model(
         linestring::cgmath_2d::LineStringSet2<f64>,
         centerline::Centerline<i64, f64>,
     )>,
-    invers_transform: cgmath::Matrix4<f64>,
+    inverted_transform: cgmath::Matrix4<f64>,
 ) -> Result<PB_Model, TBError> {
     let input_pb_model = &a_command.models[0];
     let mut output_pb_model = PB_Model {
@@ -128,7 +130,10 @@ pub fn build_bp_model(
     let mut v_map = fnv::FnvHashMap::<(u64, u64, u64), usize>::default();
 
     for shape in shapes.into_iter() {
+        // Draw the input segments
+        // todo: should this be optional?
         for linestring in shape.0.set().iter() {
+            // todo: only the first and last vertex in the line string needs to be checked for vertex duplication
             for line in linestring.as_lines().into_iter() {
                 // the matrix takes care of the axis switch, so just use Plane:XY here
                 let line = line.copy_to_3d(Plane::XY);
@@ -142,7 +147,7 @@ pub fn build_bp_model(
                     let new_index = output_pb_model.vertices.len();
                     output_pb_model
                         .vertices
-                        .push(PB_Vertex::from(invers_transform.transform_point(v0)));
+                        .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
                     new_index
                 });
 
@@ -151,7 +156,7 @@ pub fn build_bp_model(
                     let new_index = output_pb_model.vertices.len();
                     output_pb_model
                         .vertices
-                        .push(PB_Vertex::from(invers_transform.transform_point(v1)));
+                        .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
                     new_index
                 });
 
@@ -167,6 +172,7 @@ pub fn build_bp_model(
                 });
             }
         }
+        // draw the straight edges of the voronoi output
         for line in shape.1.lines.iter().flatten() {
             let v0 = line.start;
             let v1 = line.end;
@@ -178,7 +184,7 @@ pub fn build_bp_model(
                 let new_index = output_pb_model.vertices.len();
                 output_pb_model
                     .vertices
-                    .push(PB_Vertex::from(invers_transform.transform_point(v0)));
+                    .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
                 new_index
             });
 
@@ -187,7 +193,7 @@ pub fn build_bp_model(
                 let new_index = output_pb_model.vertices.len();
                 output_pb_model
                     .vertices
-                    .push(PB_Vertex::from(invers_transform.transform_point(v1)));
+                    .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
                 new_index
             });
 
@@ -202,7 +208,9 @@ pub fn build_bp_model(
                 vertices: vec![v0_index as u64, v1_index as u64],
             });
         }
+        // draw the concatenated line strings of the voronoi output
         for linestring in shape.1.line_strings.iter().flatten() {
+            // todo: only the first and last vertex in the line string needs to be checked for vertex duplication
             for line in linestring.as_lines().into_iter() {
                 let v0 = line.start;
                 let v1 = line.end;
@@ -214,7 +222,7 @@ pub fn build_bp_model(
                     let new_index = output_pb_model.vertices.len();
                     output_pb_model
                         .vertices
-                        .push(PB_Vertex::from(invers_transform.transform_point(v0)));
+                        .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
                     new_index
                 });
 
@@ -223,7 +231,7 @@ pub fn build_bp_model(
                     let new_index = output_pb_model.vertices.len();
                     output_pb_model
                         .vertices
-                        .push(PB_Vertex::from(invers_transform.transform_point(v1)));
+                        .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
                     new_index
                 });
 
@@ -241,7 +249,6 @@ pub fn build_bp_model(
         }
     }
     Ok(output_pb_model)
-    //return Err(TBError::InvalidInputData(format!("not implemented")));
 }
 
 pub fn command(
@@ -250,26 +257,22 @@ pub fn command(
 ) -> Result<PB_Reply, TBError> {
     // angle is supposed to be in degrees
     let cmd_arg_angle = {
-        let value = options.get("ANGLE").ok_or_else(|| {
-            TBError::InvalidInputData("Missing the ANGLE parameter".to_string())
-        })?;
+        let value = options
+            .get("ANGLE")
+            .ok_or_else(|| TBError::InvalidInputData("Missing the ANGLE parameter".to_string()))?;
         value.parse::<f64>().map_err(|_| {
-            TBError::InvalidInputData(format!(
-                "Could not parse the ANGLE parameter:{:?}",
-                value
-            ))
+            TBError::InvalidInputData(format!("Could not parse the ANGLE parameter:{:?}", value))
         })?
     };
     if !(0.0..=90.0).contains(&cmd_arg_angle) {
         return Err(TBError::InvalidInputData(format!(
-            "The valid range of ANGLE is [0..90]:{}",
+            "The valid range of ANGLE is [0..90] :({})",
             cmd_arg_angle
         )));
     }
     let cmd_arg_remove_internals = {
-        let value = options.get("REMOVE_INTERNALS").ok_or_else(|| {
-            TBError::InvalidInputData("Missing the REMOVE_INTERNALS parameter".to_string())
-        })?;
+        let tmp_true = "true".to_string();
+        let value = options.get("REMOVE_INTERNALS").unwrap_or(&tmp_true);
         value.parse::<bool>().map_err(|_| {
             TBError::InvalidInputData(format!(
                 "Could not parse the REMOVE_INTERNALS parameter {:?}",
@@ -288,6 +291,41 @@ pub fn command(
             ))
         })?
     };
+    if !(0.004..100.0).contains(&cmd_arg_distance) {
+        return Err(TBError::InvalidInputData(format!(
+            "The valid range of DISTANCE is [0.005..100[% :({})",
+            cmd_arg_distance
+        )));
+    }
+    let cmd_arg_max_voronoi_dimension = {
+        let tmp_value = MAX_VORONOI_DIMENSION.to_string();
+        let value = options.get("MAX_VORONOI_DIMENSION").unwrap_or(&tmp_value);
+        value.parse::<f64>().map_err(|_| {
+            TBError::InvalidInputData(format!(
+                "Could not parse the MAX_VORONOI_DIMENSION parameter {:?}",
+                value
+            ))
+        })?
+    };
+    if !(MAX_VORONOI_DIMENSION..100_000_000.0).contains(&cmd_arg_max_voronoi_dimension) {
+        return Err(TBError::InvalidInputData(format!(
+            "The valid range of DISTANCE is [{}..100_000_000[% :({})",MAX_VORONOI_DIMENSION,
+            cmd_arg_max_voronoi_dimension
+        )));
+    }
+    let cmd_arg_simplify = {
+        let tmp_true = "true".to_string();
+        let value = options.get("SIMPLIFY").unwrap_or(&tmp_true);
+        value.parse::<bool>().map_err(|_| {
+            TBError::InvalidInputData(format!(
+                "Could not parse the SIMPLIFY parameter {:?}",
+                value
+            ))
+        })?
+    };
+
+    // used for simplification and discretization distance
+    let max_distance = cmd_arg_max_voronoi_dimension * cmd_arg_distance / 100.0;
 
     if a_command.models.is_empty() || a_command.models[0].vertices.is_empty() {
         return Err(TBError::InvalidInputData(
@@ -295,6 +333,8 @@ pub fn command(
         ));
     }
 
+    // The dot product between normalized vectors of edge and the segment that created it.
+    // Can also be described as cos(angle) between edge and segment.
     let dot_limit = cgmath::Deg::<f64>(cmd_arg_angle).cos();
 
     if a_command.models.len() > 1 {
@@ -305,25 +345,29 @@ pub fn command(
     }
     println!("centerline got command: {}", a_command.command);
     for model in a_command.models.iter() {
-        println!("model.name:{:?}, ", model.name);
-        println!("model.vertices:{:?}, ", model.vertices.len());
-        println!("model.faces:{:?}, ", model.faces.len());
+        println!("model.name:{:?}", model.name);
+        println!("model.vertices:{:?}", model.vertices.len());
+        println!("model.faces:{:?}", model.faces.len());
         println!(
-            "model.world_orientation:{:?}, ",
+            "model.world_orientation:{:?}",
             model.world_orientation.as_ref().map_or(0, |_| 16)
         );
-        println!("ANGLE:{:?}, ", cmd_arg_angle);
-        println!("REMOVE_INTERNALS:{:?}, ", cmd_arg_remove_internals);
+        println!("ANGLE:{:?}°", cmd_arg_angle);
+        println!("REMOVE_INTERNALS:{:?}", cmd_arg_remove_internals);
+        println!("SIMPLIFY:{:?}", cmd_arg_simplify);
+        println!("DISTANCE:{:?}%", cmd_arg_distance);
+        println!("MAX_VORONOI_DIMENSION:{:?}", cmd_arg_max_voronoi_dimension);
+        println!("max_distance:{:?}", max_distance);
         println!();
     }
-    println!("-> parse_input");
+    //println!("-> parse_input");
     let (edges, points, total_aabb) = parse_input(&a_command.models[0])?;
-    println!("-> divide_into_shapes");
+    //println!("-> divide_into_shapes");
     let lines = centerline::divide_into_shapes(edges, points)?;
-    println!("-> get_transform_relaxed");
+    //println!("-> get_transform_relaxed");
     let (_plane, transform, _voronoi_input_aabb) = centerline::get_transform_relaxed(
         &total_aabb,
-        256.0 * 800.0,
+        cmd_arg_max_voronoi_dimension,
         EPSILON,
         f64::default_max_ulps(),
     )?;
@@ -332,7 +376,7 @@ pub fn command(
         .invert()
         .ok_or(TBError::CouldNotCalculateInverseMatrix)?;
 
-    println!("-> transform");
+    //println!("-> transform");
     // transform each linestring to 2d
     let mut raw_data: Vec<linestring::cgmath_2d::LineStringSet2<f64>> = lines
         .par_iter()
@@ -346,7 +390,7 @@ pub fn command(
         }
     }
 
-    println!("->calculate hull");
+    //println!("->calculate hull");
 
     // calculate the hull of each shape
     let raw_data: Vec<linestring::cgmath_2d::LineStringSet2<f64>> = raw_data
@@ -357,11 +401,9 @@ pub fn command(
         })
         .collect();
 
-    println!("<-calculate hull");
-
-    println!("Started with {} shapes", raw_data.len());
+    //println!("Started with {} shapes", raw_data.len());
     let raw_data = centerline::consolidate_shapes(raw_data)?;
-    println!("Reduced to {} shapes", raw_data.len());
+    //println!("Reduced to {} shapes", raw_data.len());
 
     let shapes = raw_data
         .into_par_iter()
@@ -389,14 +431,31 @@ pub fn command(
             }
             if cmd_arg_remove_internals {
                 if let Err(centerline_error) =
-                    c.calculate_centerline(dot_limit, 256.0, shape.get_internals())
+                    c.calculate_centerline(dot_limit, max_distance, shape.get_internals())
                 {
                     return Err(centerline_error.into());
                 }
             } else {
-                if let Err(centerline_error) = c.calculate_centerline(dot_limit, 256.0, None) {
+                if let Err(centerline_error) = c.calculate_centerline(dot_limit, max_distance, None)
+                {
                     return Err(centerline_error.into());
                 }
+            }
+            if cmd_arg_simplify && c.line_strings.is_some() {
+                // simplify every line string with rayon
+                c.line_strings = Some(
+                    c.line_strings
+                        .take()
+                        .unwrap()
+                        .into_par_iter()
+                        .map(|ls| {
+                            //let pre = ls.len();
+                            ls.simplify(max_distance)
+                            ////println!("simplified ls from {} to {}", pre, ls.len());
+                            //ls
+                        })
+                        .collect(),
+                );
             }
             Ok((shape, c))
         })
@@ -407,10 +466,11 @@ pub fn command(
             )>,
             TBError,
         >>()?;
-    println!("<-build_voronoi");
+    //println!("<-build_voronoi");
 
     let model = build_bp_model(&a_command, shapes, invers_transform)?;
-    println!("<-build_bp_model");
+
+    //println!("<-build_bp_model");
     let mut reply = PB_Reply {
         options: vec![PB_KeyValuePair {
             key: "ONLY_EDGES".to_string(),
@@ -418,11 +478,11 @@ pub fn command(
         }],
         models: Vec::<PB_Model>::new(),
     };
-    println!(
-        "<-PB_Reply vertices:{:?}, faces:{:?}",
-        model.vertices.len(),
-        model.faces.len()
-    );
+    //println!(
+    //    "<-PB_Reply vertices:{:?}, faces:{:?}",
+    //    model.vertices.len(),
+    //    model.faces.len()
+    //);
     reply.models.push(model);
     Ok(reply)
 }

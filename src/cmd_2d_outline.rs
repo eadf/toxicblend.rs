@@ -17,13 +17,16 @@ pub fn remove_internal_edges(
     //println!("Input faces : {:?}", obj.faces);
 
     for f in obj.faces.iter() {
-
         let mut i0 = f.vertices.iter();
         for v1 in f.vertices.iter().skip(1).chain(f.vertices.first()) {
             let v0 = (*i0.next().unwrap()) as usize;
             let v1 = (*v1) as usize;
             //print!("{:?}->{:?},", v0, v1);
-            let key = if v0 < v1 {(v0 as usize, v1 as usize)} else {(v1 as usize, v0 as usize)};
+            let key = if v0 < v1 {
+                (v0 as usize, v1 as usize)
+            } else {
+                (v1 as usize, v0 as usize)
+            };
             if all_edges.contains(&key) {
                 let _ = internal_edges.insert(key);
             } else {
@@ -87,10 +90,15 @@ pub fn remove_internal_edges(
     Ok((rv_lines, rv_vertices))
 }
 
-pub fn command(a_command: &PB_Command, _options:HashMap<String, String>) -> Result<PB_Reply, TBError> {
+pub fn command(
+    a_command: &PB_Command,
+    _options: HashMap<String, String>,
+) -> Result<PB_Reply, TBError> {
     println!("2d_outline got command: {}", a_command.command);
     if a_command.models.len() > 1 {
-        return Err(TBError::InvalidInputData("This operation only supports one model as input".to_string()))
+        return Err(TBError::InvalidInputData(
+            "This operation only supports one model as input".to_string(),
+        ));
     }
 
     for model in a_command.models.iter() {
@@ -132,7 +140,7 @@ pub fn command(a_command: &PB_Command, _options:HashMap<String, String>) -> Resu
         Ok(reply)
     } else {
         Err(TBError::InvalidInputData(
-            "Model did not contain any data".to_string()
+            "Model did not contain any data".to_string(),
         ))
     }
 }
