@@ -7,6 +7,7 @@ use crate::toxicblend::Reply as PB_Reply;
 use crate::toxicblend::Vertex as PB_Vertex;
 use cgmath::{Angle, SquareMatrix};
 use cgmath::{Transform, UlpsEq};
+use itertools::Itertools;
 use linestring::cgmath_3d;
 use linestring::cgmath_3d::Plane;
 use rayon::prelude::*;
@@ -120,12 +121,16 @@ pub fn build_bp_model(
     inverted_transform: cgmath::Matrix4<f64>,
 ) -> Result<PB_Model, TBError> {
     let input_pb_model = &a_command.models[0];
-    let mut output_pb_model = PB_Model {
-        name: input_pb_model.name.clone(),
-        world_orientation: input_pb_model.world_orientation.clone(),
-        vertices: Vec::<PB_Vertex>::new(),
-        faces: Vec::<PB_Face>::new(),
-    };
+
+    let count:usize = (shapes.iter().map::<usize,_>(|(ls, cent)|{
+        ls.set().iter().map(|ls|{ls.points().len()}).sum::<usize>() +
+           cent.lines.iter().flatten().count() +
+            cent.line_strings.iter().flatten().map(|ls|ls.len()).sum::<usize>()
+    }).sum::<usize>()*5)/4;
+
+    let mut output_pb_model_vertices = Vec::<PB_Vertex>::with_capacity(count);
+    let mut output_pb_model_faces = Vec::<PB_Face>::with_capacity(count);
+
     // map between 'meta-vertex' and vertex index
     let mut v_map = fnv::FnvHashMap::<(u64, u64, u64), usize>::default();
 
@@ -133,42 +138,48 @@ pub fn build_bp_model(
         // Draw the input segments
         // todo: should this be optional?
         for linestring in shape.0.set().iter() {
-            // todo: only the first and last vertex in the line string needs to be checked for vertex duplication
-            for line in linestring.as_lines().into_iter() {
-                // the matrix takes care of the axis switch, so just use Plane:XY here
-                let line = line.copy_to_3d(Plane::XY);
-                let v0 = line.start;
-                let v1 = line.end;
-                if v0 == v1 {
-                    continue;
-                }
-                let v0_key = transmute_to_u64(&v0);
-                let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
-                    let new_index = output_pb_model.vertices.len();
-                    output_pb_model
-                        .vertices
-                        .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
-                    new_index
-                });
-
-                let v1_key = transmute_to_u64(&v1);
-                let v1_index = *v_map.entry(v1_key).or_insert_with(|| {
-                    let new_index = output_pb_model.vertices.len();
-                    output_pb_model
-                        .vertices
-                        .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
-                    new_index
-                });
-
-                if v0_index == v1_index {
-                    println!(
-                        "v0_index==v1_index, but v0!=v1 v0:{:?} v1:{:?} v0_index:{:?} v1_index:{:?}",
-                        v0, v1, v0_index, v1_index
-                    );
-                    continue;
-                }
-                output_pb_model.faces.push(PB_Face {
-                    vertices: vec![v0_index as u64, v1_index as u64],
+            if linestring.points().len() < 2 {
+                return Err(TBError::InternalError(
+                    "Linestring with less than 2 points found".to_string(),
+                ));
+            }
+            // unwrap of first and last is safe now that we know there are at least 2 vertices in the list
+            let v0 = Plane::XY.to_3d(&linestring.points().first().unwrap());
+            let v1 = Plane::XY.to_3d(&linestring.points().last().unwrap());
+            let v0_key = transmute_to_u64(&v0);
+            let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
+                let new_index = output_pb_model_vertices.len();
+                output_pb_model_vertices
+                    .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
+                new_index
+            });
+            let v1_key = transmute_to_u64(&v1);
+            let v1_index = *v_map.entry(v1_key).or_insert_with(|| {
+                let new_index = output_pb_model_vertices.len();
+                output_pb_model_vertices
+                    .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
+                new_index
+            });
+            let vertex_index_iterator = Some(v0_index)
+                .into_iter()
+                .chain(
+                    linestring
+                        .points()
+                        .iter()
+                        .skip(1)
+                        .take(linestring.points().len() - 2)
+                        .map(|p| {
+                            let new_index = output_pb_model_vertices.len();
+                            output_pb_model_vertices.push(PB_Vertex::from(
+                                inverted_transform.transform_point(Plane::XY.to_3d(p)),
+                            ));
+                            new_index
+                        }),
+                )
+                .chain(Some(v1_index).into_iter());
+            for p in vertex_index_iterator.tuple_windows::<(_, _)>() {
+                output_pb_model_faces.push(PB_Face {
+                    vertices: vec![p.0 as u64, p.1 as u64],
                 });
             }
         }
@@ -181,18 +192,16 @@ pub fn build_bp_model(
             }
             let v0_key = transmute_to_u64(&v0);
             let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
-                let new_index = output_pb_model.vertices.len();
-                output_pb_model
-                    .vertices
+                let new_index = output_pb_model_vertices.len();
+                output_pb_model_vertices
                     .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
                 new_index
             });
 
             let v1_key = transmute_to_u64(&v1);
             let v1_index = *v_map.entry(v1_key).or_insert_with(|| {
-                let new_index = output_pb_model.vertices.len();
-                output_pb_model
-                    .vertices
+                let new_index = output_pb_model_vertices.len();
+                output_pb_model_vertices
                     .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
                 new_index
             });
@@ -204,51 +213,66 @@ pub fn build_bp_model(
                 );
                 continue;
             }
-            output_pb_model.faces.push(PB_Face {
+            output_pb_model_faces.push(PB_Face {
                 vertices: vec![v0_index as u64, v1_index as u64],
             });
         }
         // draw the concatenated line strings of the voronoi output
+        //for linestring in shape.1.line_strings.iter().flatten() {
         for linestring in shape.1.line_strings.iter().flatten() {
-            // todo: only the first and last vertex in the line string needs to be checked for vertex duplication
-            for line in linestring.as_lines().into_iter() {
-                let v0 = line.start;
-                let v1 = line.end;
-                if v0 == v1 {
-                    continue;
-                }
-                let v0_key = transmute_to_u64(&v0);
-                let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
-                    let new_index = output_pb_model.vertices.len();
-                    output_pb_model
-                        .vertices
-                        .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
-                    new_index
-                });
-
-                let v1_key = transmute_to_u64(&v1);
-                let v1_index = *v_map.entry(v1_key).or_insert_with(|| {
-                    let new_index = output_pb_model.vertices.len();
-                    output_pb_model
-                        .vertices
-                        .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
-                    new_index
-                });
-
-                if v0_index == v1_index {
-                    println!(
-                        "v0_index==v1_index, but v0!=v1 v0:{:?} v1:{:?} v0_index:{:?} v1_index:{:?}",
-                        v0, v1, v0_index, v1_index
-                    );
-                    continue;
-                }
-                output_pb_model.faces.push(PB_Face {
-                    vertices: vec![v0_index as u64, v1_index as u64],
+            if linestring.points().len() < 2 {
+                return Err(TBError::InternalError(
+                    "Linestring with less than 2 points found".to_string(),
+                ));
+            }
+            // unwrap of first and last is safe now that we know there are at least 2 vertices in the list
+            let v0 = linestring.points().first().unwrap();
+            let v1 = linestring.points().last().unwrap();
+            let v0_key = transmute_to_u64(&v0);
+            let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
+                let new_index = output_pb_model_vertices.len();
+                output_pb_model_vertices
+                    .push(PB_Vertex::from(inverted_transform.transform_point(*v0)));
+                new_index
+            });
+            let v1_key = transmute_to_u64(&v1);
+            let v1_index = *v_map.entry(v1_key).or_insert_with(|| {
+                let new_index = output_pb_model_vertices.len();
+                output_pb_model_vertices
+                    .push(PB_Vertex::from(inverted_transform.transform_point(*v1)));
+                new_index
+            });
+            let vertex_index_iterator = Some(v0_index)
+                .into_iter()
+                .chain(
+                    linestring
+                        .points()
+                        .iter()
+                        .skip(1)
+                        .take(linestring.points().len() - 2)
+                        .map(|p| {
+                            let new_index = output_pb_model_vertices.len();
+                            output_pb_model_vertices.push(PB_Vertex::from(
+                                inverted_transform.transform_point(*p),
+                            ));
+                            new_index
+                        }),
+                )
+                .chain(Some(v1_index).into_iter());
+            for p in vertex_index_iterator.tuple_windows::<(_, _)>() {
+                output_pb_model_faces.push(PB_Face {
+                    vertices: vec![p.0 as u64, p.1 as u64],
                 });
             }
         }
     }
-    Ok(output_pb_model)
+    //println!("allocated {} needed {} and {}", count, output_pb_model_vertices.len(), output_pb_model_faces.len());
+    Ok(PB_Model {
+        name: input_pb_model.name.clone(),
+        world_orientation: input_pb_model.world_orientation.clone(),
+        vertices: output_pb_model_vertices,
+        faces: output_pb_model_faces,
+    })
 }
 
 pub fn command(
@@ -309,8 +333,8 @@ pub fn command(
     };
     if !(MAX_VORONOI_DIMENSION..100_000_000.0).contains(&cmd_arg_max_voronoi_dimension) {
         return Err(TBError::InvalidInputData(format!(
-            "The valid range of DISTANCE is [{}..100_000_000[% :({})",MAX_VORONOI_DIMENSION,
-            cmd_arg_max_voronoi_dimension
+            "The valid range of DISTANCE is [{}..100_000_000[% :({})",
+            MAX_VORONOI_DIMENSION, cmd_arg_max_voronoi_dimension
         )));
     }
     let cmd_arg_simplify = {
