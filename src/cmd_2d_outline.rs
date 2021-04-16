@@ -89,6 +89,10 @@ pub fn remove_internal_edges(
 
 pub fn command(a_command: &PB_Command, _options:HashMap<String, String>) -> Result<PB_Reply, TBError> {
     println!("2d_outline got command: {}", a_command.command);
+    if a_command.models.len() > 1 {
+        return Err(TBError::InvalidInputData("This operation only supports one model as input".to_string()))
+    }
+
     for model in a_command.models.iter() {
         println!("model.name:{:?}, ", model.name);
         println!("model.vertices:{:?}, ", model.vertices.len());
@@ -127,7 +131,7 @@ pub fn command(a_command: &PB_Command, _options:HashMap<String, String>) -> Resu
         reply.models.push(model);
         Ok(reply)
     } else {
-        Err(TBError::InvalidData(
+        Err(TBError::InvalidInputData(
             "Model did not contain any data".to_string()
         ))
     }

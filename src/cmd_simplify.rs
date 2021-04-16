@@ -27,7 +27,7 @@ pub fn find_linestrings(
             return Err(TBError::ModelContainsFaces);
         }
         if face.vertices.len() < 2 {
-            return Err(TBError::InvalidData(
+            return Err(TBError::InvalidInputData(
                 "Edge containing none or only one vertex".to_string(),
             ));
         }
@@ -385,6 +385,17 @@ pub fn command(
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
     println!("simplify got command: {}", a_command.command);
+    if a_command.models.len() > 1 {
+        return Err(TBError::InvalidInputData(format!(
+            "This operation only supports one model as input:{}",
+            a_command.models.len()
+        )));
+    }
+    if a_command.models.is_empty() {
+        return Err(TBError::InvalidInputData(
+            "Model did not contain any data".to_string(),
+        ));
+    }
     for model in a_command.models.iter() {
         println!("model.name:{:?}, ", model.name);
         println!("model.vertices:{:?}, ", model.vertices.len());
@@ -395,16 +406,14 @@ pub fn command(
         );
         println!();
     }
-    if a_command.models.is_empty() {
-        return Err(TBError::InvalidData(
-            "Model did not contain any data".to_string(),
-        ));
-    }
+
     let distance = options
         .get("DISTANCE")
-        .ok_or_else(|| TBError::InvalidData("Missing the DISTANCE parameter".to_string()))?
+        .ok_or_else(|| TBError::InvalidInputData("Missing the DISTANCE parameter".to_string()))?
         .parse::<f64>()
-        .map_err(|_| TBError::InvalidData("Could not parse the DISTANCE parameter".to_string()))?;
+        .map_err(|_| {
+            TBError::InvalidInputData("Could not parse the DISTANCE parameter".to_string())
+        })?;
 
     let lines = find_linestrings(&a_command.models[0])?;
     let lines = simplify_rdp_percent(&a_command.models[0], distance, lines)?;

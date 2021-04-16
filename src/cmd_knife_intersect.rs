@@ -11,6 +11,7 @@ use std::collections::HashMap;
 
 /// converts from a private, comparable and hashable format
 /// only use this for floats that are f64::is_finite()
+#[inline(always)]
 fn transmute_to_f64(a: &(u64, u64)) -> cgmath::Point2<f64> {
     cgmath::Point2 {
         x: f64::from_bits(a.0),
@@ -20,6 +21,7 @@ fn transmute_to_f64(a: &(u64, u64)) -> cgmath::Point2<f64> {
 
 /// converts to a private, comparable and hashable format
 /// only use this for floats that are f64::is_finite()
+#[inline(always)]
 fn transmute_to_u64(a: cgmath::Point2<f64>) -> (u64, u64) {
     (a.x.to_bits(), a.y.to_bits())
 }
@@ -31,7 +33,8 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
         aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
 
-    let plane = Plane::get_plane(&aabb).ok_or(TBError::InputNotPLane)?;
+    let plane = Plane::get_plane(&aabb).ok_or_else(||TBError::InputNotPLane(
+        "Input data not in one plane and/or not intersecting origo".to_string()))?;
     println!(
         "knife_intersect: data was in plane:{:?} aabb:{:?}",
         plane, aabb
@@ -127,8 +130,8 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
             output_pb_model.faces.push(f.1.clone());
         }
     }
-    // output_pb_model now contains a copy of input_pb_model except for the edges with a intersection
-    // Add the intersecting edges
+    // output_pb_model now contains a copy of input_pb_model except for the edges with an intersection
+    // Add the intersecting edges, but split them first
 
     // a map of hashable point to vertex number
     let mut new_vertex_map = fnv::FnvHashMap::<(u64, u64), usize>::default();
@@ -201,6 +204,9 @@ pub fn command(
     _options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
     println!("knife_intersect got command: {}", a_command.command);
+    if a_command.models.len() > 1 {
+        return Err(TBError::InvalidInputData("This operation only supports one model as input".to_string()))
+    }
     for model in a_command.models.iter() {
         println!("model.name:{:?}, ", model.name);
         println!("model.vertices:{:?}, ", model.vertices.len());
@@ -225,7 +231,7 @@ pub fn command(
         reply.models.push(output_model);
         Ok(reply)
     } else {
-        Err(TBError::InvalidData(
+        Err(TBError::InvalidInputData(
             "Model did not contain any data".to_string(),
         ))
     }

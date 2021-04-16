@@ -21,6 +21,13 @@ use std::collections::HashMap;
 pub mod toxicblend {
     tonic::include_proto!("toxicblend");
 }
+impl From<cgmath::Point3<f64>> for PB_Vertex{
+    fn from(other:cgmath::Point3<f64>) -> PB_Vertex {
+        PB_Vertex{x:other.x,
+        y:other.y,
+        z:other.z}
+    }
+}
 
 impl PB_Vertex{
     pub fn distance_squared(&self, other:&PB_Vertex) -> f64 {
@@ -49,10 +56,10 @@ pub enum TBError {
     SelfIntersectingData,
 
     #[error("The input data is not 2D")]
-    InputNotPLane,
+    InputNotPLane(String),
 
-    #[error("Invalid data: {0}")]
-    InvalidData(String),
+    #[error("Invalid input data: {0}")]
+    InvalidInputData(String),
 
     #[error(transparent)]
     BvError(#[from] boostvoronoi::BvError),
@@ -62,6 +69,9 @@ pub enum TBError {
 
     #[error(transparent)]
     LinestringError(#[from] linestring::LinestringError),
+
+    #[error(transparent)]
+    CenterLineError(#[from] centerline::CenterlineError),
 }
 
 #[derive(Debug, Default)]
