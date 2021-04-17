@@ -3,7 +3,7 @@ name = "toxicblend"
 version = "0.0.1"
 authors = ["eadf"]
 edition = "2018"
-description = "work in progress"
+description = "Client/Server application for Blender. WIP"
 readme = "README.md"
 repository = "https://github.com/eadf/toxicblend.rs"
 license = "AGPL-3.0"
@@ -14,11 +14,14 @@ prost = "^0.7.0"
 fnv = "^1.0.7"
 tokio = { version = "^1.4.0", features = ["macros", "rt-multi-thread"] }
 thiserror = "^1.0.24"
-linestring = {version="^0.1.1",default-features=false,features=["impl-cgmath", "impl-rayon"]}
+linestring = {version="^0.2.0",default-features=false,features=["impl-cgmath", "impl-rayon"]}
 #linestring = {path = "../linestring.rs",default-features=false,features=["impl-cgmath", "impl-rayon"]}
+#linestring = { git = "https://github.com/eadf/linestring.rs",default-features=false,features=["impl-cgmath","impl-rayon"]}
+#centerline = {path = "../centerline.rs" }
+centerline = { git = "https://github.com/eadf/centerline.rs"}
+#centerline = "^0.1.0"
 yabf = {version="^0.1.0",default-features=false}
 boostvoronoi = "^0.8.1"
-centerline = "^0.1.0"
 rayon = "^1.5.0"
 smallvec = "^1.6.1"
 cgmath = "^0.18.0"

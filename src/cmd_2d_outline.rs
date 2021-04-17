@@ -5,7 +5,18 @@ use crate::toxicblend::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend::Model as PB_Model;
 use crate::toxicblend::Reply as PB_Reply;
 use crate::toxicblend::Vertex as PB_Vertex;
+use itertools::Itertools;
 use std::collections::HashMap;
+
+#[inline(always)]
+/// make a key from v0 and v1, lowest index will always be first
+fn make_edge_key(v0: usize, v1: usize) -> (usize, usize) {
+    if v0 < v1 {
+        (v0, v1)
+    } else {
+        (v1, v0)
+    }
+}
 
 #[allow(clippy::type_complexity)]
 /// remove internal edges from the input model
@@ -13,48 +24,84 @@ pub fn remove_internal_edges(
     obj: &PB_Model,
 ) -> Result<(Vec<(usize, usize)>, Vec<PB_Vertex>), TBError> {
     let mut all_edges = fnv::FnvHashSet::<(usize, usize)>::default();
+    let mut single_edges = fnv::FnvHashSet::<(usize, usize)>::default();
     let mut internal_edges = fnv::FnvHashSet::<(usize, usize)>::default();
     //println!("Input faces : {:?}", obj.faces);
 
-    for f in obj.faces.iter() {
-        let mut i0 = f.vertices.iter();
-        for v1 in f.vertices.iter().skip(1).chain(f.vertices.first()) {
-            let v0 = (*i0.next().unwrap()) as usize;
-            let v1 = (*v1) as usize;
-            //print!("{:?}->{:?},", v0, v1);
-            let key = if v0 < v1 {
-                (v0 as usize, v1 as usize)
-            } else {
-                (v1 as usize, v0 as usize)
-            };
+    for face in obj.faces.iter() {
+        if face.vertices.len() == 2 {
+            let key = make_edge_key(
+                *face.vertices.first().unwrap() as usize,
+                *face.vertices.last().unwrap() as usize,
+            );
+            single_edges.insert(key);
+            continue;
+        }
+        for (v0, v1) in face
+            .vertices
+            .iter()
+            .chain(face.vertices.first())
+            .tuple_windows::<(_, _)>()
+        {
+            let v0 = *v0 as usize;
+            let v1 = *v1 as usize;
+            if v0 == v1 {
+                return Err(TBError::InvalidInputData(
+                    "A face contained the same vertex at least twice".to_string(),
+                ));
+            }
+            let key = make_edge_key(v0, v1);
+
             if all_edges.contains(&key) {
                 let _ = internal_edges.insert(key);
             } else {
                 let _ = all_edges.insert(key);
             }
         }
-        //println!();
     }
 
     println!("Input vertices : {:?}", obj.vertices.len());
     println!("Input internal edges: {:?}", internal_edges.len());
     println!("Input all edges: {:?}", all_edges.len());
-    println!();
+    /*println!("Vertices: ");
+    for (n, v) in obj.vertices.iter().enumerate() {
+        println!("#{}, {:?}", n, v);
+    }
 
-    //println!("Vertices: {:?}", obj.positions);
+    println!("All edges pre: ");
+    for (n, v) in all_edges.iter().enumerate() {
+        println!("#{}, {:?}", n, v);
+    }
+    println!("single_edges pre: ");
+    for (n, v) in single_edges.iter().enumerate() {
+        println!("#{}, {:?}", n, v);
+    }
+    println!("internal_edges edges: ");
+    for (n, v) in internal_edges.iter().enumerate() {
+        println!("#{}, {:?}", n, v);
+    }*/
     let _ = all_edges.drain_filter(|x| internal_edges.contains(x));
+    for e in single_edges.into_iter() {
+        all_edges.insert(e);
+    }
+
+    /*println!("All edges post: ");
+    for (n, v) in all_edges.iter().enumerate() {
+        println!("#{}, {:?}", n, v);
+    }*/
+    /*println!("Input all edges post filter: {:?}", all_edges.len());
+    println!();
+    */
     // all_edges should now contain the outline and none of the internal edges.
     // no need for internal_edges any more
     drop(internal_edges);
     // vector number translation table
     let mut vector_rename_map = fnv::FnvHashMap::<usize, usize>::default();
-    let mut rv_vertices = Vec::<PB_Vertex>::new();
-    let mut rv_lines = Vec::<(usize, usize)>::new();
+    let mut rv_vertices = Vec::<PB_Vertex>::with_capacity(all_edges.len() * 6 / 5);
+    let mut rv_lines = Vec::<(usize, usize)>::with_capacity(all_edges.len() * 6 / 5);
 
-    // Iterate over each edge and store the each used vertex (in no particular order)
-    for e in all_edges.iter() {
-        let v0 = e.0;
-        let v1 = e.1;
+    // Iterate over each edge and store each used vertex (in no particular order)
+    for (v0, v1) in all_edges.into_iter() {
         let v0 = if let Some(v0) = vector_rename_map.get(&v0) {
             *v0
         } else {

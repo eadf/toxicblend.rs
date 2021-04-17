@@ -11,7 +11,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 
 /// Simplify the model into a sequence of connected vertices.
-/// the end and start points has vertex numbers, the 'in the middle' vertexes do not.
+/// The end and start points has duplicate-checked vertex numbers, the 'in the middle' vertexes do not.
 pub fn find_linestrings(
     obj: &PB_Model,
 ) -> Result<Vec<(usize, cgmath_3d::LineString3<f64>, usize)>, TBError> {
@@ -52,7 +52,7 @@ pub fn find_linestrings(
         edge_set.insert(make_key(v0, v1));
     }
     // we now know how many times one vertex is connected to other vertices
-    //println!("connections_map.len():{}", connections_map.len());
+    println!("Built connections_map.len():{}", connections_map.len());
     //println!("connections_map: {:?}", connections_map);
 
     // connections_map is no longer mutable
@@ -82,91 +82,48 @@ pub fn find_linestrings(
             let v1 = *v1;
             let key = make_key(v0, v1);
             if edge_set.contains(&key) {
-                let mut rv = cgmath_3d::LineString3::<f64>::default();
-                if let Some(v0_value) = obj.vertices.get(v0) {
-                    rv.push(cgmath::Point3 {
-                        x: v0_value.x,
-                        y: v0_value.y,
-                        z: v0_value.z,
-                    });
-                } else {
-                    return Err(TBError::InternalError(format!(
-                        "Lost an vertex somehow.. index:{}",
-                        v0
-                    )));
-                }
-                //println!("recursion started at {} -> {}", v0, v1);
-
-                let mut end_vertex = v0;
-                traverse_edges(
-                    v0,
-                    v1,
-                    &mut edge_set,
-                    &connections_map,
-                    &obj.vertices,
-                    &mut rv,
-                    &mut end_vertex,
-                )?;
+                let (end_vertex, rv) =
+                    walk_single_line_edges(v0, v1, &mut edge_set, &connections_map, &obj.vertices)?;
                 //println!("got a linestring of length: {:?}", rv.len());
                 linestrings.push((v0, rv, end_vertex));
             }
         }
     }
-    /*println!(
+    println!(
         "done with the simple edges! connections_map.len():{} edge_set.len():{} linestrings.len():{}",
         connections_map.len(),
         edge_set.len(),
         linestrings.len()
     );
+    /*
     for ls in linestrings.iter() {
         println!("ls: {:?} {:?} {:?}", ls.0, ls.1.len(), ls.2);
     }*/
 
     let mut something_changed: bool = true;
-    while !edge_set.is_empty() && something_changed {
+    while (!edge_set.is_empty()) && something_changed {
         something_changed = false;
         if let Some(suggested_edge) = edge_set
             .iter()
             .find(|x| connections_map.get(&x.0).map_or(0, |y| y.len()) == 2)
         {
             something_changed = true;
-            let mut rv = cgmath_3d::LineString3::<f64>::default();
-            if let Some(v0_value) = obj.vertices.get(suggested_edge.0) {
-                rv.push(cgmath::Point3 {
-                    x: v0_value.x,
-                    y: v0_value.y,
-                    z: v0_value.z,
-                });
-            } else {
-                return Err(TBError::InternalError(format!(
-                    "Lost an vertex somehow.. index:{}",
-                    suggested_edge.0
-                )));
-            }
-            //println!("recursion forced at {} -> {}", suggested_edge.0, suggested_edge.1);
             let v0 = suggested_edge.0;
             let v1 = suggested_edge.1;
-            let mut end_vertex = v0;
+            let (end_vertex, rv) =
+                walk_single_line_edges(v0, v1, &mut edge_set, &connections_map, &obj.vertices)?;
 
-            traverse_edges(
-                v0,
-                v1,
-                &mut edge_set,
-                &connections_map,
-                &obj.vertices,
-                &mut rv,
-                &mut end_vertex,
-            )?;
             //println!("got a linestring of length: {:?}", rv.len());
             linestrings.push((v0, rv, end_vertex));
         }
     }
-    /*println!(
+
+    println!(
         "done! connections_map.len():{} edge_set.len():{} linestrings.len():{}",
         connections_map.len(),
         edge_set.len(),
         linestrings.len()
-    );*/
+    );
     if !edge_set.is_empty() {
         return Err(TBError::InternalError(format!(
             "Could not convert all edges to lines:{:?}",
@@ -189,39 +146,101 @@ fn make_key(v0: usize, v1: usize) -> (usize, usize) {
     }
 }
 
-fn traverse_edges(
+/// fill the 'result' with a sequence of connected vertices
+fn walk_single_line_edges(
     from_v: usize,
     to_v: usize,
     edge_set: &mut fnv::FnvHashSet<(usize, usize)>,
     connections_map: &fnv::FnvHashMap<usize, smallvec::SmallVec<[usize; 2]>>,
     vertices: &[PB_Vertex],
-    result: &mut cgmath_3d::LineString3<f64>,
-    end_vertex: &mut usize,
-) -> Result<(), TBError> {
-    let key = make_key(from_v, to_v);
-    /*println!(
-        "->traverse_edges {}->{} {:?} {:?}",
+) -> Result<(usize, cgmath_3d::LineString3<f64>), TBError> {
+    let started_at_vertex = from_v;
+    let mut kill_pill = edge_set.len() + 2;
+
+    let mut from_v = from_v;
+    let mut to_v = to_v;
+    let mut end_vertex = from_v;
+
+    //let mut first_loop = true;
+    //let end_key = make_key(from_v, to_v);
+
+    let mut result = cgmath_3d::LineString3::<f64>::default();
+    /*
+    println!(
+        "--> from:{}, to:{}",
         from_v,
         to_v,
-        connections_map.get(&from_v),
-        connections_map.get(&to_v)
     );*/
-    if edge_set.contains(&key) {
-        if let Some(v1) = vertices.get(to_v) {
+    {
+        let v0_value = vertices.get(from_v).ok_or_else(||TBError::InternalError(format!(
+            "Lost an vertex somehow.. vertex index:{}",
+            from_v
+        )))?;
+        result.push(cgmath::Point3 {
+            x: v0_value.x,
+            y: v0_value.y,
+            z: v0_value.z,
+        });
+        //println!("#1 Pushing vertex {:?}, {}->{}", from_v, from_v, to_v);
+    }
+
+    'outer: loop {
+        /*println!(
+            "loop from:{}, to:{}, end_vertex:{}, kill:{}",
+            from_v, to_v, end_vertex, kill_pill
+        );*/
+        /*
+        if !first_loop && from_v == started_at_vertex {
+            println!("from_v == started_at_vertex == {}", started_at_vertex);
+        }*/
+        if to_v == started_at_vertex {
+            //println!("to_v == started_at_vertex == {}", started_at_vertex);
+            end_vertex = to_v;
+            //println!("<-- recursion ended #1 size={}", result.len());
+            break 'outer
+        }
+        kill_pill -= 1;
+        if kill_pill == 0 {
+            return Err(TBError::InternalError("Detected infinite loop".to_string()));
+        }
+        if from_v == to_v {
+            return Err(TBError::InternalError(
+                "Detected from_v == to_v".to_string(),
+            ));
+        }
+
+        let key = make_key(from_v, to_v);
+        /*if !first_loop && key == end_key {
+            println!(
+                "*****************************************should probably stop at {:?}",
+                key
+            );
+        }*/
+        //first_loop = false;
+        /*println!(
+            "->traverse_edges {}->{} {:?} {:?}",
+            from_v,
+            to_v,
+            connections_map.get(&from_v),
+            connections_map.get(&to_v)
+        );*/
+        if edge_set.contains(&key) {
+            let v1 = vertices.get(to_v).ok_or_else(||TBError::InternalError(format!(
+                "Lost a vertex somehow.. index:{}",
+                to_v
+            )))?;
             result.push(cgmath::Point3 {
                 x: v1.x,
                 y: v1.y,
                 z: v1.z,
             });
             edge_set.remove(&key);
-            //println!("Removing edge {:?}", key);
-        } else {
-            return Err(TBError::InternalError(format!(
-                "Lost a vertex somehow.. index:{}",
-                to_v
-            )));
-        }
-        if let Some(connection) = connections_map.get(&to_v) {
+            //println!("#2 Pushing vertex {:?}, {}->{} dropping:{:?}", to_v, from_v, to_v, key);
+
+            let connection = connections_map.get(&to_v).ok_or_else(||TBError::InternalError(
+                "edge ended unexpectedly #2".to_string(),
+            ))?;
+            // todo: remove this sanity test when stable
             if !connection.contains(&from_v) {
                 return Err(TBError::InternalError(format!(
                     "edge did not contain 'from' vertex??? {} {:?}",
@@ -229,37 +248,54 @@ fn traverse_edges(
                 )));
             }
             if connection.len() == 2 {
-                if let Some(next_v0) = connection.iter().find(|x| **x != from_v) {
-                    /*println!(
-                        "recursion continues at {}, connection:{:?}",
-                        to_v, connection
-                    );*/
-                    traverse_edges(
-                        to_v,
-                        *next_v0,
-                        edge_set,
-                        connections_map,
-                        vertices,
-                        result,
-                        end_vertex,
-                    )?;
-                } else {
-                    return Err(TBError::InternalError(
-                        "edge ended unexpectedly #1".to_string(),
-                    ));
-                }
+                // todo: I think it would be faster to just test [0] and [1] instead of using find()
+                let next_v =
+                    *connection
+                        .iter()
+                        .find(|x| **x != from_v)
+                        .ok_or_else(||TBError::InternalError(
+                            "edge ended unexpectedly #1".to_string(),
+                        ))?;
+
+                from_v = to_v;
+                to_v = next_v;
+                /*println!(
+                    "meta recursion continues at {}->{}, connection:{:?}",
+                    from_v, to_v, connection
+                );*/
+                continue 'outer;
             } else {
-                //println!("recursion ended at {} {:?}", to_v, connection);
-                *end_vertex = to_v;
-                return Ok(());
+                //println!("#1 breaking at to_v={}", to_v);
+                end_vertex = to_v;
+                break 'outer;
             }
-        } else {
-            return Err(TBError::InternalError(
-                "edge ended unexpectedly #2".to_string(),
-            ));
         }
+        //println!("#2 breaking at to_v={}", to_v);
+        break 'outer;
     }
-    Ok(())
+
+    // Push the final vertex
+
+    let end_vertex_value = vertices
+        .get(end_vertex)
+        .ok_or_else(||TBError::InternalError(format!(
+            "Lost a vertex somehow.. vertex index:{}",
+            end_vertex
+        )))?;
+    result.push(cgmath::Point3 {
+        x: end_vertex_value.x,
+        y: end_vertex_value.y,
+        z: end_vertex_value.z,
+    });
+    if end_vertex == started_at_vertex {
+        //let key = make_key(from_v,to_v);
+        //println!("#2 Pushing vertex {:?}, {}->{} dropping:{:?}", to_v, from_v, to_v, key);
+        edge_set.remove(&make_key(from_v,to_v));
+    } else {
+        //println!("#3 Pushing vertex {:?}, {}->{} ", end_vertex, from_v, to_v);
+    }
+    //println!("<-- recursion ended @{} result.len()={} edge_set.len():{}", end_vertex, result.len(), edge_set.len());
+    Ok((end_vertex, result))
 }
 
 /// Simplify the line-strings using the Ramer–Douglas–Peucker algorithm

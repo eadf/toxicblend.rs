@@ -5,7 +5,7 @@ use crate::toxicblend::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend::Model as PB_Model;
 use crate::toxicblend::Reply as PB_Reply;
 use crate::toxicblend::Vertex as PB_Vertex;
-use cgmath::{Angle, SquareMatrix};
+use cgmath::{Angle, SquareMatrix, EuclideanSpace};
 use cgmath::{Transform, UlpsEq};
 use itertools::Itertools;
 use linestring::cgmath_3d;
@@ -65,10 +65,11 @@ pub fn parse_input(
 
     let plane =
         Plane::get_plane_relaxed(&aabb, EPSILON, f64::default_max_ulps()).ok_or_else(|| {
-            let aabbe_v = aabb.get_high().unwrap() - aabb.get_low().unwrap();
+            let aabbe_d = aabb.get_high().unwrap() - aabb.get_low().unwrap();
+            let aabbe_c = (aabb.get_high().unwrap().to_vec() + aabb.get_low().unwrap().to_vec())/2.0;
             TBError::InputNotPLane(format!(
-                "Input data not in one plane and/or not intersecting origo: Δ({},{},{})",
-                aabbe_v.x, aabbe_v.y, aabbe_v.z
+                "Input data not in one plane and/or not intersecting origo: Δ({},{},{}) C({},{},{})",
+                aabbe_d.x, aabbe_d.y, aabbe_d.z,aabbe_c.x, aabbe_c.y, aabbe_c.z
             ))
         })?;
     println!("centerline: data was in plane:{:?} aabb:{:?}", plane, aabb);
@@ -122,11 +123,21 @@ pub fn build_bp_model(
 ) -> Result<PB_Model, TBError> {
     let input_pb_model = &a_command.models[0];
 
-    let count:usize = (shapes.iter().map::<usize,_>(|(ls, cent)|{
-        ls.set().iter().map(|ls|{ls.points().len()}).sum::<usize>() +
-           cent.lines.iter().flatten().count() +
-            cent.line_strings.iter().flatten().map(|ls|ls.len()).sum::<usize>()
-    }).sum::<usize>()*5)/4;
+    let count: usize = (shapes
+        .iter()
+        .map::<usize, _>(|(ls, cent)| {
+            ls.set().iter().map(|ls| ls.points().len()).sum::<usize>()
+                + cent.lines.iter().flatten().count()
+                + cent
+                    .line_strings
+                    .iter()
+                    .flatten()
+                    .map(|ls| ls.len())
+                    .sum::<usize>()
+        })
+        .sum::<usize>()
+        * 5)
+        / 4;
 
     let mut output_pb_model_vertices = Vec::<PB_Vertex>::with_capacity(count);
     let mut output_pb_model_faces = Vec::<PB_Face>::with_capacity(count);
@@ -252,9 +263,8 @@ pub fn build_bp_model(
                         .take(linestring.points().len() - 2)
                         .map(|p| {
                             let new_index = output_pb_model_vertices.len();
-                            output_pb_model_vertices.push(PB_Vertex::from(
-                                inverted_transform.transform_point(*p),
-                            ));
+                            output_pb_model_vertices
+                                .push(PB_Vertex::from(inverted_transform.transform_point(*p)));
                             new_index
                         }),
                 )
@@ -436,8 +446,9 @@ pub fn command(
                 shape.set().iter().map(|x| x.len()).sum(),
             );
             for lines in shape.set().iter() {
-                for lineseq in lines.as_lines().iter() {
+                for lineseq in lines.as_lines_iter() {
                     segments.push(boostvoronoi::Line::new(
+                        // boost voronoi only accepts integers as coordinates
                         boostvoronoi::Point {
                             x: lineseq.start.x as i64,
                             y: lineseq.start.y as i64,
@@ -459,12 +470,12 @@ pub fn command(
                 {
                     return Err(centerline_error.into());
                 }
-            } else {
-                if let Err(centerline_error) = c.calculate_centerline(dot_limit, max_distance, None)
-                {
-                    return Err(centerline_error.into());
-                }
+            } else if let Err(centerline_error) =
+                c.calculate_centerline(dot_limit, max_distance, None)
+            {
+                return Err(centerline_error.into());
             }
+
             if cmd_arg_simplify && c.line_strings.is_some() {
                 // simplify every line string with rayon
                 c.line_strings = Some(
