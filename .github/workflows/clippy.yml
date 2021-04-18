@@ -20,5 +20,7 @@ jobs:
         run : rustup toolchain install nightly
       - name: install clippy
         run : rustup +nightly component add clippy
+      - name: install rustfmt
+        run: rustup +nightly component add rustfmt
       - name: Run clippy
         run: cargo +nightly clippy
