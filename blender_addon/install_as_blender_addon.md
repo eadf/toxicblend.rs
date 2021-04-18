@@ -25,13 +25,19 @@ subprocess.call([sys.executable, "-m", "pip", "install", "grpcio"])
 print("copy toxicblend_pb2.py toxicblend_pb2_grpc.py to this path:")
 print(site.getsitepackages())
 ```
-If you run into permission problems you will have to run the pip commands on the blender python executable with raised privileges (e.g. sudo)
+If you run into permission problems, you will have to run the pip commands on the blender python executable with raised privileges (e.g. sudo)
 
 
 You will also have to copy the `toxicblend_pb2.py` and `toxicblend_pb2_grpc.py` files to the
-site packages of the same python environment.
+site packages of the blender python environment. Soft links works fine as well.
 
 ```
 # example MacOS:
 $ cp toxicblend_pb2.py toxicblend_pb2_grpc.py /Applications/Blender.app/Contents/Resources/2.92/python/lib/python3.7/site-packages
 ```
+
+Then you need to install the addon itself. `Blender->Preferences->Addons->Install..` select the `toxicblend_meshtools.py` file
+and click 'Install Add-on'.
+
+Don't forget to activate the addon in the list.
+
