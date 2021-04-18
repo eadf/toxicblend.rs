@@ -15,8 +15,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: install clippy
-      run : rustup component add clippy
-    - name: Run clippy
-      run: cargo clippy
+      - uses: actions/checkout@v2
+      - name: install nightly
+        run : rustup toolchain install nightly
+      - name: install clippy
+        run : rustup +nightly component add clippy
+      - name: Run clippy
+        run: cargo +nightly clippy
