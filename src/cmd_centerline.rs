@@ -27,23 +27,14 @@ fn make_edge_key(v0: usize, v1: usize) -> (usize, usize) {
     }
 }
 
-/// converts from a private, comparable and hashable format
-/// only use this for floats that are f64::is_finite()
-#[allow(dead_code)]
-#[inline(always)]
-fn transmute_to_f64(a: &(u64, u64, u64)) -> cgmath::Point3<f64> {
-    cgmath::Point3 {
-        x: f64::from_bits(a.0),
-        y: f64::from_bits(a.1),
-        z: f64::from_bits(a.2),
-    }
-}
-
 /// converts to a private, comparable and hashable format
 /// only use this for floats that are f64::is_finite()
+/// This will only work for floats that's identical in every bit.
+/// The z coordinate will not be used because it might be slightly different
+/// depending on how it was calculated. Not using z will also make the calculations faster.
 #[inline(always)]
-fn transmute_to_u64(a: &cgmath::Point3<f64>) -> (u64, u64, u64) {
-    (a.x.to_bits(), a.y.to_bits(), a.z.to_bits())
+fn transmute_to_u64(a: &cgmath::Point3<f64>) -> (u64, u64) {
+    (a.x.to_bits(), a.y.to_bits())
 }
 
 /// reformat the input into a useful structure
@@ -121,7 +112,7 @@ pub fn build_output_bp_model(
 ) -> Result<PB_Model, TBError> {
     let input_pb_model = &a_command.models[0];
 
-    let count: usize = (shapes
+    let estimated_capacity: usize = (shapes
         .iter()
         .map::<usize, _>(|(ls, cent)| {
             ls.set().iter().map(|ls| ls.points().len()).sum::<usize>()
@@ -137,11 +128,11 @@ pub fn build_output_bp_model(
         * 5)
         / 4;
 
-    let mut output_pb_model_vertices = Vec::<PB_Vertex>::with_capacity(count);
-    let mut output_pb_model_faces = Vec::<PB_Face>::with_capacity(count);
+    let mut output_pb_model_vertices = Vec::<PB_Vertex>::with_capacity(estimated_capacity);
+    let mut output_pb_model_faces = Vec::<PB_Face>::with_capacity(estimated_capacity);
 
     // map between 'meta-vertex' and vertex index
-    let mut v_map = fnv::FnvHashMap::<(u64, u64, u64), usize>::default();
+    let mut v_map = fnv::FnvHashMap::<(u64, u64), usize>::default();
 
     for shape in shapes.into_iter() {
         // Draw the input segments
@@ -160,6 +151,7 @@ pub fn build_output_bp_model(
                 let new_index = output_pb_model_vertices.len();
                 output_pb_model_vertices
                     .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
+                //println!("i0 pushed ({},{},{})", v0.x, v0.y, v0.z);
                 new_index
             });
             let v1_key = transmute_to_u64(&v1);
@@ -167,6 +159,7 @@ pub fn build_output_bp_model(
                 let new_index = output_pb_model_vertices.len();
                 output_pb_model_vertices
                     .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
+                //println!("i1 pushed ({},{},{})", v1.x, v1.y, v1.z);
                 new_index
             });
             let vertex_index_iterator = Some(v0_index)
@@ -178,11 +171,16 @@ pub fn build_output_bp_model(
                         .skip(1)
                         .take(linestring.points().len() - 2)
                         .map(|p| {
-                            let new_index = output_pb_model_vertices.len();
-                            output_pb_model_vertices.push(PB_Vertex::from(
-                                inverted_transform.transform_point(Plane::XY.to_3d(p)),
-                            ));
-                            new_index
+                            let v2 = Plane::XY.to_3d(p);
+                            let v2_key = transmute_to_u64(&v2);
+                            let v2_index = *v_map.entry(v2_key).or_insert_with(|| {
+                                let new_index = output_pb_model_vertices.len();
+                                output_pb_model_vertices
+                                    .push(PB_Vertex::from(inverted_transform.transform_point(v2)));
+                                //println!("i2 pushed ({},{},{})", v2.x, v2.y, v2.z);
+                                new_index
+                            });
+                            v2_index
                         }),
                 )
                 .chain(Some(v1_index).into_iter());
@@ -192,6 +190,7 @@ pub fn build_output_bp_model(
                 });
             }
         }
+
         // draw the straight edges of the voronoi output
         for line in shape.1.lines.iter().flatten() {
             let v0 = line.start;
@@ -204,6 +203,7 @@ pub fn build_output_bp_model(
                 let new_index = output_pb_model_vertices.len();
                 output_pb_model_vertices
                     .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
+                //println!("s0 pushed ({},{},{})", v0.x, v0.y, v0.z);
                 new_index
             });
 
@@ -212,6 +212,7 @@ pub fn build_output_bp_model(
                 let new_index = output_pb_model_vertices.len();
                 output_pb_model_vertices
                     .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
+                //println!("s1 pushed ({},{},{})", v1.x, v1.y, v1.z);
                 new_index
             });
 
@@ -226,8 +227,8 @@ pub fn build_output_bp_model(
                 vertices: vec![v0_index as u64, v1_index as u64],
             });
         }
+
         // draw the concatenated line strings of the voronoi output
-        //for linestring in shape.1.line_strings.iter().flatten() {
         for linestring in shape.1.line_strings.iter().flatten() {
             if linestring.points().len() < 2 {
                 return Err(TBError::InternalError(
@@ -242,6 +243,7 @@ pub fn build_output_bp_model(
                 let new_index = output_pb_model_vertices.len();
                 output_pb_model_vertices
                     .push(PB_Vertex::from(inverted_transform.transform_point(*v0)));
+                //println!("ls0 pushed ({},{},{})", v0.x, v0.y, v0.z);
                 new_index
             });
             let v1_key = transmute_to_u64(&v1);
@@ -249,8 +251,10 @@ pub fn build_output_bp_model(
                 let new_index = output_pb_model_vertices.len();
                 output_pb_model_vertices
                     .push(PB_Vertex::from(inverted_transform.transform_point(*v1)));
+                //println!("ls1 pushed ({},{},{})", v1.x, v1.y, v1.z);
                 new_index
             });
+            // we only need to lookup the start and end points for vertex duplication
             let vertex_index_iterator = Some(v0_index)
                 .into_iter()
                 .chain(

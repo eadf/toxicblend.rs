@@ -529,10 +529,8 @@ class Toxicblend_Centerline(Operator):
         name="Angle",
         description="Edge rejection angle, edges with edge-to-segment angles larger than this will be rejected",
         default=math.radians(50.0),
-        min=math.radians(0.0),
-        soft_min=math.radians(0.0),
-        max=math.radians(90.0),
-        soft_max=math.radians(90.0),
+        min=math.radians(0.000001),
+        max=math.radians(89.999999),
         precision=6,
         subtype='ANGLE',
     )
@@ -547,8 +545,8 @@ class Toxicblend_Centerline(Operator):
         name="Distance",
         description="Discrete distance as a percentage of the AABB",
         default=0.005,
-        min=0.0,
-        max=5.0,
+        min=0.0001,
+        max=4.9999,
         precision=6,
         subtype='PERCENTAGE'
     )
@@ -617,8 +615,8 @@ class Toxicblend_Simplify(Operator):
         name="Distance",
         description="Simplification distance",
         default=0.01,
-        min=0.0,
-        max=5.0,
+        min=0.00000001,
+        max=4.99999999,
         precision=6,
         subtype='PERCENTAGE'
     )
