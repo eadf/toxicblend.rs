@@ -18,8 +18,8 @@ linestring = {version="^0.2.0",default-features=false,features=["impl-cgmath", "
 #linestring = {path = "../linestring.rs",default-features=false,features=["impl-cgmath", "impl-rayon"]}
 #linestring = { git = "https://github.com/eadf/linestring.rs",default-features=false,features=["impl-cgmath","impl-rayon"]}
 #centerline = {path = "../centerline.rs" }
-centerline = { git = "https://github.com/eadf/centerline.rs"}
-#centerline = "^0.1.0"
+#centerline = { git = "https://github.com/eadf/centerline.rs"}
+centerline = "^0.2.0"
 yabf = {version="^0.1.0",default-features=false}
 boostvoronoi = "^0.8.1"
 rayon = "^1.5.0"

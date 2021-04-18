@@ -24,7 +24,7 @@ pub fn find_linestrings(
 
     for face in obj.faces.iter() {
         if face.vertices.len() > 2 {
-            return Err(TBError::ModelContainsFaces);
+            return Err(TBError::ModelContainsFaces("Model can't contain any faces, only edges. Use the 2d_outline tool to remove faces".to_string()));
         }
         if face.vertices.len() < 2 {
             return Err(TBError::InvalidInputData(
@@ -172,10 +172,9 @@ fn walk_single_line_edges(
         to_v,
     );*/
     {
-        let v0_value = vertices.get(from_v).ok_or_else(||TBError::InternalError(format!(
-            "Lost an vertex somehow.. vertex index:{}",
-            from_v
-        )))?;
+        let v0_value = vertices.get(from_v).ok_or_else(|| {
+            TBError::InternalError(format!("Lost an vertex somehow.. vertex index:{}", from_v))
+        })?;
         result.push(cgmath::Point3 {
             x: v0_value.x,
             y: v0_value.y,
@@ -197,7 +196,7 @@ fn walk_single_line_edges(
             //println!("to_v == started_at_vertex == {}", started_at_vertex);
             end_vertex = to_v;
             //println!("<-- recursion ended #1 size={}", result.len());
-            break 'outer
+            break 'outer;
         }
         kill_pill -= 1;
         if kill_pill == 0 {
@@ -225,10 +224,9 @@ fn walk_single_line_edges(
             connections_map.get(&to_v)
         );*/
         if edge_set.contains(&key) {
-            let v1 = vertices.get(to_v).ok_or_else(||TBError::InternalError(format!(
-                "Lost a vertex somehow.. index:{}",
-                to_v
-            )))?;
+            let v1 = vertices.get(to_v).ok_or_else(|| {
+                TBError::InternalError(format!("Lost a vertex somehow.. index:{}", to_v))
+            })?;
             result.push(cgmath::Point3 {
                 x: v1.x,
                 y: v1.y,
@@ -237,9 +235,9 @@ fn walk_single_line_edges(
             edge_set.remove(&key);
             //println!("#2 Pushing vertex {:?}, {}->{} dropping:{:?}", to_v, from_v, to_v, key);
 
-            let connection = connections_map.get(&to_v).ok_or_else(||TBError::InternalError(
-                "edge ended unexpectedly #2".to_string(),
-            ))?;
+            let connection = connections_map
+                .get(&to_v)
+                .ok_or_else(|| TBError::InternalError("edge ended unexpectedly #2".to_string()))?;
             // todo: remove this sanity test when stable
             if !connection.contains(&from_v) {
                 return Err(TBError::InternalError(format!(
@@ -249,13 +247,9 @@ fn walk_single_line_edges(
             }
             if connection.len() == 2 {
                 // todo: I think it would be faster to just test [0] and [1] instead of using find()
-                let next_v =
-                    *connection
-                        .iter()
-                        .find(|x| **x != from_v)
-                        .ok_or_else(||TBError::InternalError(
-                            "edge ended unexpectedly #1".to_string(),
-                        ))?;
+                let next_v = *connection.iter().find(|x| **x != from_v).ok_or_else(|| {
+                    TBError::InternalError("edge ended unexpectedly #1".to_string())
+                })?;
 
                 from_v = to_v;
                 to_v = next_v;
@@ -276,12 +270,12 @@ fn walk_single_line_edges(
 
     // Push the final vertex
 
-    let end_vertex_value = vertices
-        .get(end_vertex)
-        .ok_or_else(||TBError::InternalError(format!(
+    let end_vertex_value = vertices.get(end_vertex).ok_or_else(|| {
+        TBError::InternalError(format!(
             "Lost a vertex somehow.. vertex index:{}",
             end_vertex
-        )))?;
+        ))
+    })?;
     result.push(cgmath::Point3 {
         x: end_vertex_value.x,
         y: end_vertex_value.y,
@@ -290,7 +284,7 @@ fn walk_single_line_edges(
     if end_vertex == started_at_vertex {
         //let key = make_key(from_v,to_v);
         //println!("#2 Pushing vertex {:?}, {}->{} dropping:{:?}", to_v, from_v, to_v, key);
-        edge_set.remove(&make_key(from_v,to_v));
+        edge_set.remove(&make_key(from_v, to_v));
     } else {
         //println!("#3 Pushing vertex {:?}, {}->{} ", end_vertex, from_v, to_v);
     }

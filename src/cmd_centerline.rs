@@ -5,7 +5,7 @@ use crate::toxicblend::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend::Model as PB_Model;
 use crate::toxicblend::Reply as PB_Reply;
 use crate::toxicblend::Vertex as PB_Vertex;
-use cgmath::{Angle, SquareMatrix, EuclideanSpace};
+use cgmath::{Angle, EuclideanSpace, SquareMatrix};
 use cgmath::{Transform, UlpsEq};
 use itertools::Itertools;
 use linestring::cgmath_3d;
@@ -78,9 +78,7 @@ pub fn parse_input(
 
     for face in input_pb_model.faces.iter() {
         if face.vertices.len() > 2 {
-            return Err(TBError::InvalidInputData(
-                "Model contains faces, only lines are supported for this operation".to_string(),
-            ));
+            return Err(TBError::ModelContainsFaces("Model can't contain any faces, only edges. Use the 2d_outline tool to remove faces".to_string()));
         }
         if face.vertices.len() < 2 {
             return Err(TBError::InvalidInputData(
@@ -113,7 +111,7 @@ pub fn parse_input(
 }
 
 /// Build the return model
-pub fn build_bp_model(
+pub fn build_output_bp_model(
     a_command: &PB_Command,
     shapes: Vec<(
         linestring::cgmath_2d::LineStringSet2<f64>,
@@ -396,9 +394,9 @@ pub fn command(
     }
     //println!("-> parse_input");
     let (edges, points, total_aabb) = parse_input(&a_command.models[0])?;
-    //println!("-> divide_into_shapes");
+    println!("-> divide_into_shapes");
     let lines = centerline::divide_into_shapes(edges, points)?;
-    //println!("-> get_transform_relaxed");
+    println!("-> get_transform_relaxed");
     let (_plane, transform, _voronoi_input_aabb) = centerline::get_transform_relaxed(
         &total_aabb,
         cmd_arg_max_voronoi_dimension,
@@ -503,7 +501,7 @@ pub fn command(
         >>()?;
     //println!("<-build_voronoi");
 
-    let model = build_bp_model(&a_command, shapes, invers_transform)?;
+    let model = build_output_bp_model(&a_command, shapes, invers_transform)?;
 
     //println!("<-build_bp_model");
     let mut reply = PB_Reply {

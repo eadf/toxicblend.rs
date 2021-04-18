@@ -46,7 +46,7 @@ pub enum TBError {
     UnknownCommand(String),
 
     #[error("Model should not contain any faces")]
-    ModelContainsFaces,
+    ModelContainsFaces(String),
 
     #[error("Something is wrong with the internal logic: {0}")]
     InternalError(String),
@@ -122,7 +122,7 @@ impl ToxicBlendService for TheToxicBlendService {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let address = "[::1]:50051".parse()?;
+    let address = "[::1]:50069".parse()?;
     let service = TheToxicBlendService::default();
 
     Server::builder()

@@ -76,7 +76,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
 
     for f in input_pb_model.faces.iter().enumerate() {
         match f.1.vertices.len() {
-            3..=usize::MAX => return Err(TBError::ModelContainsFaces),
+            3..=usize::MAX => return Err(TBError::ModelContainsFaces("Model can't contain any faces, only edges. Use the 2d_outline tool to remove faces".to_string())),
             2 => lines.push(linestring::cgmath_2d::Line2 {
                 start: vertices_2d[f.1.vertices[0] as usize],
                 end: vertices_2d[f.1.vertices[1] as usize],
