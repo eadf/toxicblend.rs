@@ -2,7 +2,7 @@
 [![Documentation](https://docs.rs/toxicblend/badge.svg)](https://docs.rs/toxicblend)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)
-[![dependency status](https://deps.rs/crate/toxicblend/0.0.1/status.svg)](https://deps.rs/crate/toxicblend/0.0.1)
+[![dependency status](https://deps.rs/crate/toxicblend/0.0.2/status.svg)](https://deps.rs/crate/toxicblend/0.0.2)
 
 
 # toxicblend.rs
