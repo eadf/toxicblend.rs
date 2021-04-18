@@ -33,5 +33,5 @@ site packages of the same python environment.
 
 ```
 # example MacOS:
-# cp toxicblend_pb2.py toxicblend_pb2_grpc.py /Applications/Blender.app/Contents/Resources/2.92/python/lib/python3.7/site-packages
+$ cp toxicblend_pb2.py toxicblend_pb2_grpc.py /Applications/Blender.app/Contents/Resources/2.92/python/lib/python3.7/site-packages
 ```
