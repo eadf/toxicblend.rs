@@ -1,12 +1,12 @@
 [![Crates.io](https://meritbadge.herokuapp.com/toxicblend)](https://crates.io/crates/toxicblend)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)
-[![dependency status](https://deps.rs/crate/toxicblend/0.0.3/status.svg)](https://deps.rs/crate/toxicblend/0.0.2)
+[![dependency status](https://deps.rs/crate/toxicblend/0.0.3/status.svg)](https://deps.rs/crate/toxicblend/0.0.3)
 
 
 # toxicblend.rs
 Work in progress.\
-This will be a rust port of my scala based project [toxicblend](https://github.com/toxicblend/toxicblend)
+This will be a rust port of my, now defunct (thanks bitbucket), scala based project [toxicblend](https://github.com/toxicblend/toxicblend)
 
 ## Blender addon installation
 Follow instructions in [install_as_blender_addon.md](blender_addon/install_as_blender_addon.md)
@@ -16,8 +16,8 @@ Follow instructions in [install_as_blender_addon.md](blender_addon/install_as_bl
 Requires `#![feature(hash_drain_filter)]` and `#![feature(map_first_last)]` i.e. `rust +nightly`
 
 ## Run local server
-The blender addon is based on a client-server model using [grpc](https://grpc.io).
-The blender addon is the client and it only connects to `localhost`.
+The blender addon is based on a client-server model using [grpc](https://grpc.io) and [tonic](https://github.com/hyperium/tonic).
+The blender addon is the client, and it only connects to `localhost`.
 The server binds to `localhost` as well; so it should not be reachable from any other computer (not tested though), run it with this command:
 ```
 cargo +nightly run --bin server --release
@@ -28,6 +28,8 @@ If the grpc server (for any unimaginable reason) would crash, blender will hang 
 This can easily be fixed if you run blender from the console. A `ctrl` - `C` will fix it.
 
 ## Addon commands:
+
+These operations all operate in blender edit mode:
 
 ### 2d_outline
 
@@ -55,7 +57,7 @@ Works similarly to the built-in simplify command, but instead of a distance it t
 This percentage is applied to the largest dimension of the AABB and that value is used as the Ramer–Douglas–Peucker distance.
 Works on 3D linestrings/polylines. 
 
-This percentage change makes it possible to simplify really small objects without having to scale them up, simplify and then scale them down again. 
+This percentage change makes it possible to simplify tiny objects without having to scale them up, simplify and then scale them down again. 
 
 ### Knife intersect
 
@@ -79,6 +81,6 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 
 - [ ] Improve the addon installation process, maybe get rid of the site-package files by putting them inside the plugin itself.
 - [ ] Document the rest of the operations.
-- [ ] Add command lines to the server, setting bind address and port. Possibly feature gated for security reasons.
+- [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
 - [ ] Port the rest of the operations.
 

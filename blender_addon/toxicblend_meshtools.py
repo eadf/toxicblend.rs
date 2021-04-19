@@ -65,8 +65,8 @@ from bpy.props import (
 
 # import gRPC
 import grpc
-import toxicblend_pb2
-import toxicblend_pb2_grpc
+import toxicblend.toxicblend_pb2_grpc as toxicblend_pb2_grpc
+import toxicblend.toxicblend_pb2 as toxicblend_pb2
 
 bl_info = {
     "name": "Toxicblend MeshTools",
