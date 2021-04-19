@@ -291,7 +291,8 @@ def handle_received_object(active_object, pb_message, remove_doubles_threshold=N
 class ToxicBlend_debug_object(bpy.types.Operator):
     """Simple object debug"""
     bl_idname = "mesh.toxicblend_meshtools_debug_object"
-    bl_label = "Toxicblend:debug object (check console for messages)"
+    bl_label = "Debug object (check console for messages)"
+    bl_description = "Checks a mesh for anomalies, double edges etc. Will print results to the console. (offline plugin)"
     bl_options = {'REGISTER', 'UNDO'}  # enable undo for the operator.
 
     @classmethod

@@ -1,7 +1,7 @@
 [![Crates.io](https://meritbadge.herokuapp.com/toxicblend)](https://crates.io/crates/toxicblend)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)
-[![dependency status](https://deps.rs/crate/toxicblend/0.0.2/status.svg)](https://deps.rs/crate/toxicblend/0.0.2)
+[![dependency status](https://deps.rs/crate/toxicblend/0.0.3/status.svg)](https://deps.rs/crate/toxicblend/0.0.2)
 
 
 # toxicblend.rs
@@ -18,10 +18,14 @@ Requires `#![feature(hash_drain_filter)]` and `#![feature(map_first_last)]` i.e.
 ## Run local server
 The blender addon is based on a client-server model using [grpc](https://grpc.io).
 The blender addon is the client and it only connects to `localhost`.
-The server is local as well, run it with this command:
+The server binds to `localhost` as well; so it should not be reachable from any other computer (not tested though), run it with this command:
 ```
 cargo +nightly run --bin server --release
 ```
+
+## Run blender
+If the grpc server (for any unimaginable reason) would crash, blender will hang waiting for response.
+This can easily be fixed if you run blender from the console. A `ctrl` - `C` will fix it.
 
 ## Addon commands:
 
@@ -37,7 +41,7 @@ Will convert a flat mesh object into an outline. Right now the data must be in a
 
 Takes the output of the 2d_outline command and calculates the 3D centerline.
 
-This operation only works non-intersecting loops with islands of loops of edges inside. E.g. letters. 
+This operation only works on non-intersecting loops with islands of loops of edges inside. E.g. letters.
 
 If you only need the 2D centerline, you can simply scale the added dimension to zero.
 
@@ -49,16 +53,32 @@ Keyboard command: `s` `z` `0` for setting Z to zero.
 
 Works similarly to the built-in simplify command, but instead of a distance it takes a percentage.
 This percentage is applied to the largest dimension of the AABB and that value is used as the Ramer–Douglas–Peucker distance.
-Works on 3D linestrings/polylines.
+Works on 3D linestrings/polylines. 
+
+This percentage change makes it possible to simplify really small objects without having to scale them up, simplify and then scale them down again. 
 
 ### Knife intersect
 
 Runs on a single flat mesh object and tests for self-intersections.
 If an intersection is found, the intersecting edges will be split at that point.
 
+### Select end vertices
+
+Selects all vertexes that only connects to one other vertex. Useful for identifying dangling vertices.
+
+
+### Select intersection vertices
+
+Selects all vertexes that connects to three or more other vertices. Useful for selecting intersections.
+
+### Debug object
+
+Checks a mesh for anomalies, double edges etc. Will print results to the console.
+
 ## Todo
 
-- [ ] Improve the addon installation process.
-- [ ] Document the rest of the operations
-- [ ] Port the rest of the operations
+- [ ] Improve the addon installation process, maybe get rid of the site-package files by putting them inside the plugin itself.
+- [ ] Document the rest of the operations.
+- [ ] Add command lines to the server, setting bind address and port. Possibly feature gated for security reasons.
+- [ ] Port the rest of the operations.
 
