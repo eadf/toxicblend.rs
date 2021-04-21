@@ -488,7 +488,7 @@ class Toxicblend_Voronoi(Operator):
 
     remove_externals: BoolProperty(
         name="Remove external edges",
-        description="Remove edges connected or indirectly connected to 'infinite' edges, edges inside input geometry is always considered 'internal'",
+        description="Remove edges connected or indirectly connected to 'infinite' edges. Edges inside input geometry are always considered 'internal'",
         default=True
     )
 
@@ -839,7 +839,7 @@ class TB_MeshToolsProps(PropertyGroup):
 
     voronoi_remove_externals: BoolProperty(
         name="Remove external edges",
-        description="Remove edges connected or indirectly connected to 'infinite' edges, edges inside input geometry is always considered 'internal'",
+        description="Remove edges connected or indirectly connected to 'infinite' edges. Edges inside input geometry are always considered 'internal'",
         default=True
     )
     voronoi_distance: FloatProperty(

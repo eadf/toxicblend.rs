@@ -59,6 +59,9 @@ Works on 3D linestrings/polylines.
 
 This percentage change makes it possible to simplify tiny objects without having to scale them up, simplify and then scale them down again. 
 
+### Voronoi
+Runs the voronoi sweepline algorithm on the input 2D points and lines. 
+
 ### Knife intersect
 
 Runs on a single flat mesh object and tests for self-intersections.
