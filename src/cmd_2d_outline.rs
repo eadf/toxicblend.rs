@@ -1,10 +1,10 @@
 use super::TBError;
-use crate::toxicblend::Command as PB_Command;
-use crate::toxicblend::Face as PB_Face;
-use crate::toxicblend::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend::Model as PB_Model;
-use crate::toxicblend::Reply as PB_Reply;
-use crate::toxicblend::Vertex as PB_Vertex;
+use crate::toxicblend_pb::Command as PB_Command;
+use crate::toxicblend_pb::Face as PB_Face;
+use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
+use crate::toxicblend_pb::Model as PB_Model;
+use crate::toxicblend_pb::Reply as PB_Reply;
+use crate::toxicblend_pb::Vertex as PB_Vertex;
 use itertools::Itertools;
 use std::collections::HashMap;
 
@@ -34,7 +34,7 @@ pub fn remove_internal_edges(
                 *face.vertices.first().unwrap() as usize,
                 *face.vertices.last().unwrap() as usize,
             );
-            single_edges.insert(key);
+            let _ = single_edges.insert(key);
             continue;
         }
         for (v0, v1) in face
@@ -82,7 +82,7 @@ pub fn remove_internal_edges(
     }*/
     let _ = all_edges.drain_filter(|x| internal_edges.contains(x));
     for e in single_edges.into_iter() {
-        all_edges.insert(e);
+        let _ = all_edges.insert(e);
     }
 
     /*println!("All edges post: ");
@@ -106,7 +106,7 @@ pub fn remove_internal_edges(
             *v0
         } else {
             let translated = (v0, rv_vertices.len());
-            vector_rename_map.insert(translated.0, translated.1);
+            let _ = vector_rename_map.insert(translated.0, translated.1);
             let vtmp = &obj.vertices[v0];
             rv_vertices.push(PB_Vertex {
                 x: vtmp.x,
@@ -119,7 +119,7 @@ pub fn remove_internal_edges(
             *v1
         } else {
             let translated = (v1, rv_vertices.len());
-            vector_rename_map.insert(translated.0, translated.1);
+            let _ = vector_rename_map.insert(translated.0, translated.1);
             let vtmp = &obj.vertices[v1];
             rv_vertices.push(PB_Vertex {
                 x: vtmp.x,
@@ -141,7 +141,7 @@ pub fn command(
     a_command: &PB_Command,
     _options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    println!("2d_outline got command: {}", a_command.command);
+    println!("2d_outline got command: \"{}\"", a_command.command);
     if a_command.models.len() > 1 {
         return Err(TBError::InvalidInputData(
             "This operation only supports one model as input".to_string(),

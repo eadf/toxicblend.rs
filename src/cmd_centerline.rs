@@ -1,10 +1,10 @@
 use super::TBError;
-use crate::toxicblend::Command as PB_Command;
-use crate::toxicblend::Face as PB_Face;
-use crate::toxicblend::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend::Model as PB_Model;
-use crate::toxicblend::Reply as PB_Reply;
-use crate::toxicblend::Vertex as PB_Vertex;
+use crate::toxicblend_pb::Command as PB_Command;
+use crate::toxicblend_pb::Face as PB_Face;
+use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
+use crate::toxicblend_pb::Model as PB_Model;
+use crate::toxicblend_pb::Reply as PB_Reply;
+use crate::toxicblend_pb::Vertex as PB_Vertex;
 use cgmath::{Angle, EuclideanSpace, SquareMatrix};
 use cgmath::{Transform, UlpsEq};
 use itertools::Itertools;
@@ -12,10 +12,6 @@ use linestring::cgmath_3d;
 use linestring::cgmath_3d::Plane;
 use rayon::prelude::*;
 use std::collections::HashMap;
-
-const EPSILON: f64 = 0.0001;
-// the largest dimension of the voronoi input, totally arbitrarily selected.
-const MAX_VORONOI_DIMENSION: f64 = 256.0 * 800.0;
 
 #[inline(always)]
 /// make a key from v0 and v1, lowest index will always be first
@@ -55,7 +51,7 @@ pub fn parse_input(
     }
 
     let plane =
-        Plane::get_plane_relaxed(&aabb, EPSILON, f64::default_max_ulps()).ok_or_else(|| {
+        Plane::get_plane_relaxed(&aabb, super::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
             let aabbe_d = aabb.get_high().unwrap() - aabb.get_low().unwrap();
             let aabbe_c = (aabb.get_high().unwrap().to_vec() + aabb.get_low().unwrap().to_vec())/2.0;
             TBError::InputNotPLane(format!(
@@ -144,8 +140,8 @@ pub fn build_output_bp_model(
                 ));
             }
             // unwrap of first and last is safe now that we know there are at least 2 vertices in the list
-            let v0 = Plane::XY.to_3d(&linestring.points().first().unwrap());
-            let v1 = Plane::XY.to_3d(&linestring.points().last().unwrap());
+            let v0 = super::xy_to_3d(&linestring.points().first().unwrap());
+            let v1 = super::xy_to_3d(&linestring.points().last().unwrap());
             let v0_key = transmute_to_u64(&v0);
             let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
                 let new_index = output_pb_model_vertices.len();
@@ -171,7 +167,7 @@ pub fn build_output_bp_model(
                         .skip(1)
                         .take(linestring.points().len() - 2)
                         .map(|p| {
-                            let v2 = Plane::XY.to_3d(p);
+                            let v2 = super::xy_to_3d(p);
                             let v2_key = transmute_to_u64(&v2);
                             let v2_index = *v_map.entry(v2_key).or_insert_with(|| {
                                 let new_index = output_pb_model_vertices.len();
@@ -334,7 +330,7 @@ pub fn command(
         )));
     }
     let cmd_arg_max_voronoi_dimension = {
-        let tmp_value = MAX_VORONOI_DIMENSION.to_string();
+        let tmp_value = super::MAX_VORONOI_DIMENSION.to_string();
         let value = options.get("MAX_VORONOI_DIMENSION").unwrap_or(&tmp_value);
         value.parse::<f64>().map_err(|_| {
             TBError::InvalidInputData(format!(
@@ -343,10 +339,11 @@ pub fn command(
             ))
         })?
     };
-    if !(MAX_VORONOI_DIMENSION..100_000_000.0).contains(&cmd_arg_max_voronoi_dimension) {
+    if !(super::MAX_VORONOI_DIMENSION..100_000_000.0).contains(&cmd_arg_max_voronoi_dimension) {
         return Err(TBError::InvalidInputData(format!(
-            "The valid range of DISTANCE is [{}..100_000_000[% :({})",
-            MAX_VORONOI_DIMENSION, cmd_arg_max_voronoi_dimension
+            "The valid range of MAX_VORONOI_DIMENSION is [{}..100_000_000[% :({})",
+            super::MAX_VORONOI_DIMENSION,
+            cmd_arg_max_voronoi_dimension
         )));
     }
     let cmd_arg_simplify = {
@@ -379,7 +376,7 @@ pub fn command(
             "This operation only supports one model as input".to_string(),
         ));
     }
-    println!("centerline got command: {}", a_command.command);
+    println!("centerline got command: \"{}\"", a_command.command);
     for model in a_command.models.iter() {
         println!("model.name:{:?}", model.name);
         println!("model.vertices:{:?}", model.vertices.len());
@@ -404,7 +401,7 @@ pub fn command(
     let (_plane, transform, _voronoi_input_aabb) = centerline::get_transform_relaxed(
         &total_aabb,
         cmd_arg_max_voronoi_dimension,
-        EPSILON,
+        super::EPSILON,
         f64::default_max_ulps(),
     )?;
 
@@ -432,7 +429,7 @@ pub fn command(
     let raw_data: Vec<linestring::cgmath_2d::LineStringSet2<f64>> = raw_data
         .into_par_iter()
         .map(|mut x| {
-            x.calculate_convex_hull();
+            let _ = x.calculate_convex_hull();
             x
         })
         .collect();

@@ -9,17 +9,17 @@ service ToxicBlendService {
 }
 
 message Vertex {
-  double x = 2; // todo, switch to double
+  double x = 2;
   double y = 3;
   double z = 4;
 }
 
 message Face {
-   repeated uint64 vertices = 1; // todo, switch to usize
+   repeated uint64 vertices = 1;
 }
 
 message Matrix4x4 {
-   double m00 = 1; // todo, switch to double
+   double m00 = 1;
    double m01 = 2;
    double m02 = 3;
    double m03 = 4;

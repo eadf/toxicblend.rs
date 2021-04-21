@@ -80,6 +80,7 @@ bl_info = {
     "category": "Mesh",
 }
 
+SOCKET = 'localhost:50069'
 
 class ToxicblendException(Exception):
     def __init__(self, message):
@@ -454,7 +455,7 @@ class Toxicblend_2D_Outline(Operator):
         active_object, active_mesh = initialise()
         settings_write(self)
         try:
-            with grpc.insecure_channel('localhost:50069') as channel:
+            with grpc.insecure_channel(SOCKET) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='2d_outline')
                 opt = command.options.add()
@@ -475,8 +476,78 @@ class Toxicblend_2D_Outline(Operator):
         except ToxicblendException as e:
             self.report({'ERROR'}, e.message)
             return {'CANCELLED'}
+        except grpc._channel._InactiveRpcError as e:
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
 
+# Voronoi operator
+class Toxicblend_Voronoi(Operator):
+    bl_idname = "mesh.toxicblend_meshtools_voronoi"
+    bl_label = "Voronoi"
+    bl_description = "Generates a voronoi diagram from the input model. The operation takes one flat model as input (lines and points). \nOnly internal edges will be preserved so encompass the model with an outer perimeter."
+    bl_options = {'REGISTER', 'UNDO'}
 
+    remove_externals: BoolProperty(
+        name="Remove external edges",
+        description="Remove external edges",
+        default=True
+    )
+
+    distance: FloatProperty(
+        name="Discretization Distance",
+        description="discretization distance as a percentage of the larges axis, used in the discretization process of curved edges",
+        default=0.001,
+        min=0.000101,
+        max=0.999999,
+        precision=6,
+        subtype='PERCENTAGE'
+    )
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        return ob and ob.type == 'MESH' and context.mode == 'EDIT_MESH'
+
+    def invoke(self, context, event):
+        # load custom settings
+        settings_load(self)
+        return self.execute(context)
+
+    def execute(self, context):
+        # initialise
+        active_object, active_mesh = initialise()
+        settings_write(self)
+        try:
+            with grpc.insecure_channel(SOCKET) as channel:
+                stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
+                command = toxicblend_pb2.Command(command='voronoi')
+
+                opt = command.options.add()
+                opt.key = "VORONOI_DISCRETE_DISTANCE"
+                opt.value = str(self.distance)
+
+                opt = command.options.add()
+                opt.key = "REMOVE_EXTERNALS"
+                opt.value = str(self.remove_externals).lower()
+
+                build_pb_model(active_object, active_mesh, command.models.add())
+                response = stub.execute(command)
+                handle_response(response)
+                if len(response.models) > 0:
+                    print("client received options: ", len(response.options), " models:", len(response.models))
+                    handle_received_object(active_object, response)
+
+            # cleaning up
+            terminate()
+
+            return {'FINISHED'}
+        except ToxicblendException as e:
+            self.report({'ERROR'}, e.message)
+            return {'CANCELLED'}
+        except grpc._channel._InactiveRpcError as e:
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
+            
 # Knife Intersect operator
 class Toxicblend_Knife_Intersect(Operator):
     bl_idname = "mesh.toxicblend_meshtools_knife_intersect"
@@ -499,7 +570,7 @@ class Toxicblend_Knife_Intersect(Operator):
         active_object, active_mesh = initialise()
         settings_write(self)
         try:
-            with grpc.insecure_channel('localhost:50069') as channel:
+            with grpc.insecure_channel(SOCKET) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='knife_intersect')
                 build_pb_model(active_object, active_mesh, command.models.add())
@@ -517,7 +588,9 @@ class Toxicblend_Knife_Intersect(Operator):
         except ToxicblendException as e:
             self.report({'ERROR'}, e.message)
             return {'CANCELLED'}
-
+        except grpc._channel._InactiveRpcError as e:
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
 
 # Centerline operator
 class Toxicblend_Centerline(Operator):
@@ -573,7 +646,7 @@ class Toxicblend_Centerline(Operator):
         active_object, active_mesh = initialise()
         settings_write(self)
         try:
-            with grpc.insecure_channel('localhost:50069') as channel:
+            with grpc.insecure_channel(SOCKET) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='centerline')
                 build_pb_model(active_object, active_mesh, command.models.add())
@@ -603,7 +676,9 @@ class Toxicblend_Centerline(Operator):
         except ToxicblendException as e:
             self.report({'ERROR'}, e.message)
             return {'CANCELLED'}
-
+        except grpc._channel._InactiveRpcError as e:
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
 
 # 2d_outline operator
 class Toxicblend_Simplify(Operator):
@@ -637,7 +712,7 @@ class Toxicblend_Simplify(Operator):
         active_object, active_mesh = initialise()
         settings_write(self)
         try:
-            with grpc.insecure_channel('localhost:50069') as channel:
+            with grpc.insecure_channel(SOCKET) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='simplify')
                 opt = command.options.add()
@@ -658,7 +733,9 @@ class Toxicblend_Simplify(Operator):
         except ToxicblendException as e:
             self.report({'ERROR'}, e.message)
             return {'CANCELLED'}
-
+        except grpc._channel._InactiveRpcError as e:
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
 
 # ########################################
 # ##### GUI and registration #############
@@ -674,6 +751,7 @@ class VIEW3D_MT_edit_mesh_toxicblend_meshtools(Menu):
         layout.operator("mesh.toxicblend_meshtools_2d_outline")
         layout.operator("mesh.toxicblend_meshtools_knife_intersect")
         layout.operator("mesh.toxicblend_meshtools_centerline")
+        layout.operator("mesh.toxicblend_meshtools_voronoi")
         layout.operator("mesh.toxicblend_meshtools_select_end_vertices")
         layout.operator("mesh.toxicblend_meshtools_select_intersection_vertices")
         layout.operator("mesh.toxicblend_meshtools_debug_object")
@@ -746,6 +824,22 @@ class TB_MeshToolsProps(PropertyGroup):
         default=True
     )
 
+    voronoi_remove_externals: BoolProperty(
+        name="Remove external edges",
+        description="Remove external edges",
+        default=True
+    )
+
+    voronoi_distance: FloatProperty(
+        name="Discretization Distance",
+        description="discretization distance as a percentage of the larges axis, used in the discretization process of curved edges",
+        default=0.001,
+        min=0.000101,
+        max=0.999999,
+        precision=6,
+        subtype='PERCENTAGE'
+    )
+
 
 # draw function for integration in menus
 def menu_func(self, context):
@@ -761,6 +855,7 @@ classes = (
     Toxicblend_2D_Outline,
     Toxicblend_Knife_Intersect,
     Toxicblend_Centerline,
+    Toxicblend_Voronoi,
     ToxicBlend_SelectEndVertices,
     ToxicBlend_SelectIntersectionVertices,
     ToxicBlend_debug_object,
@@ -787,5 +882,5 @@ def unregister():
         pass
 
 
-if __name__ == "__main__":
-    register()
+#if __name__ == "__main__":
+#    register()

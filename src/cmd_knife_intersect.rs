@@ -1,14 +1,14 @@
 use super::TBError;
-use crate::toxicblend::Command as PB_Command;
-use crate::toxicblend::Face as PB_Face;
-use crate::toxicblend::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend::Model as PB_Model;
-use crate::toxicblend::Reply as PB_Reply;
-use crate::toxicblend::Vertex as PB_Vertex;
+use crate::toxicblend_pb::Command as PB_Command;
+use crate::toxicblend_pb::Face as PB_Face;
+use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
+use crate::toxicblend_pb::Model as PB_Model;
+use crate::toxicblend_pb::Reply as PB_Reply;
+use crate::toxicblend_pb::Vertex as PB_Vertex;
+use cgmath::EuclideanSpace;
 use itertools::Itertools;
 use linestring::cgmath_3d::Plane;
 use std::collections::HashMap;
-use cgmath::EuclideanSpace;
 
 /// converts from a private, comparable and hashable format
 /// only use this for floats that are f64::is_finite()
@@ -78,6 +78,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
     let mut lines =
         Vec::<linestring::cgmath_2d::Line2<f64>>::with_capacity(input_pb_model.faces.len());
 
+    // todo, the enumeration is never used
     for f in input_pb_model.faces.iter().enumerate() {
         match f.1.vertices.len() {
             3..=usize::MAX => return Err(TBError::ModelContainsFaces("Model can't contain any faces, only edges. Use the 2d_outline tool to remove faces".to_string())),
@@ -210,7 +211,7 @@ pub fn command(
     a_command: &PB_Command,
     _options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    println!("knife_intersect got command: {}", a_command.command);
+    println!("knife_intersect got command: \"{}\"", a_command.command);
     if a_command.models.len() > 1 {
         return Err(TBError::InvalidInputData(
             "This operation only supports one model as input".to_string(),

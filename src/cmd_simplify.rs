@@ -1,10 +1,10 @@
 use super::TBError;
-use crate::toxicblend::Command as PB_Command;
-use crate::toxicblend::Face as PB_Face;
-use crate::toxicblend::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend::Model as PB_Model;
-use crate::toxicblend::Reply as PB_Reply;
-use crate::toxicblend::Vertex as PB_Vertex;
+use crate::toxicblend_pb::Command as PB_Command;
+use crate::toxicblend_pb::Face as PB_Face;
+use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
+use crate::toxicblend_pb::Model as PB_Model;
+use crate::toxicblend_pb::Reply as PB_Reply;
+use crate::toxicblend_pb::Vertex as PB_Vertex;
 use itertools::Itertools;
 use linestring::cgmath_3d;
 use rayon::prelude::*;
@@ -49,7 +49,7 @@ pub fn find_linestrings(
                 entry.push(v0);
             }
         }
-        edge_set.insert(make_key(v0, v1));
+        let _ = edge_set.insert(make_key(v0, v1));
     }
     // we now know how many times one vertex is connected to other vertices
     println!("Built connections_map.len():{}", connections_map.len());
@@ -137,7 +137,7 @@ pub fn find_linestrings(
 }
 
 #[inline(always)]
-/// make a key from v0 and v1, lowest index will always be first
+/// make a key from v0 and v1, lowest index first
 fn make_key(v0: usize, v1: usize) -> (usize, usize) {
     if v0 < v1 {
         (v0, v1)
@@ -232,7 +232,7 @@ fn walk_single_line_edges(
                 y: v1.y,
                 z: v1.z,
             });
-            edge_set.remove(&key);
+            let _ = edge_set.remove(&key);
             //println!("#2 Pushing vertex {:?}, {}->{} dropping:{:?}", to_v, from_v, to_v, key);
 
             let connection = connections_map
@@ -284,7 +284,7 @@ fn walk_single_line_edges(
     if end_vertex == started_at_vertex {
         //let key = make_key(from_v,to_v);
         //println!("#2 Pushing vertex {:?}, {}->{} dropping:{:?}", to_v, from_v, to_v, key);
-        edge_set.remove(&make_key(from_v, to_v));
+        let _ = edge_set.remove(&make_key(from_v, to_v));
     } else {
         //println!("#3 Pushing vertex {:?}, {}->{} ", end_vertex, from_v, to_v);
     }
@@ -414,7 +414,7 @@ pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    println!("simplify got command: {}", a_command.command);
+    println!("simplify got command: \"{}\"", a_command.command);
     if a_command.models.len() > 1 {
         return Err(TBError::InvalidInputData(format!(
             "This operation only supports one model as input:{}",

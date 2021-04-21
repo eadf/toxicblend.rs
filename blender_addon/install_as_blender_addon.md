@@ -19,23 +19,25 @@ subprocess.call([sys.executable, "-m", "ensurepip"])
 subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
 
 # install the pip packages protobuf and grpcio
-subprocess.call([sys.executable, "-m", "pip", "install", "protobuf"])
-subprocess.call([sys.executable, "-m", "pip", "install", "grpcio"])
+subprocess.call([sys.executable, "-m", "pip", "install", "protobuf", "grpcio"])
 
 print("copy or link toxicblend_pb2.py and toxicblend_pb2_grpc.py to this path:")
 print(site.getsitepackages())
 ```
 If you run into permission problems, you will have to run the pip commands on the blender python executable with raised privileges (e.g. sudo)
-
+```
+sudo /Applications/Blender.app/Contents/Resources/2.92/python/bin/python3.7m -m pip install protobuf grpcio
+```
 
 You will also have to copy the `toxicblend_pb2.py` and `toxicblend_pb2_grpc.py` files to one of the
 site-package directories of the blender python environment. Soft links works fine as well.
 
 ```
 # example MacOS:
-$ cd toxicblend.rs
-$ cp blender_addon/toxicblend_pb2.py blender_addon/toxicblend_pb2_grpc.py /Applications/Blender.app/Contents/Resources/2.92/python/lib/python3.7/site-packages
+$ cd toxicblend.rs/blender_addon
+$ cp -a toxicblend /Applications/Blender.app/Contents/Resources/2.92/python/lib/python3.7/site-packages/
 ```
+(Some day I'll package those files as a pip package) 
 
 Then you need to install the addon itself. `Blender->Preferences->Addons->Install..` select the `blender_addon/toxicblend_meshtools.py` file
 and click 'Install Add-on'.
