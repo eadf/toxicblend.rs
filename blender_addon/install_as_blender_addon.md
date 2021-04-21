@@ -35,7 +35,7 @@ site-package directories of the blender python environment. Soft links works fin
 ```
 # example MacOS:
 $ cd toxicblend.rs/blender_addon
-$ cp -a toxicblend /Applications/Blender.app/Contents/Resources/2.92/python/lib/python3.7/site-packages/
+$ ln -s toxicblend /Applications/Blender.app/Contents/Resources/2.92/python/lib/python3.7/site-packages/toxicblend
 ```
 (Some day I'll package those files as a pip package) 
 
