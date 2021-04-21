@@ -32,7 +32,7 @@ const EPSILON: f64 = 0.0001;
 const MAX_VORONOI_DIMENSION: f64 = 256.0 * 800.0;
 
 /// The length of one 'step' for curved edges discretization
-const VORONOI_DISCRETE_DISTANCE : f64 = 0.0001;
+const VORONOI_DISCRETE_DISTANCE: f64 = 0.0001;
 
 pub mod toxicblend_pb {
     tonic::include_proto!("toxicblend");
@@ -88,7 +88,7 @@ pub enum TBError {
     InternalError(String),
 
     #[error("Something is wrong with the input data")]
-    CouldNotCalculateInverseMatrix,
+    CouldNotCalculateInvertMatrix,
 
     #[error("Your line-strings are self-intersecting.")]
     SelfIntersectingData,

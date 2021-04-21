@@ -6,7 +6,7 @@ use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
 use boostvoronoi::builder as VB;
-use cgmath::{SquareMatrix, Transform, UlpsEq};
+use cgmath::{ulps_eq, SquareMatrix, EuclideanSpace, Transform, UlpsEq};
 use linestring::cgmath_2d::Aabb2;
 //use linestring::cgmath_3d::Plane;
 use boostvoronoi::diagram as VD;
@@ -39,12 +39,14 @@ struct DiagramHelper {
     segments: Vec<boostvoronoi::Line<i64>>,
     aabb: Aabb2<f64>,
     rejected_edges: Option<yabf::Yabf>,
-    discrete_distance:f64,
+    discrete_distance: f64,
+    remove_secondary_edges: bool,
 }
 
 impl DiagramHelper {
     /// Mark infinite edges and their adjacent edges as EXTERNAL.
-    fn reject_external_edges(&mut self) -> Result<(), TBError> {
+    /// Also mark secondary edges if self.remove_secondary_edges is set
+    fn reject_edges(&mut self) -> Result<(), TBError> {
         let mut rejected_edges = yabf::Yabf::default();
         // ensure capacity of bit field by setting last bit +1 to true
         rejected_edges.set_bit(self.diagram.edges().len(), true);
@@ -52,7 +54,7 @@ impl DiagramHelper {
         for edge in self.diagram.edges().iter() {
             let edge = edge.get();
             let edge_id = edge.get_id();
-            if edge.is_secondary() {
+            if self.remove_secondary_edges && edge.is_secondary() {
                 rejected_edges.set_bit(edge_id.0, true);
                 let twin_id = self.diagram.edge_get_twin(Some(edge_id)).ok_or_else(|| {
                     TBError::InternalError("Could not get expected edge twin".to_string())
@@ -71,6 +73,8 @@ impl DiagramHelper {
         self.rejected_edges = Some(rejected_edges);
         Ok(())
     }
+
+    // todo: make this a non-recursive method
     /// Recursively marks this edge and all other edges connecting to it via vertex1.
     /// Recursion stops when connecting to input geometry.
     /// if 'initial' is set to true it will search both ways, (edge and the twin edge)
@@ -112,6 +116,7 @@ impl DiagramHelper {
             );
         }
 
+        #[allow(clippy::blocks_in_if_conditions)]
         if v1.is_none()
             || !self.diagram.edges()[(Some(edge_id))
                 .ok_or_else(|| {
@@ -148,6 +153,7 @@ impl DiagramHelper {
         }
         Ok(())
     }
+
     /// converts to a private, comparable and hash-able format
     /// only use this for floats that are f64::is_finite()
     #[inline(always)]
@@ -187,21 +193,21 @@ impl DiagramHelper {
         pb_vertices: &mut Vec<PB_Vertex>,
         inverted_transform: &cgmath::Matrix4<f64>,
     ) -> usize {
-        let v1 = inverted_transform.transform_point(cgmath::Point3 {
+        let v = inverted_transform.transform_point(cgmath::Point3 {
             x: vertex[0],
             y: vertex[1],
             z: 0.0,
         });
         let n = pb_vertices.len();
         pb_vertices.push(PB_Vertex {
-            x: v1.x,
-            y: v1.y,
-            z: v1.z,
+            x: v.x,
+            y: v.y,
+            z: v.z,
         });
         n
     }
 
-    /// Convert voronoi edges.
+    /// Convert voronoi edges into PB_Model data
     fn convert_edges(
         &mut self,
         new_vertex_map: &mut fnv::FnvHashMap<(u64, u64), usize>,
@@ -216,10 +222,10 @@ impl DiagramHelper {
         let simpleaffine = boostvoronoi::visual_utils::SimpleAffine::default();
 
         let mut already_drawn = yabf::Yabf::default();
-        let mut rejected_edges = self
+        let rejected_edges = self
             .rejected_edges
             .take()
-            .unwrap_or(yabf::Yabf::with_capacity(0));
+            .unwrap_or_else(|| yabf::Yabf::with_capacity(0));
 
         for it in self.diagram.edges().iter().enumerate() {
             let edge_id = VD::VoronoiEdgeIndex(it.0);
@@ -228,6 +234,7 @@ impl DiagramHelper {
                 // already done this, or rather - it's twin
                 continue;
             }
+
             // no point in setting current edge as drawn, the edge id will not repeat
             // set twin as drawn
             if let Some(twin) = self.diagram.edge_get_twin(Some(edge_id)) {
@@ -237,7 +244,7 @@ impl DiagramHelper {
             // the coordinates in samples must be 'screen' coordinates, i.e. affine transformed
             let mut samples = Vec::<[f64; 2]>::new();
             if !self.diagram.edge_is_finite(Some(edge_id)).unwrap() {
-                let a = self.clip_infinite_edge(edge_id, &mut samples)?;
+                self.clip_infinite_edge(edge_id, &mut samples)?;
             } else {
                 let vertex0 = self.diagram.vertex_get(edge.vertex0()).unwrap().get();
 
@@ -259,21 +266,38 @@ impl DiagramHelper {
             if samples.len() > 1 {
                 let len = samples.len();
                 let mut processed_samples = Vec::<usize>::with_capacity(samples.len());
-                processed_samples.push( samples.first().map(
-                    |v|Self::place_new_pb_vertex_dup_check(v, new_vertex_map, pb_vertices, &inverted_transform)).unwrap());
+                processed_samples.push(
+                    samples
+                        .first()
+                        .map(|v| {
+                            Self::place_new_pb_vertex_dup_check(
+                                v,
+                                new_vertex_map,
+                                pb_vertices,
+                                &inverted_transform,
+                            )
+                        })
+                        .unwrap(),
+                );
 
-                for v in samples
-                    .iter()
-                    .skip(1)
-                    .take(len - 2)
-                    .map(|v| {
-                        Self::place_new_pb_vertex_unchecked(v, pb_vertices, &inverted_transform)
-                    }) {
+                for v in samples.iter().skip(1).take(len - 2).map(|v| {
+                    Self::place_new_pb_vertex_unchecked(v, pb_vertices, &inverted_transform)
+                }) {
                     processed_samples.push(v);
-                };
-                processed_samples.push( samples.last().map(
-                    |v|Self::place_new_pb_vertex_dup_check(v, new_vertex_map, pb_vertices, &inverted_transform)).unwrap());
-
+                }
+                processed_samples.push(
+                    samples
+                        .last()
+                        .map(|v| {
+                            Self::place_new_pb_vertex_dup_check(
+                                v,
+                                new_vertex_map,
+                                pb_vertices,
+                                &inverted_transform,
+                            )
+                        })
+                        .unwrap(),
+                );
 
                 for (v0, v1) in processed_samples.into_iter().tuple_windows::<(_, _)>() {
                     pb_faces.push(PB_Face {
@@ -384,7 +408,9 @@ impl DiagramHelper {
             };
             let dx = segment.end.x - segment.start.x;
             let dy = segment.end.y - segment.start.y;
-            if ([segment.start.x as f64, segment.start.y as f64] == origin) ^ cell1.contains_point()
+            if (ulps_eq!((segment.start.x as f64), origin[0])
+                && ulps_eq!((segment.start.y) as f64, origin[1]))
+                ^ cell1.contains_point()
             {
                 direction[0] = dy as f64;
                 direction[1] = -dx as f64;
@@ -422,6 +448,7 @@ impl DiagramHelper {
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn parse_input(
     input_pb_model: &PB_Model,
     cmd_arg_max_voronoi_dimension: f64,
@@ -439,16 +466,22 @@ fn parse_input(
         aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
 
-    let (plane, transform, vor_aabb) = centerline::get_transform_relaxed(
+    let (plane, transform, vor_aabb)= centerline::get_transform_relaxed(
         &aabb,
         cmd_arg_max_voronoi_dimension,
         super::EPSILON,
         f64::default_max_ulps(),
-    )?;
+    ).or_else(|_|{
+        let aabbe_d = aabb.get_high().unwrap() - aabb.get_low().unwrap();
+        let aabbe_c = (aabb.get_high().unwrap().to_vec() + aabb.get_low().unwrap().to_vec())/2.0;
+        Err(TBError::InputNotPLane(format!(
+            "Input data not in one plane and/or plane not intersecting origin: Δ({},{},{}) C({},{},{})",
+            aabbe_d.x, aabbe_d.y, aabbe_d.z,aabbe_c.x, aabbe_c.y, aabbe_c.z)))
+        })?;
 
     let invers_transform = transform
         .invert()
-        .ok_or(TBError::CouldNotCalculateInverseMatrix)?;
+        .ok_or(TBError::CouldNotCalculateInvertMatrix)?;
 
     println!("voronoi: data was in plane:{:?} aabb:{:?}", plane, aabb);
     //println!("input Lines:{:?}", input_pb_model.vertices);
@@ -511,6 +544,7 @@ fn voronoi(
     cmd_arg_max_voronoi_dimension: f64,
     cmd_arg_discrete_distance: f64,
     cmd_remove_externals: bool,
+    cmd_remove_secondary_edges: bool,
 ) -> Result<PB_Model, TBError> {
     let (vor_vertices, vor_lines, vor_aabb2, inverted_transform) =
         parse_input(input_pb_model, cmd_arg_max_voronoi_dimension)?;
@@ -518,7 +552,7 @@ fn voronoi(
     vb.with_vertices(vor_vertices.iter())?;
     vb.with_segments(vor_lines.iter())?;
     let vor_diagram = vb.construct()?;
-    println!("diagram:{:?}", vor_diagram);
+    //println!("diagram:{:?}", vor_diagram);
     println!("aabb2:{:?}", vor_aabb2);
     let mut diagram_helper = DiagramHelper {
         vertices: vor_vertices,
@@ -526,16 +560,13 @@ fn voronoi(
         diagram: vor_diagram,
         aabb: vor_aabb2,
         rejected_edges: None,
-        discrete_distance:cmd_arg_discrete_distance
+        discrete_distance: cmd_arg_discrete_distance,
+        remove_secondary_edges: cmd_remove_secondary_edges,
     };
     if cmd_remove_externals {
-        diagram_helper.reject_external_edges()?;
+        diagram_helper.reject_edges()?;
     }
-    Ok(build_output(
-        input_pb_model,
-        diagram_helper,
-        inverted_transform,
-    )?)
+    build_output(input_pb_model, diagram_helper, inverted_transform)
 }
 
 fn build_output(
@@ -550,7 +581,7 @@ fn build_output(
         // had to encase this in a block b/o the borrow checker.
 
         // convert this back to network form again
-        let mut vertices_2d: Vec<PB_Vertex> = diagram
+        let vertices_2d: Vec<PB_Vertex> = diagram
             .vertices
             .iter()
             .enumerate()
@@ -574,12 +605,12 @@ fn build_output(
             .collect();
         vertices_2d
     };
-    let last_point_plus_one = vertices_2d.len();
+    //let last_point_plus_one = vertices_2d.len();
 
     // push the line vertices to the same vec
     let mut faces_2d = {
         // had to encase this in a block b/o the borrow checker.
-
+        // todo: use the duplicate checker of DiagramHelper
         let mut faces_2d = Vec::<PB_Face>::with_capacity(diagram.segments.len());
         for l in diagram.segments.iter() {
             let mut face = PB_Face {
@@ -626,11 +657,15 @@ fn build_output(
     };
 
     let mut diagram = diagram;
-    diagram.convert_edges(&mut new_vertex_map, &mut vertices_2d, &mut faces_2d, inverted_transform)?;
+    diagram.convert_edges(
+        &mut new_vertex_map,
+        &mut vertices_2d,
+        &mut faces_2d,
+        inverted_transform,
+    )?;
 
-    println!("Result vertices:{:?}", vertices_2d.len());
-    println!("Result vertices:{:?}", vertices_2d);
-    println!("Result faces:{:?}", faces_2d.len());
+    println!("input model vertices:{:?}", vertices_2d.len());
+    println!("input model faces:{:?}", faces_2d.len());
 
     let model = PB_Model {
         name: input_pb_model.name.clone(),
@@ -671,7 +706,9 @@ pub fn command(
     }
     let cmd_arg_discrete_distance = {
         let tmp_value = super::VORONOI_DISCRETE_DISTANCE.to_string();
-        let value = options.get("VORONOI_DISCRETE_DISTANCE").unwrap_or(&tmp_value);
+        let value = options
+            .get("VORONOI_DISCRETE_DISTANCE")
+            .unwrap_or(&tmp_value);
         value.parse::<f64>().map_err(|_| {
             TBError::InvalidInputData(format!(
                 "Could not parse the VORONOI_DISCRETE_DISTANCE parameter {:?}",
@@ -698,6 +735,19 @@ pub fn command(
         })?
     };
 
+    let cmd_arg_remove_secondary_edges = {
+        let default_value = "false".to_string();
+        let value = options
+            .get("REMOVE_SECONDARY_EDGES")
+            .unwrap_or(&default_value);
+        value.parse::<bool>().map_err(|_| {
+            TBError::InvalidInputData(format!(
+                "Could not parse the REMOVE_SECONDARY_EDGES parameter {:?}",
+                value
+            ))
+        })?
+    };
+
     for model in a_command.models.iter() {
         println!("model.name:{:?}, ", model.name);
         println!("model.vertices:{:?}, ", model.vertices.len());
@@ -708,12 +758,12 @@ pub fn command(
         );
         println!("MAX_VORONOI_DIMENSION:{:?}", cmd_arg_max_voronoi_dimension);
         println!("REMOVE_EXTERNALS:{:?}", cmd_arg_remove_externals);
-        println!("VORONOI_DISCRETE_DISTANCE:{:?}%",cmd_arg_discrete_distance);
+        println!("VORONOI_DISCRETE_DISTANCE:{:?}%", cmd_arg_discrete_distance);
         println!();
     }
 
     // percentage to multiplication conversion
-    let cmd_arg_discrete_distance = cmd_arg_discrete_distance/100.0;
+    let cmd_arg_discrete_distance = cmd_arg_discrete_distance / 100.0;
 
     if !a_command.models.is_empty() {
         let input_model = &a_command.models[0];
@@ -722,6 +772,7 @@ pub fn command(
             cmd_arg_max_voronoi_dimension,
             cmd_arg_discrete_distance,
             cmd_arg_remove_externals,
+            cmd_arg_remove_secondary_edges,
         )?;
         let mut reply = PB_Reply {
             options: vec![PB_KeyValuePair {

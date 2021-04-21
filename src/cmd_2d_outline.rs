@@ -7,6 +7,9 @@ use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
 use itertools::Itertools;
 use std::collections::HashMap;
+use linestring::cgmath_3d;
+use cgmath::UlpsEq;
+use cgmath::EuclideanSpace;
 
 #[inline(always)]
 /// make a key from v0 and v1, lowest index will always be first
@@ -27,6 +30,22 @@ pub fn remove_internal_edges(
     let mut single_edges = fnv::FnvHashSet::<(usize, usize)>::default();
     let mut internal_edges = fnv::FnvHashSet::<(usize, usize)>::default();
     //println!("Input faces : {:?}", obj.faces);
+
+    let mut aabb = cgmath_3d::Aabb3::<f64>::default();
+    for v in obj.vertices.iter() {
+        aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
+    }
+    let plane =
+        cgmath_3d::Plane::get_plane_relaxed(&aabb, super::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
+            let aabbe_d = aabb.get_high().unwrap() - aabb.get_low().unwrap();
+            let aabbe_c = (aabb.get_high().unwrap().to_vec() + aabb.get_low().unwrap().to_vec())/2.0;
+            TBError::InputNotPLane(format!(
+                "Input data not in one plane and/or plane not intersecting origin: Δ({},{},{}) C({},{},{})",
+                aabbe_d.x, aabbe_d.y, aabbe_d.z,aabbe_c.x, aabbe_c.y, aabbe_c.z
+            ))
+        })?;
+
+    println!("2d_outline: data was in plane:{:?} aabb:{:?}", plane, aabb);
 
     for face in obj.faces.iter() {
         if face.vertices.len() == 2 {

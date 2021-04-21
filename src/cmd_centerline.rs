@@ -405,9 +405,9 @@ pub fn command(
         f64::default_max_ulps(),
     )?;
 
-    let invers_transform = transform
+    let inverted_transform = transform
         .invert()
-        .ok_or(TBError::CouldNotCalculateInverseMatrix)?;
+        .ok_or(TBError::CouldNotCalculateInvertMatrix)?;
 
     //println!("-> transform");
     // transform each linestring to 2d
@@ -502,7 +502,7 @@ pub fn command(
         >>()?;
     //println!("<-build_voronoi");
 
-    let model = build_output_bp_model(&a_command, shapes, invers_transform)?;
+    let model = build_output_bp_model(&a_command, shapes, inverted_transform)?;
 
     //println!("<-build_bp_model");
     let mut reply = PB_Reply {
