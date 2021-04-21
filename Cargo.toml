@@ -7,6 +7,7 @@ description = "Client/Server application for Blender. WIP"
 readme = "README.md"
 repository = "https://github.com/eadf/toxicblend.rs"
 license = "AGPL-3.0"
+keywords = ["blender-addon", "centerline", "voronoi"]
 
 [dependencies]
 tonic = "^0.4.1"
