@@ -471,12 +471,12 @@ fn parse_input(
         cmd_arg_max_voronoi_dimension,
         super::EPSILON,
         f64::default_max_ulps(),
-    ).or_else(|_|{
+    ).map_err(|_|{
         let aabbe_d = aabb.get_high().unwrap() - aabb.get_low().unwrap();
         let aabbe_c = (aabb.get_high().unwrap().to_vec() + aabb.get_low().unwrap().to_vec())/2.0;
-        Err(TBError::InputNotPLane(format!(
+        TBError::InputNotPLane(format!(
             "Input data not in one plane and/or plane not intersecting origin: Δ({},{},{}) C({},{},{})",
-            aabbe_d.x, aabbe_d.y, aabbe_d.z,aabbe_c.x, aabbe_c.y, aabbe_c.z)))
+            aabbe_d.x, aabbe_d.y, aabbe_d.z,aabbe_c.x, aabbe_c.y, aabbe_c.z))
         })?;
 
     let invers_transform = transform

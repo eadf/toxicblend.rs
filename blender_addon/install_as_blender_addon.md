@@ -4,7 +4,7 @@
 To install this blender addon you need to install `protobuf` and `grpcio` to the blender python installation.
 This is an example of how this can be done.
 
-Open the script tab in blender and run this:
+Run blender from the console so that you can see the console output. Then open the script tab in blender and run this:
 
 ```
 import subprocess

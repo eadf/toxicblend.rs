@@ -1012,7 +1012,7 @@ checksum = "360dfd1d6d30e05fda32ace2c8c70e9c0a9da713275777f5a4dbb8a1893930c6"
 
 [[package]]
 name = "toxicblend"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "boostvoronoi",
  "centerline",

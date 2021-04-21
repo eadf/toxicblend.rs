@@ -1,6 +1,6 @@
 [package]
 name = "toxicblend"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["eadf"]
 edition = "2018"
 description = "Client/Server application for Blender. WIP"
