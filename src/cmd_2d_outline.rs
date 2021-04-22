@@ -5,11 +5,11 @@ use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
-use itertools::Itertools;
-use std::collections::HashMap;
-use linestring::cgmath_3d;
-use cgmath::UlpsEq;
 use cgmath::EuclideanSpace;
+use cgmath::UlpsEq;
+use itertools::Itertools;
+use linestring::cgmath_3d;
+use std::collections::HashMap;
 
 #[inline(always)]
 /// make a key from v0 and v1, lowest index will always be first

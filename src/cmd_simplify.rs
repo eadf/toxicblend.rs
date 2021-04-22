@@ -195,7 +195,7 @@ fn walk_single_line_edges(
         if to_v == started_at_vertex {
             //println!("to_v == started_at_vertex == {}", started_at_vertex);
             end_vertex = to_v;
-            //println!("<-- recursion ended #1 size={}", result.len());
+            //println!("<-- meta recursion ended #1 size={}", result.len());
             break 'outer;
         }
         kill_pill -= 1;
@@ -288,7 +288,7 @@ fn walk_single_line_edges(
     } else {
         //println!("#3 Pushing vertex {:?}, {}->{} ", end_vertex, from_v, to_v);
     }
-    //println!("<-- recursion ended @{} result.len()={} edge_set.len():{}", end_vertex, result.len(), edge_set.len());
+    //println!("<-- meta recursion ended @{} result.len()={} edge_set.len():{}", end_vertex, result.len(), edge_set.len());
     Ok((end_vertex, result))
 }
 

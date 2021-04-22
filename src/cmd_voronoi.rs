@@ -6,13 +6,13 @@ use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
 use boostvoronoi::builder as VB;
-use cgmath::{ulps_eq, SquareMatrix, EuclideanSpace, Transform, UlpsEq};
+use cgmath::{ulps_eq, EuclideanSpace, SquareMatrix, Transform, UlpsEq};
 use linestring::cgmath_2d::Aabb2;
 //use linestring::cgmath_3d::Plane;
 use boostvoronoi::diagram as VD;
 use boostvoronoi::visual_utils as VU;
 use itertools::Itertools;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 //use boostvoronoi::{InputType, OutputType};
 
 /// converts from a private, comparable and hash-able format
@@ -56,9 +56,10 @@ impl DiagramHelper {
             let edge_id = edge.get_id();
             if self.remove_secondary_edges && edge.is_secondary() {
                 rejected_edges.set_bit(edge_id.0, true);
-                let twin_id = self.diagram.edge_get_twin(Some(edge_id)).ok_or_else(|| {
-                    TBError::InternalError("Could not get expected edge twin".to_string())
-                })?;
+                let twin_id = self
+                    .diagram
+                    .edge_get_twin(Some(edge_id))
+                    .ok_or_else(|| TBError::InternalError("Could not get edge twin".to_string()))?;
                 rejected_edges.set_bit(twin_id.0, true);
             }
             if !self
@@ -66,7 +67,7 @@ impl DiagramHelper {
                 .edge_is_finite(Some(edge_id))
                 .ok_or_else(|| TBError::InternalError("Could not get edge status".to_string()))?
             {
-                self.recursively_mark_connected_edges(edge_id, &mut rejected_edges, false)?;
+                self.mark_connected_edges(edge_id, &mut rejected_edges, true)?;
                 rejected_edges.set_bit(edge_id.0, true);
             }
         }
@@ -74,80 +75,89 @@ impl DiagramHelper {
         Ok(())
     }
 
-    // todo: make this a non-recursive method
-    /// Recursively marks this edge and all other edges connecting to it via vertex1.
-    /// Recursion stops when connecting to input geometry.
-    /// if 'initial' is set to true it will search both ways, (edge and the twin edge)
-    fn recursively_mark_connected_edges(
+    /// Marks this edge and all other edges connecting to it via vertex1.
+    /// Repeat stops when connecting to input geometry.
+    /// if 'initial' is set to true it will search both ways, edge and the twin edge.
+    /// 'initial' will be set to false when going past the first edge
+    fn mark_connected_edges(
         &self,
         edge_id: VD::VoronoiEdgeIndex,
         marked_edges: &mut yabf::Yabf,
         initial: bool,
     ) -> Result<(), TBError> {
-        if marked_edges.bit(edge_id.0) {
-            return Ok(());
-        }
+        let mut queue = VecDeque::<VD::VoronoiEdgeIndex>::new();
+        queue.push_front(edge_id);
+        let mut initial = initial;
 
-        let v1 = self.diagram.edge_get_vertex1(Some(edge_id));
-        if self.diagram.edge_get_vertex0(Some(edge_id)).is_some() && v1.is_none() {
-            // this edge leads to nowhere, break recursion
+        'outer: while !queue.is_empty() {
+            // unwrap should be safe cause we just checked !queue.is_empty()
+            let edge_id = queue.pop_back().unwrap();
+
+            if marked_edges.bit(edge_id.0) {
+                continue 'outer;
+            }
+
+            let v1 = self.diagram.edge_get_vertex1(Some(edge_id));
+            if self.diagram.edge_get_vertex0(Some(edge_id)).is_some() && v1.is_none() {
+                // this edge leads to nowhere
+                marked_edges.set_bit(edge_id.0, true);
+                continue 'outer;
+            }
             marked_edges.set_bit(edge_id.0, true);
-            return Ok(());
-        }
-        marked_edges.set_bit(edge_id.0, true);
 
-        if initial {
-            self.recursively_mark_connected_edges(
-                self.diagram.edge_get_twin(Some(edge_id)).ok_or_else(|| {
+            if initial {
+                initial = false;
+                queue.push_back(self.diagram.edge_get_twin(Some(edge_id)).ok_or_else(|| {
                     TBError::InternalError("Could not get expected edge twin".to_string())
-                })?,
-                marked_edges,
-                false,
-            )?;
-        } else {
-            marked_edges.set_bit(
-                self.diagram
-                    .edge_get_twin(Some(edge_id))
+                })?);
+            } else {
+                marked_edges.set_bit(
+                    self.diagram
+                        .edge_get_twin(Some(edge_id))
+                        .ok_or_else(|| {
+                            TBError::InternalError("Could not get expected edge twin".to_string())
+                        })?
+                        .0,
+                    true,
+                );
+            }
+
+            #[allow(clippy::blocks_in_if_conditions)]
+            if v1.is_none()
+                || !self.diagram.edges()[(Some(edge_id))
                     .ok_or_else(|| {
                         TBError::InternalError("Could not get expected edge twin".to_string())
                     })?
-                    .0,
-                true,
-            );
-        }
-
-        #[allow(clippy::blocks_in_if_conditions)]
-        if v1.is_none()
-            || !self.diagram.edges()[(Some(edge_id))
-                .ok_or_else(|| {
-                    TBError::InternalError("Could not get expected edge twin".to_string())
-                })?
-                .0]
-                .get()
-                .is_primary()
-        {
-            // break recursion if vertex1 is not found or if the edge is not primary
-            return Ok(());
-        }
-        // v1 is always Some from this point on
-        if let Some(v1) = v1 {
-            let v1 = self
-                .diagram
-                .vertex_get(Some(v1))
-                .ok_or_else(|| TBError::InternalError("Could not get expected vertex".to_string()))?
-                .get();
-            if v1.is_site_point() {
-                // break recursion on site points
-                return Ok(());
+                    .0]
+                    .get()
+                    .is_primary()
+            {
+                // stop traversing this line if vertex1 is not found or if the edge is not primary
+                continue 'outer;
             }
-            //self.reject_vertex(v1, color);
-            let mut e = v1.get_incident_edge();
-            let v_incident_edge = e;
-            while let Some(this_edge) = e {
-                self.recursively_mark_connected_edges(this_edge, marked_edges, false)?;
-                e = self.diagram.edge_rot_next(Some(this_edge));
-                if e == v_incident_edge {
-                    break;
+            // v1 is always Some from this point on
+            if let Some(v1) = v1 {
+                let v1 = self
+                    .diagram
+                    .vertex_get(Some(v1))
+                    .ok_or_else(|| {
+                        TBError::InternalError("Could not get expected vertex".to_string())
+                    })?
+                    .get();
+                if v1.is_site_point() {
+                    // stop iterating line when site points detected
+                    continue 'outer;
+                }
+                //self.reject_vertex(v1, color);
+                let mut e = v1.get_incident_edge();
+                let v_incident_edge = e;
+                while let Some(this_edge) = e {
+                    initial = false;
+                    queue.push_back(this_edge);
+                    e = self.diagram.edge_rot_next(Some(this_edge));
+                    if e == v_incident_edge {
+                        break;
+                    }
                 }
             }
         }

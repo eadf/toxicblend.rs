@@ -6,7 +6,8 @@
 
 # toxicblend.rs
 Work in progress.\
-This will be a rust port of my, now defunct (thanks bitbucket), scala based project [toxicblend](https://github.com/toxicblend/toxicblend)
+This will be a rust port of my now defunct (thanks bitbucket), scala based project [toxicblend](https://github.com/toxicblend/toxicblend)
+It is a [client-server](https://grpc.io) based addon for [Blender](blender.org) written in Rust (and Python for the client side parts).  
 
 ## Blender addon installation
 Follow instructions in [install_as_blender_addon.md](blender_addon/install_as_blender_addon.md)
@@ -43,7 +44,7 @@ Will convert a flat mesh object into an outline. Right now the data must be in a
 
 Takes the output of the 2d_outline command and calculates the 3D centerline.
 
-This operation only works on non-intersecting loops with islands of loops of edges inside. E.g. letters.
+This operation only works on non-intersecting loops with islands of loops inside. E.g. fonts.
 
 If you only need the 2D centerline, you can simply scale the added dimension to zero.
 
@@ -82,7 +83,7 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 
 ## Todo
 
-- [ ] Improve the addon installation process, maybe get rid of the site-package files by putting them inside the plugin itself.
+- [ ] Improve the addon installation process, put the site-package files in a separate pip package.
 - [ ] Document the rest of the operations.
 - [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
 - [ ] Port the rest of the operations.
