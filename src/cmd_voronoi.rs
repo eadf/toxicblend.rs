@@ -85,15 +85,20 @@ impl DiagramHelper {
         marked_edges: &mut yabf::Yabf,
         initial: bool,
     ) -> Result<(), TBError> {
+        if marked_edges.bit(edge_id.0) {
+            return Ok(());
+        }
+
+        let mut initial = initial;
         let mut queue = VecDeque::<VD::VoronoiEdgeIndex>::new();
         queue.push_front(edge_id);
-        let mut initial = initial;
 
         'outer: while !queue.is_empty() {
-            // unwrap should be safe cause we just checked !queue.is_empty()
+            // unwrap is safe since we just checked !queue.is_empty()
             let edge_id = queue.pop_back().unwrap();
 
             if marked_edges.bit(edge_id.0) {
+                initial = false;
                 continue 'outer;
             }
 
@@ -101,21 +106,23 @@ impl DiagramHelper {
             if self.diagram.edge_get_vertex0(Some(edge_id)).is_some() && v1.is_none() {
                 // this edge leads to nowhere
                 marked_edges.set_bit(edge_id.0, true);
+                initial = false;
                 continue 'outer;
             }
             marked_edges.set_bit(edge_id.0, true);
 
+            #[allow(unused_assignments)]
             if initial {
                 initial = false;
                 queue.push_back(self.diagram.edge_get_twin(Some(edge_id)).ok_or_else(|| {
-                    TBError::InternalError("Could not get expected edge twin".to_string())
+                    TBError::InternalError("Could not get edge twin".to_string())
                 })?);
             } else {
                 marked_edges.set_bit(
                     self.diagram
                         .edge_get_twin(Some(edge_id))
                         .ok_or_else(|| {
-                            TBError::InternalError("Could not get expected edge twin".to_string())
+                            TBError::InternalError("Could not get edge twin".to_string())
                         })?
                         .0,
                     true,
@@ -126,13 +133,14 @@ impl DiagramHelper {
             if v1.is_none()
                 || !self.diagram.edges()[(Some(edge_id))
                     .ok_or_else(|| {
-                        TBError::InternalError("Could not get expected edge twin".to_string())
+                        TBError::InternalError("Could not get edge twin".to_string())
                     })?
                     .0]
                     .get()
                     .is_primary()
             {
                 // stop traversing this line if vertex1 is not found or if the edge is not primary
+                initial = false;
                 continue 'outer;
             }
             // v1 is always Some from this point on
@@ -146,20 +154,23 @@ impl DiagramHelper {
                     .get();
                 if v1.is_site_point() {
                     // stop iterating line when site points detected
+                    initial = false;
                     continue 'outer;
                 }
                 //self.reject_vertex(v1, color);
                 let mut e = v1.get_incident_edge();
                 let v_incident_edge = e;
                 while let Some(this_edge) = e {
-                    initial = false;
-                    queue.push_back(this_edge);
+                    if !marked_edges.bit(this_edge.0) {
+                        queue.push_back(this_edge);
+                    }
                     e = self.diagram.edge_rot_next(Some(this_edge));
                     if e == v_incident_edge {
                         break;
                     }
                 }
             }
+            initial = false;
         }
         Ok(())
     }
