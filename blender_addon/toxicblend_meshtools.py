@@ -435,7 +435,7 @@ class ToxicBlend_SelectIntersectionVertices(Operator):
 class Toxicblend_2D_Outline(Operator):
     bl_idname = "mesh.toxicblend_meshtools_2d_outline"
     bl_label = "2D Outline"
-    bl_description = "Outline 2d geometry, the geometry must be flat and intersect origo"
+    bl_description = "Outline 2d geometry, the geometry must be flat and on a plane intersecting origin"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -562,7 +562,7 @@ class Toxicblend_Voronoi(Operator):
 class Toxicblend_Knife_Intersect(Operator):
     bl_idname = "mesh.toxicblend_meshtools_knife_intersect"
     bl_label = "Knife Intersect"
-    bl_description = "Knife cuts self intersecting geometry, the geometry must be flat and intersect origo"
+    bl_description = "Knife cuts self intersecting geometry, the geometry must be flat and on a plane intersecting origin"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -607,7 +607,7 @@ class Toxicblend_Knife_Intersect(Operator):
 class Toxicblend_Centerline(Operator):
     bl_idname = "mesh.toxicblend_meshtools_centerline"
     bl_label = "Centerline"
-    bl_description = "Calculate centerline, the geometry must be flat and intersect origo"
+    bl_description = "Calculate centerline, the geometry must be flat and on a plane intersecting origin"
     bl_options = {'REGISTER', 'UNDO'}
 
     angle: FloatProperty(
@@ -673,6 +673,79 @@ class Toxicblend_Centerline(Operator):
                 opt = command.options.add()
                 opt.key = "SIMPLIFY"
                 opt.value = str(self.simplify).lower()
+
+                response = stub.execute(command)
+                handle_response(response)
+                if len(response.models) > 0:
+                    print("client received options: ", len(response.options), " models:", len(response.models))
+                    handle_received_object(active_object, response)
+
+            # cleaning up
+            terminate()
+
+            return {'FINISHED'}
+        except ToxicblendException as e:
+            self.report({'ERROR'}, e.message)
+            return {'CANCELLED'}
+        except grpc._channel._InactiveRpcError as e:
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
+
+
+# Centerline operator
+class Toxicblend_Centerline_Mesh(Operator):
+    bl_idname = "mesh.toxicblend_meshtools_centerline_mesh"
+    bl_label = "Centerline Mesh"
+    bl_description = "Calculate centerline, the geometry must be flat and on a plane intersecting origin. This version of centerline tries to keep as many edges as possible. Intended for mesh generation by blender. (press F when done)"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    remove_internals: BoolProperty(
+        name="Remove internal edges",
+        description="Remove edges internal to islands in the geometry",
+        default=True
+    )
+
+    distance: FloatProperty(
+        name="Distance",
+        description="Discrete distance as a percentage of the AABB",
+        default=0.005,
+        min=0.0001,
+        max=4.9999,
+        precision=6,
+        subtype='PERCENTAGE'
+    )
+
+    simplify: BoolProperty(
+        name="Simplify line strings",
+        description="Simplify voronoi edges connected as in a line string. The 'distance' property is used.",
+        default=True
+    )
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        return ob and ob.type == 'MESH' and context.mode == 'EDIT_MESH'
+
+    def invoke(self, context, event):
+        # load custom settings
+        settings_load(self)
+        return self.execute(context)
+
+    def execute(self, context):
+        # initialise
+        active_object, active_mesh = initialise()
+        settings_write(self)
+        try:
+            with grpc.insecure_channel(SOCKET) as channel:
+                stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
+                command = toxicblend_pb2.Command(command='centerline_mesh')
+                build_pb_model(active_object, active_mesh, command.models.add())
+                opt = command.options.add()
+                opt.key = "REMOVE_INTERNALS"
+                opt.value = str(self.remove_internals).lower()
+                opt = command.options.add()
+                opt.key = "DISTANCE"
+                opt.value = str(self.distance)
 
                 response = stub.execute(command)
                 handle_response(response)
@@ -764,6 +837,7 @@ class VIEW3D_MT_edit_mesh_toxicblend_meshtools(Menu):
         layout.operator("mesh.toxicblend_meshtools_2d_outline")
         layout.operator("mesh.toxicblend_meshtools_knife_intersect")
         layout.operator("mesh.toxicblend_meshtools_centerline")
+        layout.operator("mesh.toxicblend_meshtools_centerline_mesh")
         layout.operator("mesh.toxicblend_meshtools_voronoi")
         layout.operator("mesh.toxicblend_meshtools_select_end_vertices")
         layout.operator("mesh.toxicblend_meshtools_select_intersection_vertices")
@@ -837,11 +911,34 @@ class TB_MeshToolsProps(PropertyGroup):
         default=True
     )
 
+    centerline_mesh_remove_internals: BoolProperty(
+        name="Remove internal edges",
+        description="Remove edges internal to islands in the geometry",
+        default=True
+    )
+
+    centerline_mesh_distance: FloatProperty(
+        name="Distance",
+        description="Discrete distance as a percentage of the AABB",
+        default=0.005,
+        min=0.0001,
+        max=4.9999,
+        precision=6,
+        subtype='PERCENTAGE'
+    )
+
+    centerline_mesh_simplify: BoolProperty(
+        name="Simplify line strings",
+        description="Simplify voronoi edges connected as in a line string. The 'distance' property is used.",
+        default=True
+    )
+
     voronoi_remove_externals: BoolProperty(
         name="Remove external edges",
         description="Remove edges connected or indirectly connected to 'infinite' edges. Edges inside input geometry are always considered 'internal'",
         default=True
     )
+
     voronoi_distance: FloatProperty(
         name="Discretization Distance",
         description="Discretization distance as a percentage of the larges axis, used in the discretization process of curved edges",
@@ -873,6 +970,7 @@ classes = (
     Toxicblend_2D_Outline,
     Toxicblend_Knife_Intersect,
     Toxicblend_Centerline,
+    Toxicblend_Centerline_Mesh,
     Toxicblend_Voronoi,
     ToxicBlend_SelectEndVertices,
     ToxicBlend_SelectIntersectionVertices,

@@ -5,7 +5,7 @@ use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
-use cgmath::{Angle, EuclideanSpace, SquareMatrix};
+use cgmath::{EuclideanSpace, SquareMatrix};
 use cgmath::{Transform, UlpsEq};
 use itertools::Itertools;
 use linestring::cgmath_3d;
@@ -287,21 +287,6 @@ pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    // angle is supposed to be in degrees
-    let cmd_arg_angle = {
-        let value = options
-            .get("ANGLE")
-            .ok_or_else(|| TBError::InvalidInputData("Missing the ANGLE parameter".to_string()))?;
-        value.parse::<f64>().map_err(|_| {
-            TBError::InvalidInputData(format!("Could not parse the ANGLE parameter:{:?}", value))
-        })?
-    };
-    if !(0.0..=90.0).contains(&cmd_arg_angle) {
-        return Err(TBError::InvalidInputData(format!(
-            "The valid range of ANGLE is [0..90] :({})",
-            cmd_arg_angle
-        )));
-    }
     let cmd_arg_remove_internals = {
         let tmp_true = "true".to_string();
         let value = options.get("REMOVE_INTERNALS").unwrap_or(&tmp_true);
@@ -346,6 +331,10 @@ pub fn command(
             cmd_arg_max_voronoi_dimension
         )));
     }
+
+    // used for simplification and discretization distance
+    let max_distance = cmd_arg_max_voronoi_dimension * cmd_arg_distance / 100.0;
+
     let cmd_arg_simplify = {
         let tmp_true = "true".to_string();
         let value = options.get("SIMPLIFY").unwrap_or(&tmp_true);
@@ -357,18 +346,11 @@ pub fn command(
         })?
     };
 
-    // used for simplification and discretization distance
-    let max_distance = cmd_arg_max_voronoi_dimension * cmd_arg_distance / 100.0;
-
     if a_command.models.is_empty() || a_command.models[0].vertices.is_empty() {
         return Err(TBError::InvalidInputData(
             "Model did not contain any data".to_string(),
         ));
     }
-
-    // The dot product between normalized vectors of edge and the segment that created it.
-    // Can also be described as cos(angle) between edge and segment.
-    let dot_limit = cgmath::Deg::<f64>(cmd_arg_angle).cos();
 
     if a_command.models.len() > 1 {
         println!("centerline models.len(): {}", a_command.models.len());
@@ -376,7 +358,7 @@ pub fn command(
             "This operation only supports one model as input".to_string(),
         ));
     }
-    println!("centerline got command: \"{}\"", a_command.command);
+    println!("centerline_mesh got command: \"{}\"", a_command.command);
     for model in a_command.models.iter() {
         println!("model.name:{:?}", model.name);
         println!("model.vertices:{:?}", model.vertices.len());
@@ -385,9 +367,7 @@ pub fn command(
             "model.world_orientation:{:?}",
             model.world_orientation.as_ref().map_or(0, |_| 16)
         );
-        println!("ANGLE:{:?}°", cmd_arg_angle);
         println!("REMOVE_INTERNALS:{:?}", cmd_arg_remove_internals);
-        println!("SIMPLIFY:{:?}", cmd_arg_simplify);
         println!("DISTANCE:{:?}%", cmd_arg_distance);
         println!("MAX_VORONOI_DIMENSION:{:?}", cmd_arg_max_voronoi_dimension);
         println!("max_distance:{:?}", max_distance);
@@ -465,12 +445,12 @@ pub fn command(
             }
             if cmd_arg_remove_internals {
                 if let Err(centerline_error) =
-                    c.calculate_centerline(dot_limit, max_distance, shape.get_internals())
+                    c.calculate_centerline_mesh(max_distance, shape.get_internals())
                 {
                     return Err(centerline_error.into());
                 }
             } else if let Err(centerline_error) =
-                c.calculate_centerline(dot_limit, max_distance, None)
+                c.calculate_centerline_mesh( max_distance, None)
             {
                 return Err(centerline_error.into());
             }

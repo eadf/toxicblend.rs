@@ -8,6 +8,7 @@
 
 mod cmd_2d_outline;
 mod cmd_centerline;
+mod cmd_centerline_mesh;
 mod cmd_knife_intersect;
 mod cmd_simplify;
 mod cmd_voronoi;
@@ -138,6 +139,7 @@ impl ToxicBlendService for TheToxicBlendService {
             "simplify" => cmd_simplify::command(a_command, map),
             "knife_intersect" => cmd_knife_intersect::command(a_command, map),
             "centerline" => cmd_centerline::command(a_command, map),
+            "centerline_mesh" => cmd_centerline_mesh::command(a_command, map),
             "voronoi" => cmd_voronoi::command(a_command, map),
             _ => Err(TBError::UnknownCommand(a_command.command.clone())),
         };
