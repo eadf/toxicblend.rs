@@ -824,9 +824,9 @@ class TB_MeshToolsProps(PropertyGroup):
     centerline_distance: FloatProperty(
         name="Distance",
         description="Discrete distance as a percentage of the AABB",
-        default=0.005,
-        min=0.0,
-        max=5.0,
+        default=0.01,
+        min=0.005,
+        max=99.0,
         precision=6,
         subtype='PERCENTAGE'
     )

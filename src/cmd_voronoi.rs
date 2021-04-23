@@ -132,9 +132,7 @@ impl DiagramHelper {
             #[allow(clippy::blocks_in_if_conditions)]
             if v1.is_none()
                 || !self.diagram.edges()[(Some(edge_id))
-                    .ok_or_else(|| {
-                        TBError::InternalError("Could not get edge twin".to_string())
-                    })?
+                    .ok_or_else(|| TBError::InternalError("Could not get edge twin".to_string()))?
                     .0]
                     .get()
                     .is_primary()

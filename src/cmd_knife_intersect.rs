@@ -6,6 +6,7 @@ use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
 use cgmath::EuclideanSpace;
+use cgmath::UlpsEq;
 use itertools::Itertools;
 use linestring::cgmath_3d::Plane;
 use std::collections::HashMap;
@@ -34,7 +35,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
         aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
 
-    let plane = Plane::get_plane(&aabb).ok_or_else(|| {
+    let plane = Plane::get_plane_relaxed(&aabb, super::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
         let aabbe_d = aabb.get_high().unwrap() - aabb.get_low().unwrap();
         let aabbe_c = (aabb.get_high().unwrap().to_vec() + aabb.get_low().unwrap().to_vec())/2.0;
         TBError::InputNotPLane(format!(
@@ -99,24 +100,24 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
                 .with_stop_at_first_intersection(false)?
                 .with_lines(lines.into_iter())?
                 .compute()?;
-        for (p, l) in intersection_result.iter() {
+        if intersection_result.len() == 0 {
+            println!("No intersections detected!!");
+        }
+        for (p, l) in intersection_result {
             println!("Intersection detected @{:?} Involved lines:{:?}", p, l);
             for e in l.iter() {
                 edge_is_split.set_bit(*e, true);
-                if !p.pos.x.is_finite() || !p.pos.x.is_finite() {
+                if !p.x.is_finite() || !p.x.is_finite() {
                     return Err(TBError::InternalError(format!(
                         "The found intersection is not valid: x:{:?}, y:{:?}",
-                        p.pos.x, p.pos.y
+                        p.x, p.y
                     )));
                 }
                 edge_split
                     .entry(*e)
                     .or_insert_with(smallvec::SmallVec::<[(u64, u64); 1]>::new)
-                    .push(transmute_to_u64(p.pos));
+                    .push(transmute_to_u64(p));
             }
-        }
-        if intersection_result.is_empty() {
-            println!("No intersections detected!!");
         }
     }
     //println!("Input vertices : {:?}", input_pb_model.vertices.len());

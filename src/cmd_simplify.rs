@@ -296,7 +296,7 @@ fn walk_single_line_edges(
 /// lines contains a vector of (<first vertex index>,<a list of points><last vertex index>)
 fn simplify_rdp_percent(
     pb_model: &PB_Model,
-    percent: f64,
+    multiplier: f64,
     lines: Vec<(usize, cgmath_3d::LineString3<f64>, usize)>,
 ) -> Result<Vec<(usize, cgmath_3d::LineString3<f64>, usize)>, TBError> {
     let mut aabb = linestring::cgmath_3d::Aabb3::<f64>::default();
@@ -305,23 +305,24 @@ fn simplify_rdp_percent(
     }
     let dimensions = aabb.get_high().unwrap() - aabb.get_low().unwrap();
     let max_dim = dimensions.x.max(dimensions.y).max(dimensions.z);
-    let distance = max_dim * percent;
-
-    println!(
-        "Simplifying using percentage. Distance={}, MaxDim={}, Percent={}",
-        distance, max_dim, percent
-    );
+    let distance = max_dim * multiplier;
 
     /*println!("b4");
     for ls in lines.iter() {
         println!("ls: {:?} {:?} {:?}", ls.0, ls.1.len(), ls.2);
     }*/
+    let len = lines.iter().map(|x| x.1.points().len()).sum::<usize>();
 
     let rv: Vec<(usize, cgmath_3d::LineString3<f64>, usize)> = lines
         .into_par_iter()
-        .map(|(v0, ls, v1)| (v0, ls.simplify(percent), v1))
+        .map(|(v0, ls, v1)| (v0, ls.simplify(distance), v1))
         .collect();
 
+    let diff = len - rv.iter().map(|x| x.1.points().len()).sum::<usize>();
+    println!(
+        "Simplifying using percentage. Distance={} = {}*{}, removed {} vertices.",
+        distance, max_dim, multiplier, diff
+    );
     /*println!("after");
     for ls in rv.iter() {
         println!("ls: {:?} {:?} {:?}", ls.0, ls.1.len(), ls.2);
