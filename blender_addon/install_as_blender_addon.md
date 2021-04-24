@@ -19,7 +19,7 @@ subprocess.call([sys.executable, "-m", "ensurepip"])
 subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
 
 # install the pip package toxicblend + the dependencies protobuf and grpcio
-subprocess.call([sys.executable, "-m", "pip", "install", "toxicblend"])
+subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "toxicblend"])
 
 ## uninstall the pip package toxicblend 
 # subprocess.call([sys.executable, "-m", "pip", "uninstall", "toxicblend"])
@@ -29,7 +29,7 @@ subprocess.call([sys.executable, "-m", "pip", "install", "toxicblend"])
 ```
 If you run into permission problems, you will have to run the pip commands on the blender python executable with raised privileges (e.g. sudo)
 ```
-sudo /Applications/Blender.app/Contents/Resources/2.92/python/bin/python3.7m -m pip install toxicblend protobuf grpcio
+sudo /Applications/Blender.app/Contents/Resources/2.92/python/bin/python3.7m -m pip install --upgrade toxicblend
 ```
 
 To uninstall, you use this command:

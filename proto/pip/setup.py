@@ -2,8 +2,8 @@ from setuptools import setup
 
 setup(
     name='toxicblend',
-    version='0.1.0',
-    description='Generated protobuffer files for toxicblend',
+    version='0.2.0',
+    description='Generated protobuffer files for https://crates.io/crates/toxicblend',
     url='https://crates.io/crates/toxicblend',
     author='Eadf',
     author_email='lacklustr@protonmail.com',
