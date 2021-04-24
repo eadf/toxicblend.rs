@@ -449,9 +449,7 @@ pub fn command(
                 {
                     return Err(centerline_error.into());
                 }
-            } else if let Err(centerline_error) =
-                c.calculate_centerline_mesh( max_distance, None)
-            {
+            } else if let Err(centerline_error) = c.calculate_centerline_mesh(max_distance, None) {
                 return Err(centerline_error.into());
             }
 

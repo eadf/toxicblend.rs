@@ -104,6 +104,7 @@ pub fn build_output_bp_model(
         linestring::cgmath_2d::LineStringSet2<f64>,
         centerline::Centerline<i64, f64>,
     )>,
+    cmd_arg_weld: bool,
     inverted_transform: cgmath::Matrix4<f64>,
 ) -> Result<PB_Model, TBError> {
     let input_pb_model = &a_command.models[0];
@@ -185,6 +186,11 @@ pub fn build_output_bp_model(
                     vertices: vec![p.0 as u64, p.1 as u64],
                 });
             }
+        }
+
+        if !cmd_arg_weld {
+            // Do not share any vertices between input geometry and centerline if cmd_arg_weld is false
+            v_map.clear()
         }
 
         // draw the straight edges of the voronoi output
@@ -356,6 +362,13 @@ pub fn command(
             ))
         })?
     };
+    let cmd_arg_weld = {
+        let tmp_true = "true".to_string();
+        let value = options.get("WELD").unwrap_or(&tmp_true);
+        value.parse::<bool>().map_err(|_| {
+            TBError::InvalidInputData(format!("Could not parse the WELD parameter {:?}", value))
+        })?
+    };
 
     // used for simplification and discretization distance
     let max_distance = cmd_arg_max_voronoi_dimension * cmd_arg_distance / 100.0;
@@ -388,6 +401,7 @@ pub fn command(
         println!("ANGLE:{:?}°", cmd_arg_angle);
         println!("REMOVE_INTERNALS:{:?}", cmd_arg_remove_internals);
         println!("SIMPLIFY:{:?}", cmd_arg_simplify);
+        println!("WELD:{:?}", cmd_arg_weld);
         println!("DISTANCE:{:?}%", cmd_arg_distance);
         println!("MAX_VORONOI_DIMENSION:{:?}", cmd_arg_max_voronoi_dimension);
         println!("max_distance:{:?}", max_distance);
@@ -502,7 +516,7 @@ pub fn command(
         >>()?;
     //println!("<-build_voronoi");
 
-    let model = build_output_bp_model(&a_command, shapes, inverted_transform)?;
+    let model = build_output_bp_model(&a_command, shapes, cmd_arg_weld, inverted_transform)?;
 
     //println!("<-build_bp_model");
     let mut reply = PB_Reply {

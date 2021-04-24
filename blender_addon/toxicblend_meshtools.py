@@ -620,6 +620,12 @@ class Toxicblend_Centerline(Operator):
         subtype='ANGLE',
     )
 
+    weld: BoolProperty(
+        name="Weld the centerline to outline",
+        description="Centerline and outline will share vertices if they intersect",
+        default=True
+    )
+
     remove_internals: BoolProperty(
         name="Remove internal edges",
         description="Remove edges internal to islands in the geometry",
@@ -673,6 +679,9 @@ class Toxicblend_Centerline(Operator):
                 opt = command.options.add()
                 opt.key = "SIMPLIFY"
                 opt.value = str(self.simplify).lower()
+                opt = command.options.add()
+                opt.key = "WELD"
+                opt.value = str(self.weld).lower()
 
                 response = stub.execute(command)
                 handle_response(response)
@@ -1002,6 +1011,12 @@ class TB_MeshToolsProps(PropertyGroup):
     centerline_mesh_remove_internals: BoolProperty(
         name="Remove internal edges",
         description="Remove edges internal to islands in the geometry",
+        default=True
+    )
+
+    centerline_weld: BoolProperty(
+        name="Weld the centerline to outline",
+        description="Centerline and outline will share vertices if they intersect",
         default=True
     )
 

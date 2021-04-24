@@ -40,6 +40,16 @@ Will convert a flat mesh object into an outline. Right now the data must be in a
 
 ![from](img/2d_outline_to.png)
 
+### Simplify
+
+Works similarly to the built-in simplify command, but instead of a distance it takes a percentage.
+This percentage is applied to the largest dimension of the AABB and that value is used as the Ramer–Douglas–Peucker distance.
+Works on 3D linestrings/polylines.
+
+![from](img/simplify.png)
+
+This percentage change makes it possible to simplify tiny objects without having to scale them up, simplify and then scale them down again.
+
 ### Centerline
 
 Takes the output of the 2d_outline command and calculates the 3D centerline.
@@ -52,26 +62,27 @@ Keyboard command: `s` `z` `0` for setting Z to zero.
 
 ![from](img/centerline.png)
 
-### Simplify
-
-Works similarly to the built-in simplify command, but instead of a distance it takes a percentage.
-This percentage is applied to the largest dimension of the AABB and that value is used as the Ramer–Douglas–Peucker distance.
-Works on 3D linestrings/polylines. 
-
-This percentage change makes it possible to simplify tiny objects without having to scale them up, simplify and then scale them down again. 
 
 ### Voronoi
-Runs the voronoi sweepline algorithm on the input 2D points and lines. 
+Runs the Voronoi sweepline algorithm on 2D points and lines (geometry must on a plane crossing origin).
+![from](img/voronoi.png)
+
+### Metavolume (object operation)
+Takes the output of the Voronoi operation and puts metaballs along the edges.
+This operation does *not* require flat input. 
+
+This operation is located under `Object` -> `Add` -> `Metaball` -> `MetaVolume`
+
+![metavolume](img/metavolume.png)
 
 ### Knife intersect
 
-Runs on a single flat mesh object and tests for self-intersections.
+Runs on a single flat mesh object made of edges (no faces) and tests for self-intersections.
 If an intersection is found, the intersecting edges will be split at that point.
 
 ### Select end vertices
 
 Selects all vertexes that only connects to one other vertex. Useful for identifying dangling vertices.
-
 
 ### Select intersection vertices
 
@@ -87,4 +98,5 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 - [ ] Document the rest of the operations.
 - [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
 - [ ] Port the rest of the operations.
+- [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
 
