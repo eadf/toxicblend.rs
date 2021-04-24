@@ -18,29 +18,29 @@ print("python executable:", sys.executable)
 subprocess.call([sys.executable, "-m", "ensurepip"])
 subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
 
-# install the pip packages protobuf and grpcio
-subprocess.call([sys.executable, "-m", "pip", "install", "protobuf", "grpcio"])
+# install the pip package toxicblend + the dependencies protobuf and grpcio
+subprocess.call([sys.executable, "-m", "pip", "install", "toxicblend"])
 
-print("copy or link toxicblend_pb2.py and toxicblend_pb2_grpc.py to this path:")
-print(site.getsitepackages())
+## uninstall the pip package toxicblend 
+# subprocess.call([sys.executable, "-m", "pip", "uninstall", "toxicblend"])
+## uninstall the dependencies protobuf and grpcio
+# subprocess.call([sys.executable, "-m", "pip", "uninstall", "protobuf", "grpcio"])
+
 ```
 If you run into permission problems, you will have to run the pip commands on the blender python executable with raised privileges (e.g. sudo)
 ```
-sudo /Applications/Blender.app/Contents/Resources/2.92/python/bin/python3.7m -m pip install protobuf grpcio
+sudo /Applications/Blender.app/Contents/Resources/2.92/python/bin/python3.7m -m pip install toxicblend protobuf grpcio
 ```
 
-You will also have to copy the `toxicblend_pb2.py` and `toxicblend_pb2_grpc.py` files to one of the
-site-package directories of the blender python environment. Soft links works fine as well.
-
+To uninstall, you use this command:
 ```
-# example MacOS:
-$ cd toxicblend.rs/blender_addon
-$ ln -s toxicblend /Applications/Blender.app/Contents/Resources/2.92/python/lib/python3.7/site-packages/toxicblend
+sudo <path to the blender built in python executable>/python3.7m -m pip uninstall toxicblend 
+# and maybe uninstall the dependencies protobuf and grpcio too
+sudo <path to the blender built in python executable>python3.7m -m pip uninstall protobuf grpcio
 ```
-(Some day I'll package those files as a pip package) 
 
 Then you need to install the addon itself. `Blender->Preferences->Addons->Install..` select the `blender_addon/toxicblend_meshtools.py` file
-and click 'Install Add-on'.
+and click 'Install Add-on'. Same thing for the `blender_addon/toxicblend_metavolume.py` file.
 
-Don't forget to activate the addon in the list.
+Don't forget to enable the addon in the list.
 

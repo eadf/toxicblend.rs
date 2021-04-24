@@ -32,8 +32,8 @@ def get_rotation_to(from_vn, to_vn):
 class ToxicBlend_MetaVolume(bpy.types.Operator):
     """Volumetric edge fill using meta capsules"""
     bl_idname = "object.toxicblend_metavolume"
-    bl_label = "Toxicblend:Metavolume volume"
-    bl_description = 'Generates volume from a lattice of edges using metaballs (offline plugin)',
+    bl_label = "Toxicblend Metavolume volume"
+    bl_description = 'Generates volume from a lattice of edges using metaballs (offline plugin)'
     bl_options = {'REGISTER', 'UNDO'}  # enable undo for the operator.
 
     CAPSULE_VECTOR = mathutils.Vector((1.0, 0.0, 0.0))  # capsule orientation
