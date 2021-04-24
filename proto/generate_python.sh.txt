@@ -1,2 +1,2 @@
 
-python3.9 -m grpc_tools.protoc --proto_path=. ./toxicblend.proto --python_out=toxicblend --grpc_python_out=toxicblend
+python3.9 -m grpc_tools.protoc --proto_path=. ./toxicblend.proto --python_out=pip/toxicblend --grpc_python_out=pip/toxicblend

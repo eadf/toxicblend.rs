@@ -38,3 +38,6 @@ path = "src/client.rs"
 
 [build-dependencies]
 tonic-build = "^0.4.1"
+
+[profile.release]
+lto = true

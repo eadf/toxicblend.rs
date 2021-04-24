@@ -764,6 +764,93 @@ class Toxicblend_Centerline_Mesh(Operator):
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
 
+# Centerline operator
+class Toxicblend_Voxel(Operator):
+    bl_idname = "mesh.toxicblend_meshtools_voxel"
+    bl_label = "Voxel"
+    bl_description = "Calculate voxel tubes around edges"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    angle: FloatProperty(
+        name="Angle",
+        description="Edge rejection angle, edges with edge-to-segment angles larger than this will be rejected",
+        default=math.radians(50.0),
+        min=math.radians(0.000001),
+        max=math.radians(89.999999),
+        precision=6,
+        subtype='ANGLE',
+    )
+
+    remove_internals: BoolProperty(
+        name="Remove internal edges",
+        description="Remove edges internal to islands in the geometry",
+        default=True
+    )
+
+    distance: FloatProperty(
+        name="Distance",
+        description="Discrete distance as a percentage of the AABB",
+        default=0.005,
+        min=0.0001,
+        max=4.9999,
+        precision=6,
+        subtype='PERCENTAGE'
+    )
+
+    simplify: BoolProperty(
+        name="Simplify line strings",
+        description="Simplify voronoi edges connected as in a line string. The 'distance' property is used.",
+        default=True
+    )
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        return ob and ob.type == 'MESH' and context.mode == 'EDIT_MESH'
+
+    def invoke(self, context, event):
+        # load custom settings
+        settings_load(self)
+        return self.execute(context)
+
+    def execute(self, context):
+        # initialise
+        active_object, active_mesh = initialise()
+        settings_write(self)
+        try:
+            with grpc.insecure_channel(SOCKET) as channel:
+                stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
+                command = toxicblend_pb2.Command(command='voxel')
+                build_pb_model(active_object, active_mesh, command.models.add())
+                opt = command.options.add()
+                opt.key = "ANGLE"
+                opt.value = str(math.degrees(self.angle))
+                opt = command.options.add()
+                opt.key = "REMOVE_INTERNALS"
+                opt.value = str(self.remove_internals).lower()
+                opt = command.options.add()
+                opt.key = "DISTANCE"
+                opt.value = str(self.distance)
+                opt = command.options.add()
+                opt.key = "SIMPLIFY"
+                opt.value = str(self.simplify).lower()
+
+                response = stub.execute(command)
+                handle_response(response)
+                if len(response.models) > 0:
+                    print("client received options: ", len(response.options), " models:", len(response.models))
+                    handle_received_object(active_object, response)
+
+            # cleaning up
+            terminate()
+
+            return {'FINISHED'}
+        except ToxicblendException as e:
+            self.report({'ERROR'}, e.message)
+            return {'CANCELLED'}
+        except grpc._channel._InactiveRpcError as e:
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
 
 # 2d_outline operator
 class Toxicblend_Simplify(Operator):
@@ -839,6 +926,7 @@ class VIEW3D_MT_edit_mesh_toxicblend_meshtools(Menu):
         layout.operator("mesh.toxicblend_meshtools_centerline")
         layout.operator("mesh.toxicblend_meshtools_centerline_mesh")
         layout.operator("mesh.toxicblend_meshtools_voronoi")
+        #layout.operator("mesh.toxicblend_meshtools_voxel")
         layout.operator("mesh.toxicblend_meshtools_select_end_vertices")
         layout.operator("mesh.toxicblend_meshtools_select_intersection_vertices")
         layout.operator("mesh.toxicblend_meshtools_debug_object")
@@ -972,6 +1060,7 @@ classes = (
     Toxicblend_Centerline,
     Toxicblend_Centerline_Mesh,
     Toxicblend_Voronoi,
+    #Toxicblend_Voxel,
     ToxicBlend_SelectEndVertices,
     ToxicBlend_SelectIntersectionVertices,
     ToxicBlend_debug_object,
