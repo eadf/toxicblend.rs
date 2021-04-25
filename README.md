@@ -64,7 +64,7 @@ Keyboard command: `s` `z` `0` for setting Z to zero.
 
 
 ### Voronoi
-Runs the Voronoi sweepline algorithm on 2D points and lines (geometry must on a plane crossing origin).
+Runs the Voronoi sweepline algorithm on 2D points and lines (geometry must be on a plane crossing origin).
 ![from](img/voronoi.png)
 
 ### Metavolume (object operation)
