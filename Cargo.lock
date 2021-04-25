@@ -93,9 +93,9 @@ checksum = "b700ce4376041dcd0a327fd0097c41095743c4c8af8887265942faf1100bd040"
 
 [[package]]
 name = "centerline"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42cae42e2de91e043d212814d03e04090b50768ba7301a979b700810241f6be6"
+checksum = "64c0d1e34d224523f2707664f0d65f49864f75619390885db95f4d98b97a45c2"
 dependencies = [
  "approx",
  "bitflags",
@@ -105,7 +105,6 @@ dependencies = [
  "linestring",
  "num",
  "num-traits",
- "obj-rs",
  "ordered-float",
  "rayon",
  "thiserror",
@@ -397,18 +396,16 @@ checksum = "c7d73b3f436185384286bd8098d17ec07c9a7d2388a6599f824d8502b529702a"
 
 [[package]]
 name = "linestring"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "464669b0fa052686660f72c7048308347f3b194fc359a43c8a73db64f317323d"
+checksum = "3eeeb6c7d78f9993ee527fc18c48ae232314eea7469561783ab8d8ad43a29758"
 dependencies = [
  "approx",
  "cgmath",
  "fnv",
  "itertools 0.10.0",
  "num-traits",
- "ordered-float",
  "rayon",
- "rb_tree",
  "thiserror",
  "yabf",
 ]
@@ -558,17 +555,6 @@ checksum = "05499f3756671c15885fee9034446956fff3f243d6077b91e5767df161f766b3"
 dependencies = [
  "hermit-abi",
  "libc",
-]
-
-[[package]]
-name = "obj-rs"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf37dd242b0636bf442a539738f54330b0db9ad9758a89de154e9d3866a7847e"
-dependencies = [
- "num-traits",
- "serde",
- "vec_map",
 ]
 
 [[package]]
@@ -769,12 +755,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rb_tree"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7e1303f90f349d00f40e3673dfde58bb3102f0a432ec2d3cbefd4628c7d5351"
-
-[[package]]
 name = "redox_syscall"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -797,26 +777,6 @@ name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
-
-[[package]]
-name = "serde"
-version = "1.0.125"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "558dc50e1a5a5fa7112ca2ce4effcb321b0300c0d4ccf0776a9f60cd89031171"
-dependencies = [
- "serde_derive",
-]
-
-[[package]]
-name = "serde_derive"
-version = "1.0.125"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b093b7a2bb58203b5da3056c05b4ec1fed827dcfdb37347a8841695263b3d06d"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "slab"
