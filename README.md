@@ -19,7 +19,7 @@ Requires `#![feature(hash_drain_filter)]` and `#![feature(map_first_last)]` i.e.
 ## Run local server
 The blender addon is based on a client-server model using [grpc](https://grpc.io) and [tonic](https://github.com/hyperium/tonic).
 The blender addon is the client, and it only connects to `localhost`.
-The server binds to `localhost` as well; so it should not be reachable from any other computer (not tested though), run it with this command:
+The server binds to `localhost` as well; so it should not be reachable from any other computer (not thoroughly tested), run it with this command:
 ```
 cargo +nightly run --bin server --release
 ```
