@@ -1,6 +1,6 @@
 [package]
 name = "toxicblend"
-version = "0.0.4"
+version = "0.0.5"
 authors = ["eadf"]
 edition = "2018"
 description = "Client/Server application for Blender. WIP"
@@ -10,7 +10,7 @@ license = "AGPL-3.0"
 keywords = ["blender-addon", "centerline", "voronoi"]
 
 [dependencies]
-tonic = "^0.4.1"
+tonic = "^0.4.2"
 prost = "^0.7.0"
 fnv = "^1.0.7"
 tokio = { version = "^1.4.0", features = ["macros", "rt-multi-thread"] }
@@ -37,7 +37,7 @@ name = "client"
 path = "src/client.rs"
 
 [build-dependencies]
-tonic-build = "^0.4.1"
+tonic-build = "^0.4.2"
 
 [profile.release]
 lto = true
