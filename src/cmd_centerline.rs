@@ -129,7 +129,7 @@ pub fn build_output_bp_model(
     let mut output_pb_model_faces = Vec::<PB_Face>::with_capacity(estimated_capacity);
 
     // map between 'meta-vertex' and vertex index
-    let mut v_map = fnv::FnvHashMap::<(u64, u64), usize>::default();
+    let mut v_map = ahash::AHashMap::<(u64, u64), usize>::default();
 
     for shape in shapes.into_iter() {
         // Draw the input segments

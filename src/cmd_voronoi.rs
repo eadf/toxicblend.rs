@@ -183,7 +183,7 @@ impl DiagramHelper {
     #[inline(always)]
     fn place_new_pb_vertex_dup_check(
         vertex: &[f64; 2],
-        new_vertex_map: &mut fnv::FnvHashMap<(u64, u64), usize>,
+        new_vertex_map: &mut ahash::AHashMap<(u64, u64), usize>,
         pb_vertices: &mut Vec<PB_Vertex>,
         inverted_transform: &cgmath::Matrix4<f64>,
     ) -> usize {
@@ -228,7 +228,7 @@ impl DiagramHelper {
     /// Convert voronoi edges into PB_Model data
     fn convert_edges(
         &mut self,
-        new_vertex_map: &mut fnv::FnvHashMap<(u64, u64), usize>,
+        new_vertex_map: &mut ahash::AHashMap<(u64, u64), usize>,
         pb_vertices: &mut Vec<PB_Vertex>,
         pb_faces: &mut Vec<PB_Face>,
         inverted_transform: cgmath::Matrix4<f64>,
@@ -593,7 +593,7 @@ fn build_output(
     inverted_transform: cgmath::Matrix4<f64>,
 ) -> Result<PB_Model, TBError> {
     // a map of hashtable point to vertex number
-    let mut new_vertex_map = fnv::FnvHashMap::<(u64, u64), usize>::default();
+    let mut new_vertex_map = ahash::AHashMap::<(u64, u64), usize>::default();
 
     let mut vertices_2d = {
         // had to encase this in a block b/o the borrow checker.

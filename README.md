@@ -99,4 +99,4 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 - [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
 - [ ] Port the rest of the operations.
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
-
+- [ ] completely replace fnv

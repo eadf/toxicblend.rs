@@ -18,9 +18,9 @@ pub fn find_linestrings(
     let mut linestrings = Vec::<(usize, cgmath_3d::LineString3<f64>, usize)>::new();
 
     // vertex number usize is connected to u32 number of other vertices.
-    let mut connections_map = fnv::FnvHashMap::<usize, smallvec::SmallVec<[usize; 2]>>::default();
+    let mut connections_map = ahash::AHashMap::<usize, smallvec::SmallVec<[usize; 2]>>::default();
     // a set of every edge
-    let mut edge_set = fnv::FnvHashSet::<(usize, usize)>::default();
+    let mut edge_set = ahash::AHashSet::<(usize, usize)>::default();
 
     for face in obj.faces.iter() {
         if face.vertices.len() > 2 {
@@ -150,8 +150,8 @@ fn make_key(v0: usize, v1: usize) -> (usize, usize) {
 fn walk_single_line_edges(
     from_v: usize,
     to_v: usize,
-    edge_set: &mut fnv::FnvHashSet<(usize, usize)>,
-    connections_map: &fnv::FnvHashMap<usize, smallvec::SmallVec<[usize; 2]>>,
+    edge_set: &mut ahash::AHashSet<(usize, usize)>,
+    connections_map: &ahash::AHashMap<usize, smallvec::SmallVec<[usize; 2]>>,
     vertices: &[PB_Vertex],
 ) -> Result<(usize, cgmath_3d::LineString3<f64>), TBError> {
     let started_at_vertex = from_v;
@@ -347,7 +347,7 @@ fn build_bp_model(
     };
 
     // map between old and new vertex number
-    let mut v_map = fnv::FnvHashMap::<usize, usize>::default();
+    let mut v_map = ahash::AHashMap::<usize, usize>::default();
     let mut vertex_list = Vec::<usize>::new();
 
     for ls in lines.into_iter() {

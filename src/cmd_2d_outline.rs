@@ -26,9 +26,9 @@ fn make_edge_key(v0: usize, v1: usize) -> (usize, usize) {
 pub fn remove_internal_edges(
     obj: &PB_Model,
 ) -> Result<(Vec<(usize, usize)>, Vec<PB_Vertex>), TBError> {
-    let mut all_edges = fnv::FnvHashSet::<(usize, usize)>::default();
-    let mut single_edges = fnv::FnvHashSet::<(usize, usize)>::default();
-    let mut internal_edges = fnv::FnvHashSet::<(usize, usize)>::default();
+    let mut all_edges = ahash::AHashSet::<(usize, usize)>::default();
+    let mut single_edges = ahash::AHashSet::<(usize, usize)>::default();
+    let mut internal_edges = ahash::AHashSet::<(usize, usize)>::default();
     //println!("Input faces : {:?}", obj.faces);
 
     let mut aabb = cgmath_3d::Aabb3::<f64>::default();
@@ -115,7 +115,7 @@ pub fn remove_internal_edges(
     // no need for internal_edges any more
     drop(internal_edges);
     // vector number translation table
-    let mut vector_rename_map = fnv::FnvHashMap::<usize, usize>::default();
+    let mut vector_rename_map = ahash::AHashMap::<usize, usize>::default();
     let mut rv_vertices = Vec::<PB_Vertex>::with_capacity(all_edges.len() * 6 / 5);
     let mut rv_lines = Vec::<(usize, usize)>::with_capacity(all_edges.len() * 6 / 5);
 
