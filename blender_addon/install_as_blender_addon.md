@@ -20,23 +20,10 @@ subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
 
 # install the pip package toxicblend + the dependencies protobuf and grpcio
 subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "toxicblend"])
-
-## uninstall the pip package toxicblend 
-# subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "toxicblend"])
-## uninstall the dependencies protobuf and grpcio
-# subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "protobuf", "grpcio"])
-
 ```
 If you run into permission problems, you will have to run the pip commands on the blender python executable with raised privileges (e.g. sudo)
 ```
-sudo /Applications/Blender.app/Contents/Resources/2.92/python/bin/python3.7m -m pip install --upgrade toxicblend
-```
-
-To uninstall, you use this command:
-```
-sudo <path to the blender built in python executable>/python3.7m -m pip uninstall toxicblend 
-# and maybe uninstall the dependencies protobuf and grpcio too
-sudo <path to the blender built in python executable>python3.7m -m pip uninstall protobuf grpcio
+sudo <path to the blender built in python>/python3.7m -m pip install --upgrade toxicblend
 ```
 
 Then you need to install the addon itself. `Blender->Preferences->Addons->Install..` select the `blender_addon/toxicblend_meshtools.py` file
@@ -44,3 +31,25 @@ and click 'Install Add-on'. Same thing for the `blender_addon/toxicblend_metavol
 
 Don't forget to enable the addon in the list.
 
+# Uninstall
+
+```
+import subprocess
+import sys
+import os
+import site
+
+# uninstall the pip package toxicblend 
+subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "toxicblend"])
+# uninstall the dependencies protobuf and grpcio if not required by other addons
+subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "protobuf", "grpcio"])
+```
+
+or 
+
+```
+sudo <path to the blender built in python>/python3.7m -m pip uninstall toxicblend 
+# and maybe uninstall the dependencies protobuf and grpcio too
+sudo <path to the blender built in python>/python3.7m -m pip uninstall protobuf grpcio
+```
+You will have to do the normal blender-addon removal of the scripts as well.
