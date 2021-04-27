@@ -194,7 +194,10 @@ impl DiagramHelper {
                 y: transformed_v.y,
                 z: transformed_v.z,
             });
-            println!("Found a new vertex:{:.12}, {:.12} named it {}", vertex[0], vertex[1], n);
+            println!(
+                "Found a new vertex:{:.12}, {:.12} named it {}",
+                vertex[0], vertex[1], n
+            );
             n
         })
     }
@@ -228,7 +231,7 @@ impl DiagramHelper {
         new_vertex_map: &mut ahash::AHashMap<(u64, u64), usize>,
         pb_vertices: &mut Vec<PB_Vertex>,
         pb_faces: &mut Vec<PB_Face>,
-        inverted_transform: cgmath::Matrix4<f64>,
+        inverted_transform: &cgmath::Matrix4<f64>,
     ) -> Result<(), TBError> {
         let max_dist = self.aabb.get_high().unwrap() - self.aabb.get_low().unwrap();
         let max_dist = max_dist.x.max(max_dist.y);
@@ -249,13 +252,16 @@ impl DiagramHelper {
 
         println!("There are {} faces", self.diagram.cells().len());
 
-        'cell_loop: for (c_id,c_it) in self.diagram.cell_iter().enumerate()/*.skip(0).take(2)*/ {
+        'cell_loop: for (cell_id, cell_c) in self.diagram.cell_iter().enumerate()
+        /*.skip(0).take(2)*/
+        {
+            assert_eq!(cell_c.get().get_id(), cell_id);
 
-            let mut edge_id = c_it
+            let mut edge_id = cell_c
                 .get()
                 .get_incident_edge()
                 .ok_or_else(|| TBError::InternalError("Could not unwrap edge".to_string()))?;
-            let start_edge : VD::VoronoiEdgeIndex = edge_id;
+            let start_edge: VD::VoronoiEdgeIndex = edge_id;
 
             let mut kill_pill = 100;
             let mut pb_face = PB_Face { vertices: vec![] };
@@ -263,11 +269,14 @@ impl DiagramHelper {
             'edge_loop: loop {
                 if rejected_edges.bit(edge_id.0) {
                     // don't collect any of the edges/vertices of this cell
-                    println!("***************   Edge {} was rejected, aborting cell", edge_id.0);
+                    println!(
+                        "***************   Edge {} was rejected, aborting cell",
+                        edge_id.0
+                    );
                     continue 'cell_loop;
                 }
                 let edge = self.diagram.get_edge(edge_id).get();
-                println!("@{:?}",edge);
+                println!("@{:?}", edge);
                 //println!(
                 //    "convert_cells, edge:{:?}, secondary:{}",
                 //    edge_id,
@@ -276,10 +285,9 @@ impl DiagramHelper {
 
                 let mut samples = Vec::<[f64; 2]>::new();
                 if !self.diagram.edge_is_finite(Some(edge_id)).unwrap() {
-                    self.clip_infinite_edge(edge_id,false, &mut samples)?;
-                    println!("clip_infinite_edge : samples {:?}", samples);
+                    self.clip_infinite_edge(edge_id, false, &mut samples)?;
+                    //println!("clip_infinite_edge : samples {:?}", samples);
                 } else {
-
                     let vertex0 = self.diagram.vertex_get(edge.vertex0()).unwrap().get();
                     println!("v0={:?}", vertex0);
                     samples.push([vertex0.x(), vertex0.y()]);
@@ -290,8 +298,14 @@ impl DiagramHelper {
                         println!("curved !!v1={:?}", vertex1);
                         samples.push([vertex1.x(), vertex1.y()]);
 
-                        self.sample_curved_edge(max_dist, &dummy_affine, edge_id, &mut samples);
-                        let _= samples.pop();
+                        self.sample_curved_edge(
+                            max_dist,
+                            &dummy_affine,
+                            VD::VoronoiCellIndex(cell_id),
+                            edge_id,
+                            &mut samples,
+                        );
+                        let _ = samples.pop();
                     }
                 }
                 //println!("samples {:?}", samples);
@@ -331,19 +345,39 @@ impl DiagramHelper {
                     TBError::InternalError("Could not unwrap next edge".to_string())
                 })?;
                 if edge_id == start_edge {
-                    println!("edge_id == start_edge {}=={}",edge_id.0, start_edge.0 );
+                    println!("edge_id == start_edge {}=={}", edge_id.0, start_edge.0);
                     break;
                 }
             }
-            if !pb_face.vertices.is_empty(){
+            if !pb_face.vertices.is_empty() {
                 let first = *pb_face.vertices.first().unwrap();
                 if *pb_face.vertices.last().unwrap() == first {
                     let _ = pb_face.vertices.pop();
-                    println!("edge geometry face had double end point {:?} {}", &pb_face.vertices, first);
+                    println!(
+                        "edge geometry face had double end point {:?} {}",
+                        &pb_face.vertices, first
+                    );
                 }
             }
-            println!("Cell:{} produced:{:?}", c_id, pb_face);
-            pb_faces.push(pb_face);
+            println!("Cell:{} produced:{:?}", cell_id, pb_face);
+            if cell_c.get().contains_segment() {
+                if let Some(split) = self.split_pb_faces(
+                    &pb_face,
+                    VD::VoronoiCellIndex(cell_id),
+                    edge_id,
+                    new_vertex_map,
+                    pb_vertices,
+                    inverted_transform,
+                ){
+                    pb_faces.push(split.0);
+                    pb_faces.push(split.1);
+                }
+                else {
+                    pb_faces.push(pb_face);
+                }
+            } else {
+                pb_faces.push(pb_face);
+            }
             //break 'cell_loop
         }
         self.rejected_edges = Some(rejected_edges);
@@ -354,15 +388,83 @@ impl DiagramHelper {
         Ok(())
     }
 
+    fn split_pb_faces(
+        &self,
+        pb_face: &PB_Face,
+        cell_id: VD::VoronoiCellIndex,
+        edge_id: VD::VoronoiEdgeIndex,
+        new_vertex_map: &mut ahash::AHashMap<(u64, u64), usize>,
+        pb_vertices: &mut Vec<PB_Vertex>,
+        inverted_transform: &cgmath::Matrix4<f64>,
+    ) -> Option<(PB_Face,PB_Face)> {
+
+        let cell = self.diagram.get_cell(cell_id).get();
+        let twin_id = self.diagram.edge_get_twin(Some(edge_id)).unwrap();
+        let twin_cell_id = self.diagram.edge_get_cell(Some(twin_id)).unwrap();
+
+        let segment = if cell.contains_point() {
+            self.retrieve_segment(twin_cell_id)
+        } else {
+            self.retrieve_segment(cell_id)
+        };
+        let v0n = Self::place_new_pb_vertex_dup_check(
+            &[segment.start.x as f64, segment.start.y as f64],
+            new_vertex_map,
+            pb_vertices,
+            &inverted_transform,
+        ) as u64;
+        let v1n = Self::place_new_pb_vertex_dup_check(
+            &[segment.end.x as f64, segment.end.y as f64],
+            new_vertex_map,
+            pb_vertices,
+            &inverted_transform,
+        ) as u64;
+        if let Some(v0i) = pb_face.vertices.iter().position(|x|x==&v0n) {
+           if let Some(v1i) = pb_face.vertices.iter().position(|x|x==&v1n) {
+               if pb_face.vertices.contains(&v0n) &&  pb_face.vertices.contains(&v1n) {
+                   println!("COULD SPLIT v0n:{} v0i:{} v1n:{} v1i:{}", v0n, v0i, v1n, v1i);
+               }
+               if v0i < v1i {
+                   let mut a = Vec::<u64>::new();
+                   let mut b = Vec::<u64>::new();
+                   for i in (0..=v0i).chain(v1i..pb_face.vertices.len()) {
+                        a.push(pb_face.vertices[i]);
+                   }
+                   for i in v0i..=v1i {
+                       b.push(pb_face.vertices[i]);
+                   }
+                   println!("v:{:?}", pb_face.vertices);
+                   println!("a:{:?}", a);
+                   println!("b:{:?}", b);
+                   return Some((PB_Face{vertices:a},PB_Face{vertices:b}))
+               } else {
+                   let mut a = Vec::<u64>::new();
+                   let mut b = Vec::<u64>::new();
+                   for i in (0..=v1i).chain(v0i..pb_face.vertices.len()) {
+                       a.push(pb_face.vertices[i]);
+                   }
+                   for i in v1i..=v0i {
+                       b.push(pb_face.vertices[i]);
+                   }
+                   println!("v:{:?}", pb_face.vertices);
+                   println!("a:{:?}", a);
+                   println!("b:{:?}", b);
+                   return Some((PB_Face{vertices:a},PB_Face{vertices:b}))
+               }
+           }
+        }
+        None
+    }
+
     /// Important: sampled_edge should contain both edge endpoints initially.
     fn sample_curved_edge(
         &self,
         max_dist: f64,
         dummy_affine: &VU::SimpleAffine<i64, f64>,
+        cell_id: VD::VoronoiCellIndex,
         edge_id: VD::VoronoiEdgeIndex,
         sampled_edge: &mut Vec<[f64; 2]>,
     ) {
-        let cell_id = self.diagram.edge_get_cell(Some(edge_id)).unwrap();
         let cell = self.diagram.get_cell(cell_id).get();
         let twin_id = self.diagram.edge_get_twin(Some(edge_id)).unwrap();
         let twin_cell_id = self.diagram.edge_get_cell(Some(twin_id)).unwrap();
@@ -412,7 +514,7 @@ impl DiagramHelper {
     fn clip_infinite_edge(
         &self,
         edge_id: VD::VoronoiEdgeIndex,
-        ignore_v1:bool,
+        ignore_v1: bool,
         clipped_edge: &mut Vec<[f64; 2]>,
     ) -> Result<(), TBError> {
         let edge = self.diagram.get_edge(edge_id);
@@ -616,7 +718,7 @@ fn centerline_mesh(
 }
 
 fn build_output(
-    include_input_geometry:bool,
+    include_input_geometry: bool,
     input_pb_model: &PB_Model,
     diagram: DiagramHelper,
     inverted_transform: cgmath::Matrix4<f64>,
@@ -624,7 +726,7 @@ fn build_output(
     // a map of hashtable point to vertex number
     let mut new_vertex_map = ahash::AHashMap::<(u64, u64), usize>::default();
 
-    let mut vertices_2d =  {
+    let mut vertices_2d = {
         // convert this back to network form again
         // todo: use the duplicate checker of DiagramHelper
         let vertices_2d: Vec<PB_Vertex> = diagram
@@ -651,8 +753,8 @@ fn build_output(
             .collect();
         vertices_2d
     }; //else {
-      //  Vec::<PB_Vertex>::new()
-    //};
+       //  Vec::<PB_Vertex>::new()
+       //};
 
     // push the line vertices to the same vec
     let mut faces_2d = if include_input_geometry {
@@ -697,11 +799,14 @@ fn build_output(
                 rv
             });
             face.vertices.push(*n as u64);
-            if !face.vertices.is_empty(){
+            if !face.vertices.is_empty() {
                 let first = *face.vertices.first().unwrap();
                 if *face.vertices.last().unwrap() != first {
                     face.vertices.push(first);
-                    println!("input geometry face was missing end point {:?}", face.vertices);
+                    println!(
+                        "input geometry face was missing end point {:?}",
+                        face.vertices
+                    );
                 }
             }
             faces_2d.push(face);
@@ -717,7 +822,7 @@ fn build_output(
             &mut new_vertex_map,
             &mut vertices_2d,
             &mut faces_2d,
-            inverted_transform,
+            &inverted_transform,
         )?;
     }
 
@@ -734,7 +839,8 @@ fn build_output(
     }
     println!("output vertices");
     for v in vertices_2d
-        .iter().enumerate()
+        .iter()
+        .enumerate()
         .sorted_unstable_by(|v0, v1| v0.1.x.partial_cmp(&v1.1.x).unwrap())
     {
         println!("#{}, {:.12},{:.12},{:.12}", v.0, v.1.x, v.1.y, v.1.z)
