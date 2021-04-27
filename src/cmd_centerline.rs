@@ -318,7 +318,7 @@ pub fn command(
             ))
         })?
     };
-    let cmd_arg_distance = {
+    let cmd_arg_discrete_distance = {
         let value = options.get("DISTANCE").ok_or_else(|| {
             TBError::InvalidInputData("Missing the DISTANCE parameter".to_string())
         })?;
@@ -329,10 +329,10 @@ pub fn command(
             ))
         })?
     };
-    if !(0.004..100.0).contains(&cmd_arg_distance) {
+    if !(0.004..100.0).contains(&cmd_arg_discrete_distance) {
         return Err(TBError::InvalidInputData(format!(
             "The valid range of DISTANCE is [0.005..100[% :({})",
-            cmd_arg_distance
+            cmd_arg_discrete_distance
         )));
     }
     let cmd_arg_max_voronoi_dimension = {
@@ -371,7 +371,7 @@ pub fn command(
     };
 
     // used for simplification and discretization distance
-    let max_distance = cmd_arg_max_voronoi_dimension * cmd_arg_distance / 100.0;
+    let max_distance = cmd_arg_max_voronoi_dimension * cmd_arg_discrete_distance / 100.0;
 
     if a_command.models.is_empty() || a_command.models[0].vertices.is_empty() {
         return Err(TBError::InvalidInputData(
@@ -402,7 +402,7 @@ pub fn command(
         println!("REMOVE_INTERNALS:{:?}", cmd_arg_remove_internals);
         println!("SIMPLIFY:{:?}", cmd_arg_simplify);
         println!("WELD:{:?}", cmd_arg_weld);
-        println!("DISTANCE:{:?}%", cmd_arg_distance);
+        println!("DISTANCE:{:?}%", cmd_arg_discrete_distance);
         println!("MAX_VORONOI_DIMENSION:{:?}", cmd_arg_max_voronoi_dimension);
         println!("max_distance:{:?}", max_distance);
         println!();

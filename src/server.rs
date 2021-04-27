@@ -133,6 +133,9 @@ impl ToxicBlendService for TheToxicBlendService {
     ) -> Result<PB_Response<PB_Reply>, PB_Status> {
         let a_command = request.get_ref();
         let map = options_to_map(&a_command.options);
+        println!("########################################");
+        println!("# Received command:{}", a_command.command.as_str());
+        println!("########################################");
 
         let rv = match a_command.command.as_str() {
             "2d_outline" => cmd_2d_outline::command(a_command, map),
@@ -164,6 +167,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let address = "[::1]:50069".parse()?;
     let service = TheToxicBlendService::default();
 
+    println!("Toxicblend server starting, will listen for connections @{:?}", address);
     Server::builder()
         .add_service(ToxicBlendServiceServer::new(service))
         .serve(address)

@@ -194,7 +194,7 @@ def build_pb_model(bpy_object, bm, pb_model):
 
 
 def get_pydata(pb_model, only_edges=False):
-    """Parse the received proto buffer data into something useful"""
+    """Convert the received proto buffer data into something useful"""
     rv_vertices = [(v.x, v.y, v.z) for v in pb_model.vertices]
     rv_edges = []
     rv_faces = []
@@ -708,9 +708,9 @@ class Toxicblend_Centerline_Mesh(Operator):
     bl_description = "Calculate centerline, the geometry must be flat and on a plane intersecting origin. This version of centerline tries to keep as many edges as possible. Intended for mesh generation by blender. (press F when done)"
     bl_options = {'REGISTER', 'UNDO'}
 
-    remove_internals: BoolProperty(
-        name="Remove internal edges",
-        description="Remove edges internal to islands in the geometry",
+    remove_externals: BoolProperty(
+        name="Remove external edges",
+        description="Remove edges connected or indirectly connected to 'infinite' edges. Edges inside input geometry are always considered 'internal'",
         default=True
     )
 
@@ -750,8 +750,8 @@ class Toxicblend_Centerline_Mesh(Operator):
                 command = toxicblend_pb2.Command(command='centerline_mesh')
                 build_pb_model(active_object, active_mesh, command.models.add())
                 opt = command.options.add()
-                opt.key = "REMOVE_INTERNALS"
-                opt.value = str(self.remove_internals).lower()
+                opt.key = "REMOVE_EXTERNALS"
+                opt.value = str(self.remove_externals).lower()
                 opt = command.options.add()
                 opt.key = "DISTANCE"
                 opt.value = str(self.distance)
@@ -1033,6 +1033,12 @@ class TB_MeshToolsProps(PropertyGroup):
     centerline_mesh_simplify: BoolProperty(
         name="Simplify line strings",
         description="Simplify voronoi edges connected as in a line string. The 'distance' property is used.",
+        default=True
+    )
+
+    centerline_mesh_externals: BoolProperty(
+        name="Remove external edges",
+        description="Remove edges connected or indirectly connected to 'infinite' edges. Edges inside input geometry are always considered 'internal'",
         default=True
     )
 

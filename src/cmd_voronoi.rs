@@ -33,6 +33,7 @@ fn transmute_to_u64(a: &cgmath::Point2<f64>) -> (u64, u64) {
     (a.x.to_bits(), a.y.to_bits())
 }
 
+/// Helper structs that build PB buffer from VoronoiDiagram
 struct DiagramHelper {
     diagram: VD::VoronoiDiagram<i64, f64>,
     vertices: Vec<boostvoronoi::Point<i64>>,
@@ -236,8 +237,8 @@ impl DiagramHelper {
         let max_dist = self.aabb.get_high().unwrap() - self.aabb.get_low().unwrap();
         let max_dist = max_dist.x.max(max_dist.y);
         let max_dist = self.discrete_distance * max_dist;
-
-        let simpleaffine = boostvoronoi::visual_utils::SimpleAffine::default();
+        //println!("max distance = {}",max_dist);
+        let dummy_affine = boostvoronoi::visual_utils::SimpleAffine::default();
 
         let mut already_drawn = yabf::Yabf::default();
         let rejected_edges = self
@@ -274,7 +275,7 @@ impl DiagramHelper {
                 if edge.is_curved() {
                     self.sample_curved_edge(
                         max_dist,
-                        &simpleaffine,
+                        &dummy_affine,
                         VD::VoronoiEdgeIndex(it.0),
                         &mut samples,
                     );
@@ -333,7 +334,7 @@ impl DiagramHelper {
     fn sample_curved_edge(
         &self,
         max_dist: f64,
-        affine: &VU::SimpleAffine<i64, f64>,
+        dummy_affine: &VU::SimpleAffine<i64, f64>,
         edge_id: VD::VoronoiEdgeIndex,
         sampled_edge: &mut Vec<[f64; 2]>,
     ) {
@@ -356,7 +357,7 @@ impl DiagramHelper {
             &point,
             segment,
             max_dist,
-            affine,
+            dummy_affine,
             sampled_edge,
         );
     }
@@ -766,6 +767,9 @@ pub fn command(
         })?
     };
 
+    // used for simplification and discretization distance
+    let max_distance = cmd_arg_max_voronoi_dimension * cmd_arg_discrete_distance / 100.0;
+
     for model in a_command.models.iter() {
         println!("model.name:{:?}, ", model.name);
         println!("model.vertices:{:?}, ", model.vertices.len());
@@ -777,6 +781,7 @@ pub fn command(
         println!("MAX_VORONOI_DIMENSION:{:?}", cmd_arg_max_voronoi_dimension);
         println!("REMOVE_EXTERNALS:{:?}", cmd_arg_remove_externals);
         println!("VORONOI_DISCRETE_DISTANCE:{:?}%", cmd_arg_discrete_distance);
+        println!("max_distance:{:?}", max_distance);
         println!();
     }
 
