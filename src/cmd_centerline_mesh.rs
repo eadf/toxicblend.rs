@@ -5,315 +5,760 @@ use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
-use cgmath::{EuclideanSpace, SquareMatrix};
-use cgmath::{Transform, UlpsEq};
+use boostvoronoi::builder as VB;
+use cgmath::{ulps_eq, EuclideanSpace, SquareMatrix, Transform, UlpsEq};
+use linestring::cgmath_2d::Aabb2;
+//use linestring::cgmath_3d::Plane;
+use boostvoronoi::diagram as VD;
+use boostvoronoi::visual_utils as VU;
 use itertools::Itertools;
-use linestring::cgmath_3d;
-use linestring::cgmath_3d::Plane;
-use rayon::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
+//use boostvoronoi::{InputType, OutputType};
 
+/// converts from a private, comparable and hash-able format
+/// only use this for floats that are f64::is_finite()
+#[allow(dead_code)]
 #[inline(always)]
-/// make a key from v0 and v1, lowest index will always be first
-fn make_edge_key(v0: usize, v1: usize) -> (usize, usize) {
-    if v0 < v1 {
-        (v0, v1)
-    } else {
-        (v1, v0)
+fn transmute_to_f64(a: &(u64, u64)) -> cgmath::Point2<f64> {
+    cgmath::Point2 {
+        x: f64::from_bits(a.0),
+        y: f64::from_bits(a.1),
     }
 }
 
-/// converts to a private, comparable and hashable format
+/// converts to a private, comparable and hash-able format
 /// only use this for floats that are f64::is_finite()
-/// This will only work for floats that's identical in every bit.
-/// The z coordinate will not be used because it might be slightly different
-/// depending on how it was calculated. Not using z will also make the calculations faster.
 #[inline(always)]
-fn transmute_to_u64(a: &cgmath::Point3<f64>) -> (u64, u64) {
+fn transmute_to_u64(a: &cgmath::Point2<f64>) -> (u64, u64) {
     (a.x.to_bits(), a.y.to_bits())
 }
 
-/// reformat the input into a useful structure
+/// Helper structs that build PB buffer from VoronoiDiagram
+struct DiagramHelper {
+    diagram: VD::VoronoiDiagram<i64, f64>,
+    vertices: Vec<boostvoronoi::Point<i64>>,
+    segments: Vec<boostvoronoi::Line<i64>>,
+    aabb: Aabb2<f64>,
+    rejected_edges: Option<yabf::Yabf>,
+    discrete_distance: f64,
+    remove_externals: bool,
+}
+
+impl DiagramHelper {
+    /// Mark infinite edges and their adjacent edges as EXTERNAL.
+    /// Also mark secondary edges if self.remove_secondary_edges is set
+    fn reject_edges(&mut self) -> Result<(), TBError> {
+        let mut rejected_edges = yabf::Yabf::default();
+        // ensure capacity of bit field by setting last bit +1 to true
+        rejected_edges.set_bit(self.diagram.edges().len(), true);
+
+        for edge in self.diagram.edges().iter() {
+            let edge = edge.get();
+            let edge_id = edge.get_id();
+
+            if !self
+                .diagram
+                .edge_is_finite(Some(edge_id))
+                .ok_or_else(|| TBError::InternalError("Could not get edge status".to_string()))?
+            {
+                self.mark_connected_edges(edge_id, &mut rejected_edges, true)?;
+                rejected_edges.set_bit(edge_id.0, true);
+            }
+        }
+        self.rejected_edges = Some(rejected_edges);
+        Ok(())
+    }
+
+    /// Marks this edge and all other edges connecting to it via vertex1.
+    /// Repeat stops when connecting to input geometry.
+    /// if 'initial' is set to true it will search both ways, edge and the twin edge.
+    /// 'initial' will be set to false when going past the first edge
+    fn mark_connected_edges(
+        &self,
+        edge_id: VD::VoronoiEdgeIndex,
+        marked_edges: &mut yabf::Yabf,
+        initial: bool,
+    ) -> Result<(), TBError> {
+        if marked_edges.bit(edge_id.0) {
+            return Ok(());
+        }
+
+        let mut initial = initial;
+        let mut queue = VecDeque::<VD::VoronoiEdgeIndex>::new();
+        queue.push_front(edge_id);
+
+        'outer: while !queue.is_empty() {
+            // unwrap is safe since we just checked !queue.is_empty()
+            let edge_id = queue.pop_back().unwrap();
+
+            if marked_edges.bit(edge_id.0) {
+                initial = false;
+                continue 'outer;
+            }
+
+            let v1 = self.diagram.edge_get_vertex1(Some(edge_id));
+            if self.diagram.edge_get_vertex0(Some(edge_id)).is_some() && v1.is_none() {
+                // this edge leads to nowhere
+                marked_edges.set_bit(edge_id.0, true);
+                initial = false;
+                continue 'outer;
+            }
+            marked_edges.set_bit(edge_id.0, true);
+
+            #[allow(unused_assignments)]
+            if initial {
+                initial = false;
+                queue.push_back(self.diagram.edge_get_twin(Some(edge_id)).ok_or_else(|| {
+                    TBError::InternalError("Could not get edge twin".to_string())
+                })?);
+            } else {
+                marked_edges.set_bit(
+                    self.diagram
+                        .edge_get_twin(Some(edge_id))
+                        .ok_or_else(|| {
+                            TBError::InternalError("Could not get edge twin".to_string())
+                        })?
+                        .0,
+                    true,
+                );
+            }
+
+            if v1.is_none()
+                || !self.diagram.edges()[(Some(edge_id))
+                    .ok_or_else(|| TBError::InternalError("Could not get edge twin".to_string()))?
+                    .0]
+                    .get()
+                    .is_primary()
+            {
+                // stop traversing this line if vertex1 is not found or if the edge is not primary
+                initial = false;
+                continue 'outer;
+            }
+            // v1 is always Some from this point on
+            if let Some(v1) = v1 {
+                let v1 = self
+                    .diagram
+                    .vertex_get(Some(v1))
+                    .ok_or_else(|| {
+                        TBError::InternalError("Could not get expected vertex".to_string())
+                    })?
+                    .get();
+                if v1.is_site_point() {
+                    // stop iterating line when site points detected
+                    initial = false;
+                    continue 'outer;
+                }
+                //self.reject_vertex(v1, color);
+                let mut e = v1.get_incident_edge();
+                let v_incident_edge = e;
+                while let Some(this_edge) = e {
+                    if !marked_edges.bit(this_edge.0) {
+                        queue.push_back(this_edge);
+                    }
+                    e = self.diagram.edge_rot_next(Some(this_edge));
+                    if e == v_incident_edge {
+                        break;
+                    }
+                }
+            }
+            initial = false;
+        }
+        Ok(())
+    }
+
+    /// converts to a private, comparable and hash-able format
+    /// only use this for floats that are f64::is_finite()
+    #[inline(always)]
+    fn transmute_to_u64(x: f64, y: f64) -> (u64, u64) {
+        (x.to_bits(), y.to_bits())
+    }
+
+    /// transform the voronoi Point into a PB point. Perform duplication checks
+    #[inline(always)]
+    fn place_new_pb_vertex_dup_check(
+        vertex: &[f64; 2],
+        new_vertex_map: &mut ahash::AHashMap<(u64, u64), usize>,
+        pb_vertices: &mut Vec<PB_Vertex>,
+        inverted_transform: &cgmath::Matrix4<f64>,
+    ) -> usize {
+        let key = Self::transmute_to_u64(vertex[0], vertex[1]);
+        *new_vertex_map.entry(key).or_insert_with(|| {
+            let n = pb_vertices.len();
+            let transformed_v = inverted_transform.transform_point(cgmath::Point3 {
+                x: vertex[0],
+                y: vertex[1],
+                z: 0.0,
+            });
+            pb_vertices.push(PB_Vertex {
+                x: transformed_v.x,
+                y: transformed_v.y,
+                z: transformed_v.z,
+            });
+            println!("Found a new vertex:{:.12}, {:.12} named it {}", vertex[0], vertex[1], n);
+            n
+        })
+    }
+
+    /// transform the voronoi Point into a PB point. Does not perform any duplication checks
+    #[inline(always)]
+    #[allow(dead_code)]
+    fn place_new_pb_vertex_unchecked(
+        vertex: &[f64; 2],
+        pb_vertices: &mut Vec<PB_Vertex>,
+        inverted_transform: &cgmath::Matrix4<f64>,
+    ) -> usize {
+        let v = inverted_transform.transform_point(cgmath::Point3 {
+            x: vertex[0],
+            y: vertex[1],
+            z: 0.0,
+        });
+        let n = pb_vertices.len();
+        pb_vertices.push(PB_Vertex {
+            x: v.x,
+            y: v.y,
+            z: v.z,
+        });
+        n
+    }
+
+    /// Convert voronoi cells into PB_Model data
+    fn convert_cells(
+        &mut self,
+        new_vertex_map: &mut ahash::AHashMap<(u64, u64), usize>,
+        pb_vertices: &mut Vec<PB_Vertex>,
+        pb_faces: &mut Vec<PB_Face>,
+        inverted_transform: cgmath::Matrix4<f64>,
+    ) -> Result<(), TBError> {
+        let max_dist = self.aabb.get_high().unwrap() - self.aabb.get_low().unwrap();
+        let max_dist = max_dist.x.max(max_dist.y);
+        let max_dist = self.discrete_distance * max_dist / 100.0;
+
+        // an affine that does nothing
+        // Todo: replace with an option
+        let dummy_affine = boostvoronoi::visual_utils::SimpleAffine::default();
+        //println!(
+        //    "convert_cells, max_dist:{}, self.cmd_discrete_distance:{}%",
+        //    max_dist, self.discrete_distance
+        //);
+
+        let rejected_edges = self
+            .rejected_edges
+            .take()
+            .unwrap_or_else(|| yabf::Yabf::with_capacity(0));
+
+        'cell_loop: for c_it in self.diagram.cell_iter() {
+            let start_edge = c_it
+                .get()
+                .get_incident_edge()
+                .ok_or_else(|| TBError::InternalError("Could not unwrap edge".to_string()))?;
+
+            let mut edge_id = start_edge;
+            let mut kill_pill = 100;
+            let mut pb_face = PB_Face { vertices: vec![] };
+            'edge_loop:loop {
+                if rejected_edges.bit(edge_id.0) {
+                    // don't collect any of the edges/vertices of this cell
+                    println!("***************   Edge {} was rejected, aborting cell", edge_id.0);
+                    continue 'cell_loop;
+                }
+                let edge = self.diagram.get_edge(edge_id).get();
+                //println!(
+                //    "convert_cells, edge:{:?}, secondary:{}",
+                //    edge_id,
+                //    edge.is_secondary()
+                //);
+
+                let mut samples = Vec::<[f64; 2]>::new();
+                if !self.diagram.edge_is_finite(Some(edge_id)).unwrap() {
+                    self.clip_infinite_edge(edge_id, &mut samples)?;
+                } else {
+                    // only push v0 if samples is empty
+                    if samples.is_empty() {
+                        let vertex0 = self.diagram.vertex_get(edge.vertex0()).unwrap().get();
+                        samples.push([vertex0.x(), vertex0.y()]);
+                    }
+                    let vertex1 = self.diagram.edge_get_vertex1(Some(edge_id));
+                    let vertex1 = self.diagram.vertex_get(vertex1).unwrap().get();
+
+                    samples.push([vertex1.x(), vertex1.y()]);
+                    if edge.is_curved() {
+                        self.sample_curved_edge(max_dist, &dummy_affine, edge_id, &mut samples);
+                    }
+                }
+
+                if samples.len() > 1 {
+                    let processed_samples: Vec<usize> = samples
+                        .iter()
+                        .map(|v| {
+                            Self::place_new_pb_vertex_dup_check(
+                                v,
+                                new_vertex_map,
+                                pb_vertices,
+                                &inverted_transform,
+                            )
+                        })
+                        .collect();
+
+                    for (v0, v1) in processed_samples.into_iter().tuple_windows::<(_, _)>() {
+                        let v0 = v0 as u64;
+                        let v1 = v1 as u64;
+
+                        if pb_face.vertices.is_empty() {
+                            pb_face.vertices.push(v0);
+                        } else {
+                            if *(pb_face.vertices.last().unwrap()) != v0 {
+                                pb_face.vertices.push(v0);
+                            }
+                        }
+                        if pb_face.vertices.is_empty() {
+                            pb_face.vertices.push(v1);
+                        } else {
+                            if *pb_face.vertices.last().unwrap() != v1 {
+                                pb_face.vertices.push(v1);
+                            }
+                        }
+                    }
+                }
+                kill_pill -= 1;
+                if kill_pill == 0 {
+                    return Err(TBError::InternalError(
+                        "convert_cells(): Detected infinite loop".to_string(),
+                    ));
+                }
+                edge_id = self.diagram.edge_get_next(Some(edge_id)).ok_or_else(|| {
+                    TBError::InternalError("Could not unwrap next edge".to_string())
+                })?;
+                if edge_id == start_edge {
+                    break;
+                }
+            }
+            if !pb_face.vertices.is_empty(){
+                let first = pb_face.vertices.first().unwrap();
+                if pb_face.vertices.last().unwrap() != first {
+                    pb_face.vertices.push(*first);
+                    println!("edge geometry face was missing end point {:?}", pb_face.vertices);
+                }
+            }
+            pb_faces.push(pb_face);
+        }
+        self.rejected_edges = Some(rejected_edges);
+        println!("pb vertices:{:?}", pb_vertices.len());
+        for f in pb_faces.iter() {
+            println!(" pb face:{:?}", f.vertices);
+        }
+        Ok(())
+    }
+
+    /// Important: sampled_edge should contain both edge endpoints initially.
+    /// sampled_edge should be 'screen' coordinates, i.e. affine transformed from voronoi output
+    fn sample_curved_edge(
+        &self,
+        max_dist: f64,
+        dummy_affine: &VU::SimpleAffine<i64, f64>,
+        edge_id: VD::VoronoiEdgeIndex,
+        sampled_edge: &mut Vec<[f64; 2]>,
+    ) {
+        let cell_id = self.diagram.edge_get_cell(Some(edge_id)).unwrap();
+        let cell = self.diagram.get_cell(cell_id).get();
+        let twin_id = self.diagram.edge_get_twin(Some(edge_id)).unwrap();
+        let twin_cell_id = self.diagram.edge_get_cell(Some(twin_id)).unwrap();
+
+        let point = if cell.contains_point() {
+            self.retrieve_point(cell_id)
+        } else {
+            self.retrieve_point(twin_cell_id)
+        };
+        let segment = if cell.contains_point() {
+            self.retrieve_segment(twin_cell_id)
+        } else {
+            self.retrieve_segment(cell_id)
+        };
+        VU::VoronoiVisualUtils::<i64, f64>::discretize(
+            &point,
+            segment,
+            max_dist,
+            dummy_affine,
+            sampled_edge,
+        );
+    }
+
+    /// Retrieves a point from the voronoi input in the order it was presented to
+    /// the voronoi builder
+    #[inline(always)]
+    fn retrieve_point(&self, cell_id: VD::VoronoiCellIndex) -> boostvoronoi::Point<i64> {
+        let (index, cat) = self.diagram.get_cell(cell_id).get().source_index_2();
+        match cat {
+            VD::SourceCategory::SinglePoint => self.vertices[index],
+            VD::SourceCategory::SegmentStart => self.segments[index - self.vertices.len()].start,
+            VD::SourceCategory::Segment | VD::SourceCategory::SegmentEnd => {
+                self.segments[index - self.vertices.len()].end
+            }
+        }
+    }
+
+    /// Retrieves a segment from the voronoi input in the order it was presented to
+    /// the voronoi builder
+    #[inline(always)]
+    fn retrieve_segment(&self, cell_id: VD::VoronoiCellIndex) -> &boostvoronoi::Line<i64> {
+        let cell = self.diagram.get_cell(cell_id).get();
+        let index = cell.source_index() - self.vertices.len();
+        &self.segments[index]
+    }
+
+    fn clip_infinite_edge(
+        &self,
+        edge_id: VD::VoronoiEdgeIndex,
+        clipped_edge: &mut Vec<[f64; 2]>,
+    ) -> Result<(), TBError> {
+        let edge = self.diagram.get_edge(edge_id);
+        //const cell_type& cell1 = *edge.cell();
+        let cell1_id = self.diagram.edge_get_cell(Some(edge_id)).unwrap();
+        let cell1 = self.diagram.get_cell(cell1_id).get();
+        //const cell_type& cell2 = *edge.twin()->cell();
+        let cell2_id = self
+            .diagram
+            .edge_get_twin(Some(edge_id))
+            .and_then(|e| self.diagram.edge_get_cell(Some(e)))
+            .unwrap();
+        let cell2 = self.diagram.get_cell(cell2_id).get();
+
+        let mut origin = [0_f64, 0.0];
+        let mut direction = [0_f64, 0.0];
+        // Infinite edges could not be created by two segment sites.
+        if cell1.contains_point() && cell2.contains_point() {
+            let p1 = self.retrieve_point(cell1_id);
+            let p2 = self.retrieve_point(cell2_id);
+            origin[0] = ((p1.x as f64) + (p2.x as f64)) * 0.5;
+            origin[1] = ((p1.y as f64) + (p2.y as f64)) * 0.5;
+            direction[0] = (p1.y as f64) - (p2.y as f64);
+            direction[1] = (p2.x as f64) - (p1.x as f64);
+        } else {
+            origin = if cell1.contains_segment() {
+                let p = self.retrieve_point(cell2_id);
+                [p.x as f64, p.y as f64]
+            } else {
+                let p = self.retrieve_point(cell1_id);
+                [p.x as f64, p.y as f64]
+            };
+            let segment = if cell1.contains_segment() {
+                self.retrieve_segment(cell1_id)
+            } else {
+                self.retrieve_segment(cell2_id)
+            };
+            let dx = segment.end.x - segment.start.x;
+            let dy = segment.end.y - segment.start.y;
+            if (ulps_eq!((segment.start.x as f64), origin[0])
+                && ulps_eq!((segment.start.y) as f64, origin[1]))
+                ^ cell1.contains_point()
+            {
+                direction[0] = dy as f64;
+                direction[1] = -dx as f64;
+            } else {
+                direction[0] = -dy as f64;
+                direction[1] = dx as f64;
+            }
+        }
+
+        let side = self.aabb.get_high().unwrap() - self.aabb.get_low().unwrap();
+        let side = side.x.max(side.y);
+        let koef = side / (direction[0].abs().max(direction[1].abs()));
+
+        if clipped_edge.is_empty() {
+            // only push v0 if clipped edge is empty
+            let vertex0 = edge.get().vertex0();
+            if vertex0.is_none() {
+                clipped_edge.push([
+                    origin[0] - direction[0] * koef,
+                    origin[1] - direction[1] * koef,
+                ]);
+            } else {
+                let vertex0 = self.diagram.vertex_get(vertex0).unwrap().get();
+                clipped_edge.push([vertex0.x(), vertex0.y()]);
+            }
+        }
+        let vertex1 = self.diagram.edge_get_vertex1(Some(edge_id));
+        if vertex1.is_none() {
+            clipped_edge.push([
+                origin[0] + direction[0] * koef,
+                origin[1] + direction[1] * koef,
+            ]);
+        } else {
+            let vertex1 = self.diagram.vertex_get(vertex1).unwrap().get();
+            clipped_edge.push([vertex1.x(), vertex1.y()]);
+        }
+        Ok(())
+    }
+}
+
 #[allow(clippy::type_complexity)]
-pub fn parse_input(
+fn parse_input(
     input_pb_model: &PB_Model,
+    cmd_arg_max_voronoi_dimension: f64,
 ) -> Result<
     (
-        fnv::FnvHashSet<(usize, usize)>,
-        Vec<cgmath::Point3<f64>>,
-        cgmath_3d::Aabb3<f64>,
+        Vec<boostvoronoi::Point<i64>>,
+        Vec<boostvoronoi::Line<i64>>,
+        Aabb2<f64>,
+        cgmath::Matrix4<f64>,
     ),
     TBError,
 > {
-    let mut aabb = cgmath_3d::Aabb3::<f64>::default();
+    let mut aabb = linestring::cgmath_3d::Aabb3::<f64>::default();
     for v in input_pb_model.vertices.iter() {
         aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
 
-    let plane =
-        Plane::get_plane_relaxed(&aabb, super::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
-            let aabbe_d = aabb.get_high().unwrap() - aabb.get_low().unwrap();
-            let aabbe_c = (aabb.get_high().unwrap().to_vec() + aabb.get_low().unwrap().to_vec())/2.0;
-            TBError::InputNotPLane(format!(
-                "Input data not in one plane and/or plane not intersecting origin: Δ({},{},{}) C({},{},{})",
-                aabbe_d.x, aabbe_d.y, aabbe_d.z,aabbe_c.x, aabbe_c.y, aabbe_c.z
-            ))
-        })?;
-    println!("centerline: data was in plane:{:?} aabb:{:?}", plane, aabb);
+    let (plane, transform, vor_aabb)= centerline::get_transform_relaxed(
+        &aabb,
+        cmd_arg_max_voronoi_dimension,
+        super::EPSILON,
+        f64::default_max_ulps(),
+    ).map_err(|_|{
+        let aabbe_d = aabb.get_high().unwrap() - aabb.get_low().unwrap();
+        let aabbe_c = (aabb.get_high().unwrap().to_vec() + aabb.get_low().unwrap().to_vec())/2.0;
+        TBError::InputNotPLane(format!(
+            "Input data not in one plane and/or plane not intersecting origin: Δ({},{},{}) C({},{},{})",
+            aabbe_d.x, aabbe_d.y, aabbe_d.z,aabbe_c.x, aabbe_c.y, aabbe_c.z))
+    })?;
 
-    let mut edge_set = fnv::FnvHashSet::<(usize, usize)>::default();
+    let invers_transform = transform
+        .invert()
+        .ok_or(TBError::CouldNotCalculateInvertMatrix)?;
 
-    for face in input_pb_model.faces.iter() {
-        if face.vertices.len() > 2 {
-            return Err(TBError::ModelContainsFaces("Model can't contain any faces, only edges. Use the 2d_outline tool to remove faces".to_string()));
-        }
-        if face.vertices.len() < 2 {
-            return Err(TBError::InvalidInputData(
-                "Points are not supported for this operation".to_string(),
-            ));
-        }
-        let v0 = *face.vertices.get(0).unwrap() as usize;
-        let v1 = *face.vertices.get(1).unwrap() as usize;
-        let key = make_edge_key(v0, v1);
-        let _ = edge_set.insert(key);
-    }
-    for p in input_pb_model.vertices.iter() {
-        if !p.x.is_finite() || !p.y.is_finite() || !p.z.is_finite() {
-            return Err(TBError::InvalidInputData(format!(
-                "Only valid coordinates are allowed ({},{},{})",
-                p.x, p.y, p.z
-            )));
-        }
-    }
-    let p: Vec<cgmath::Point3<f64>> = input_pb_model
+    println!("voronoi: data was in plane:{:?} aabb:{:?}", plane, aabb);
+    //println!("input Lines:{:?}", input_pb_model.vertices);
+
+    let mut vor_lines = Vec::<boostvoronoi::Line<i64>>::with_capacity(input_pb_model.faces.len());
+    let vor_vertices: Vec<boostvoronoi::Point<i64>> = input_pb_model
         .vertices
         .iter()
-        .map(|v| cgmath::Point3 {
-            x: v.x,
-            y: v.y,
-            z: v.z,
+        .map(|vertex| {
+            let p = super::xy_to_2d(&transform.transform_point(cgmath::Point3 {
+                x: vertex.x,
+                y: vertex.y,
+                z: vertex.z,
+            }));
+            boostvoronoi::Point {
+                x: p.x as i64,
+                y: p.y as i64,
+            }
         })
         .collect();
-    Ok((edge_set, p, aabb))
-}
+    let mut used_vertices = yabf::Yabf::with_capacity(vor_vertices.len());
 
-/// Build the return model
-pub fn build_output_bp_model(
-    a_command: &PB_Command,
-    shapes: Vec<(
-        linestring::cgmath_2d::LineStringSet2<f64>,
-        centerline::Centerline<i64, f64>,
-    )>,
-    inverted_transform: cgmath::Matrix4<f64>,
-) -> Result<PB_Model, TBError> {
-    let input_pb_model = &a_command.models[0];
+    for face in input_pb_model.faces.iter() {
+        match face.vertices.len() {
+            3..=usize::MAX => return Err(TBError::ModelContainsFaces("Model can't contain any faces, only edges and points. Use the 2d_outline tool to remove faces".to_string())),
+            2 => {
+                let v0 = face.vertices[0] as usize;
+                let v1 = face.vertices[1] as usize;
 
-    let estimated_capacity: usize = (shapes
-        .iter()
-        .map::<usize, _>(|(ls, cent)| {
-            ls.set().iter().map(|ls| ls.points().len()).sum::<usize>()
-                + cent.lines.iter().flatten().count()
-                + cent
-                    .line_strings
-                    .iter()
-                    .flatten()
-                    .map(|ls| ls.len())
-                    .sum::<usize>()
-        })
-        .sum::<usize>()
-        * 5)
-        / 4;
-
-    let mut output_pb_model_vertices = Vec::<PB_Vertex>::with_capacity(estimated_capacity);
-    let mut output_pb_model_faces = Vec::<PB_Face>::with_capacity(estimated_capacity);
-
-    // map between 'meta-vertex' and vertex index
-    let mut v_map = ahash::AHashMap::<(u64, u64), usize>::default();
-
-    for shape in shapes.into_iter() {
-        // Draw the input segments
-        // todo: should this be optional?
-        for linestring in shape.0.set().iter() {
-            if linestring.points().len() < 2 {
-                return Err(TBError::InternalError(
-                    "Linestring with less than 2 points found".to_string(),
-                ));
-            }
-            // unwrap of first and last is safe now that we know there are at least 2 vertices in the list
-            let v0 = super::xy_to_3d(&linestring.points().first().unwrap());
-            let v1 = super::xy_to_3d(&linestring.points().last().unwrap());
-            let v0_key = transmute_to_u64(&v0);
-            let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
-                let new_index = output_pb_model_vertices.len();
-                output_pb_model_vertices
-                    .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
-                //println!("i0 pushed ({},{},{})", v0.x, v0.y, v0.z);
-                new_index
-            });
-            let v1_key = transmute_to_u64(&v1);
-            let v1_index = *v_map.entry(v1_key).or_insert_with(|| {
-                let new_index = output_pb_model_vertices.len();
-                output_pb_model_vertices
-                    .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
-                //println!("i1 pushed ({},{},{})", v1.x, v1.y, v1.z);
-                new_index
-            });
-            let vertex_index_iterator = Some(v0_index)
-                .into_iter()
-                .chain(
-                    linestring
-                        .points()
-                        .iter()
-                        .skip(1)
-                        .take(linestring.points().len() - 2)
-                        .map(|p| {
-                            let v2 = super::xy_to_3d(p);
-                            let v2_key = transmute_to_u64(&v2);
-                            let v2_index = *v_map.entry(v2_key).or_insert_with(|| {
-                                let new_index = output_pb_model_vertices.len();
-                                output_pb_model_vertices
-                                    .push(PB_Vertex::from(inverted_transform.transform_point(v2)));
-                                //println!("i2 pushed ({},{},{})", v2.x, v2.y, v2.z);
-                                new_index
-                            });
-                            v2_index
-                        }),
-                )
-                .chain(Some(v1_index).into_iter());
-            for p in vertex_index_iterator.tuple_windows::<(_, _)>() {
-                output_pb_model_faces.push(PB_Face {
-                    vertices: vec![p.0 as u64, p.1 as u64],
+                vor_lines.push(boostvoronoi::Line {
+                    start: vor_vertices[v0],
+                    end: vor_vertices[v1],
                 });
-            }
-        }
-
-        // draw the straight edges of the voronoi output
-        for line in shape.1.lines.iter().flatten() {
-            let v0 = line.start;
-            let v1 = line.end;
-            if v0 == v1 {
-                continue;
-            }
-            let v0_key = transmute_to_u64(&v0);
-            let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
-                let new_index = output_pb_model_vertices.len();
-                output_pb_model_vertices
-                    .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
-                //println!("s0 pushed ({},{},{})", v0.x, v0.y, v0.z);
-                new_index
-            });
-
-            let v1_key = transmute_to_u64(&v1);
-            let v1_index = *v_map.entry(v1_key).or_insert_with(|| {
-                let new_index = output_pb_model_vertices.len();
-                output_pb_model_vertices
-                    .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
-                //println!("s1 pushed ({},{},{})", v1.x, v1.y, v1.z);
-                new_index
-            });
-
-            if v0_index == v1_index {
-                println!(
-                    "v0_index==v1_index, but v0!=v1 v0:{:?} v1:{:?} v0_index:{:?} v1_index:{:?}",
-                    v0, v1, v0_index, v1_index
-                );
-                continue;
-            }
-            output_pb_model_faces.push(PB_Face {
-                vertices: vec![v0_index as u64, v1_index as u64],
-            });
-        }
-
-        // draw the concatenated line strings of the voronoi output
-        for linestring in shape.1.line_strings.iter().flatten() {
-            if linestring.points().len() < 2 {
-                return Err(TBError::InternalError(
-                    "Linestring with less than 2 points found".to_string(),
-                ));
-            }
-            // unwrap of first and last is safe now that we know there are at least 2 vertices in the list
-            let v0 = linestring.points().first().unwrap();
-            let v1 = linestring.points().last().unwrap();
-            let v0_key = transmute_to_u64(&v0);
-            let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
-                let new_index = output_pb_model_vertices.len();
-                output_pb_model_vertices
-                    .push(PB_Vertex::from(inverted_transform.transform_point(*v0)));
-                //println!("ls0 pushed ({},{},{})", v0.x, v0.y, v0.z);
-                new_index
-            });
-            let v1_key = transmute_to_u64(&v1);
-            let v1_index = *v_map.entry(v1_key).or_insert_with(|| {
-                let new_index = output_pb_model_vertices.len();
-                output_pb_model_vertices
-                    .push(PB_Vertex::from(inverted_transform.transform_point(*v1)));
-                //println!("ls1 pushed ({},{},{})", v1.x, v1.y, v1.z);
-                new_index
-            });
-            // we only need to lookup the start and end points for vertex duplication
-            let vertex_index_iterator = Some(v0_index)
-                .into_iter()
-                .chain(
-                    linestring
-                        .points()
-                        .iter()
-                        .skip(1)
-                        .take(linestring.points().len() - 2)
-                        .map(|p| {
-                            let new_index = output_pb_model_vertices.len();
-                            output_pb_model_vertices
-                                .push(PB_Vertex::from(inverted_transform.transform_point(*p)));
-                            new_index
-                        }),
-                )
-                .chain(Some(v1_index).into_iter());
-            for p in vertex_index_iterator.tuple_windows::<(_, _)>() {
-                output_pb_model_faces.push(PB_Face {
-                    vertices: vec![p.0 as u64, p.1 as u64],
-                });
-            }
+                used_vertices.set_bit(v0, true);
+                used_vertices.set_bit(v1, true);
+            },
+            // This does not work, face.len() is never 1
+            //1 => points.push(vertices_2d[face.vertices[0] as usize]),
+            _ => (),
         }
     }
-    //println!("allocated {} needed {} and {}", count, output_pb_model_vertices.len(), output_pb_model_faces.len());
-    Ok(PB_Model {
+    // save the unused vertices as points
+    let vor_vertices: Vec<boostvoronoi::Point<i64>> = vor_vertices
+        .into_iter()
+        .enumerate()
+        .filter(|x| !used_vertices.bit(x.0))
+        .map(|x| x.1)
+        .collect();
+    drop(used_vertices);
+
+    println!("lines_2d.len():{:?}", vor_lines.len());
+    println!("vertices_2d.len():{:?}", vor_vertices.len());
+    Ok((vor_vertices, vor_lines, vor_aabb, invers_transform))
+}
+
+/// Runs boost voronoi over the input,
+/// Removes the external edges as we can't handle infinite length edges in blender.
+fn centerline_mesh(
+    input_pb_model: &PB_Model,
+    cmd_arg_max_voronoi_dimension: f64,
+    cmd_discrete_distance: f64,
+    cmd_remove_externals: bool,
+) -> Result<PB_Model, TBError> {
+    let (vor_vertices, vor_lines, vor_aabb2, inverted_transform) =
+        parse_input(input_pb_model, cmd_arg_max_voronoi_dimension)?;
+    let mut vb = VB::Builder::default();
+    vb.with_vertices(vor_vertices.iter())?;
+    vb.with_segments(vor_lines.iter())?;
+    let vor_diagram = vb.construct()?;
+    //println!("diagram:{:?}", vor_diagram);
+    println!("aabb2:{:?}", vor_aabb2);
+    let mut diagram_helper = DiagramHelper {
+        vertices: vor_vertices,
+        segments: vor_lines,
+        diagram: vor_diagram,
+        aabb: vor_aabb2,
+        rejected_edges: None,
+        discrete_distance: cmd_discrete_distance,
+        remove_externals: cmd_remove_externals,
+    };
+
+    if diagram_helper.remove_externals {
+        diagram_helper.reject_edges()?;
+    }
+    build_output(input_pb_model, diagram_helper, inverted_transform)
+}
+
+fn build_output(
+    input_pb_model: &PB_Model,
+    diagram: DiagramHelper,
+    inverted_transform: cgmath::Matrix4<f64>,
+) -> Result<PB_Model, TBError> {
+    // a map of hashtable point to vertex number
+    let mut new_vertex_map = ahash::AHashMap::<(u64, u64), usize>::default();
+    let include_input_geometry = false;
+
+    let mut vertices_2d = if include_input_geometry {
+        // had to encase this in a block b/o the borrow checker.
+
+        // convert this back to network form again
+        let vertices_2d: Vec<PB_Vertex> = diagram
+            .vertices
+            .iter()
+            .enumerate()
+            .map(|p| {
+                let v0 = cgmath::Point2 {
+                    x: p.1.x as f64,
+                    y: p.1.y as f64,
+                };
+                let key = transmute_to_u64(&v0);
+                let _ = new_vertex_map.entry(key).or_insert_with(|| p.0);
+                let v = inverted_transform.transform_point(super::xy_to_3d(&cgmath::Point2 {
+                    x: p.1.x as f64,
+                    y: p.1.y as f64,
+                }));
+                PB_Vertex {
+                    x: v.x,
+                    y: v.y,
+                    z: v.z,
+                }
+            })
+            .collect();
+        vertices_2d
+    } else {
+        Vec::<PB_Vertex>::new()
+    };
+
+    // push the line vertices to the same vec
+    let mut faces_2d = if include_input_geometry {
+        // had to encase this in a block b/o the borrow checker.
+        // todo: use the duplicate checker of DiagramHelper
+        let mut faces_2d = Vec::<PB_Face>::with_capacity(diagram.segments.len());
+        for l in diagram.segments.iter() {
+            let mut face = PB_Face {
+                vertices: Vec::<u64>::with_capacity(2),
+            };
+            let v0 = l.start;
+            let v0 = cgmath::Point2 {
+                x: v0.x as f64,
+                y: v0.y as f64,
+            };
+            let key = transmute_to_u64(&v0);
+            let v0 = inverted_transform.transform_point(super::xy_to_3d(&v0));
+            let n = new_vertex_map.entry(key).or_insert_with(|| {
+                let rv = vertices_2d.len();
+                vertices_2d.push(PB_Vertex {
+                    x: v0.x,
+                    y: v0.y,
+                    z: v0.z,
+                });
+                rv
+            });
+            face.vertices.push(*n as u64);
+
+            let v1 = l.end;
+            let v1 = cgmath::Point2 {
+                x: v1.x as f64,
+                y: v1.y as f64,
+            };
+            let key = transmute_to_u64(&v1);
+            let v1 = inverted_transform.transform_point(super::xy_to_3d(&v1));
+            let n = new_vertex_map.entry(key).or_insert_with(|| {
+                let rv = vertices_2d.len();
+                vertices_2d.push(PB_Vertex {
+                    x: v1.x,
+                    y: v1.y,
+                    z: v1.z,
+                });
+                rv
+            });
+            face.vertices.push(*n as u64);
+            if !face.vertices.is_empty(){
+                let first = *face.vertices.first().unwrap();
+                if *face.vertices.last().unwrap() != first {
+                    face.vertices.push(first);
+                    println!("input geometry face was missing end point {:?}", face.vertices);
+                }
+            }
+            faces_2d.push(face);
+        }
+        faces_2d
+    } else {
+        Vec::<PB_Face>::new()
+    };
+
+    let mut diagram = diagram;
+    if true {
+        diagram.convert_cells(
+            &mut new_vertex_map,
+            &mut vertices_2d,
+            &mut faces_2d,
+            inverted_transform,
+        )?;
+    }
+
+    println!("input model vertices:{:?}", vertices_2d.len());
+    println!("2d vertices");
+    for v in diagram
+        .diagram
+        .vertices()
+        .iter()
+        .sorted_unstable_by(|v0, v1| v0.get().x().partial_cmp(&v1.get().x()).unwrap())
+    {
+        let v = v.get();
+        println!("#{}, {:.12},{:.12}", v.get_id().0, v.x(), v.y())
+    }
+    println!("output vertices");
+    for v in vertices_2d
+        .iter().enumerate()
+        .sorted_unstable_by(|v0, v1| v0.1.x.partial_cmp(&v1.1.x).unwrap())
+    {
+        println!("#{}, {:.12},{:.12},{:.12}", v.0, v.1.x, v.1.y, v.1.z)
+    }
+    println!("input model faces:{:?}", faces_2d.len());
+
+    let model = PB_Model {
         name: input_pb_model.name.clone(),
         world_orientation: input_pb_model.world_orientation.clone(),
-        vertices: output_pb_model_vertices,
-        faces: output_pb_model_faces,
-    })
+        vertices: vertices_2d, //Vec::<PB_Vertex>::with_capacity(0),
+        faces: faces_2d,
+    };
+    Ok(model)
 }
 
 pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    let cmd_arg_remove_internals = {
-        let tmp_true = "true".to_string();
-        let value = options.get("REMOVE_INTERNALS").unwrap_or(&tmp_true);
-        value.parse::<bool>().map_err(|_| {
-            TBError::InvalidInputData(format!(
-                "Could not parse the REMOVE_INTERNALS parameter {:?}",
-                value
-            ))
-        })?
-    };
-    let cmd_arg_distance = {
-        let value = options.get("DISTANCE").ok_or_else(|| {
-            TBError::InvalidInputData("Missing the DISTANCE parameter".to_string())
-        })?;
-        value.parse::<f64>().map_err(|_| {
-            TBError::InvalidInputData(format!(
-                "Could not parse the DISTANCE parameter {:?}",
-                value
-            ))
-        })?
-    };
-    if !(0.004..100.0).contains(&cmd_arg_distance) {
-        return Err(TBError::InvalidInputData(format!(
-            "The valid range of DISTANCE is [0.005..100[% :({})",
-            cmd_arg_distance
-        )));
+    println!("Centerline mesh got command: \"{}\"", a_command.command);
+    if a_command.models.len() > 1 {
+        return Err(TBError::InvalidInputData(
+            "This operation only supports one model as input".to_string(),
+        ));
     }
+
     let cmd_arg_max_voronoi_dimension = {
         let tmp_value = super::MAX_VORONOI_DIMENSION.to_string();
         let value = options.get("MAX_VORONOI_DIMENSION").unwrap_or(&tmp_value);
@@ -331,170 +776,73 @@ pub fn command(
             cmd_arg_max_voronoi_dimension
         )));
     }
-
+    let cmd_arg_discrete_distance = {
+        let tmp_value = super::VORONOI_DISCRETE_DISTANCE.to_string();
+        let value = options.get("DISTANCE").unwrap_or(&tmp_value);
+        value.parse::<f64>().map_err(|_| {
+            TBError::InvalidInputData(format!(
+                "Could not parse the DISTANCE parameter {:?}",
+                value
+            ))
+        })?
+    };
+    if !(super::VORONOI_DISCRETE_DISTANCE..5.0).contains(&cmd_arg_discrete_distance) {
+        return Err(TBError::InvalidInputData(format!(
+            "The valid range of DISTANCE is [{}..5.0[% :({})",
+            super::VORONOI_DISCRETE_DISTANCE,
+            cmd_arg_discrete_distance
+        )));
+    }
     // used for simplification and discretization distance
-    let max_distance = cmd_arg_max_voronoi_dimension * cmd_arg_distance / 100.0;
+    let max_distance = cmd_arg_max_voronoi_dimension * cmd_arg_discrete_distance / 100.0;
 
-    let cmd_arg_simplify = {
-        let tmp_true = "true".to_string();
-        let value = options.get("SIMPLIFY").unwrap_or(&tmp_true);
+    let cmd_arg_remove_externals = {
+        let default_value = "false".to_string();
+        let value = options.get("REMOVE_EXTERNALS").unwrap_or(&default_value);
         value.parse::<bool>().map_err(|_| {
             TBError::InvalidInputData(format!(
-                "Could not parse the SIMPLIFY parameter {:?}",
+                "Could not parse the REMOVE_EXTERNALS parameter {:?}",
                 value
             ))
         })?
     };
 
-    if a_command.models.is_empty() || a_command.models[0].vertices.is_empty() {
-        return Err(TBError::InvalidInputData(
-            "Model did not contain any data".to_string(),
-        ));
-    }
-
-    if a_command.models.len() > 1 {
-        println!("centerline models.len(): {}", a_command.models.len());
-        return Err(TBError::InvalidInputData(
-            "This operation only supports one model as input".to_string(),
-        ));
-    }
-    println!("centerline_mesh got command: \"{}\"", a_command.command);
     for model in a_command.models.iter() {
-        println!("model.name:{:?}", model.name);
-        println!("model.vertices:{:?}", model.vertices.len());
-        println!("model.faces:{:?}", model.faces.len());
+        println!("model.name:{:?}, ", model.name);
+        println!("model.vertices:{:?}, ", model.vertices.len());
+        println!("model.faces:{:?}, ", model.faces.len());
         println!(
-            "model.world_orientation:{:?}",
+            "model.world_orientation:{:?}, ",
             model.world_orientation.as_ref().map_or(0, |_| 16)
         );
-        println!("REMOVE_INTERNALS:{:?}", cmd_arg_remove_internals);
-        println!("DISTANCE:{:?}%", cmd_arg_distance);
         println!("MAX_VORONOI_DIMENSION:{:?}", cmd_arg_max_voronoi_dimension);
+        println!("REMOVE_EXTERNALS:{:?}", cmd_arg_remove_externals);
+        println!("VORONOI_DISCRETE_DISTANCE:{:?}%", cmd_arg_discrete_distance);
         println!("max_distance:{:?}", max_distance);
         println!();
     }
-    //println!("-> parse_input");
-    let (edges, points, total_aabb) = parse_input(&a_command.models[0])?;
-    println!("-> divide_into_shapes");
-    let lines = centerline::divide_into_shapes(edges, points)?;
-    println!("-> get_transform_relaxed");
-    let (_plane, transform, _voronoi_input_aabb) = centerline::get_transform_relaxed(
-        &total_aabb,
-        cmd_arg_max_voronoi_dimension,
-        super::EPSILON,
-        f64::default_max_ulps(),
-    )?;
 
-    let inverted_transform = transform
-        .invert()
-        .ok_or(TBError::CouldNotCalculateInvertMatrix)?;
+    if !a_command.models.is_empty() {
+        let input_model = &a_command.models[0];
+        let output_model = centerline_mesh(
+            &input_model,
+            cmd_arg_max_voronoi_dimension,
+            cmd_arg_discrete_distance,
+            cmd_arg_remove_externals,
+        )?;
+        let mut reply = PB_Reply {
+            options: vec![PB_KeyValuePair {
+                key: "ONLY_EDGES".to_string(),
+                value: "False".to_string(),
+            }],
+            models: Vec::<PB_Model>::new(),
+        };
 
-    //println!("-> transform");
-    // transform each linestring to 2d
-    let mut raw_data: Vec<linestring::cgmath_2d::LineStringSet2<f64>> = lines
-        .par_iter()
-        .map(|x| x.transform(&transform).copy_to_2d(cgmath_3d::Plane::XY))
-        .collect();
-    {
-        // truncate the floats to nearest int
-        let truncate_float = |x: f64| -> f64 { x as i64 as f64 };
-        for r in raw_data.iter_mut() {
-            r.operation(&truncate_float);
-        }
+        reply.models.push(output_model);
+        Ok(reply)
+    } else {
+        Err(TBError::InvalidInputData(
+            "Model did not contain any data".to_string(),
+        ))
     }
-
-    //println!("->calculate hull");
-
-    // calculate the hull of each shape
-    let raw_data: Vec<linestring::cgmath_2d::LineStringSet2<f64>> = raw_data
-        .into_par_iter()
-        .map(|mut x| {
-            let _ = x.calculate_convex_hull();
-            x
-        })
-        .collect();
-
-    //println!("Started with {} shapes", raw_data.len());
-    let raw_data = centerline::consolidate_shapes(raw_data)?;
-    //println!("Reduced to {} shapes", raw_data.len());
-
-    let shapes = raw_data
-        .into_par_iter()
-        .map(|shape| {
-            let mut segments = Vec::<boostvoronoi::Line<i64>>::with_capacity(
-                shape.set().iter().map(|x| x.len()).sum(),
-            );
-            for lines in shape.set().iter() {
-                for lineseq in lines.as_lines_iter() {
-                    segments.push(boostvoronoi::Line::new(
-                        // boost voronoi only accepts integers as coordinates
-                        boostvoronoi::Point {
-                            x: lineseq.start.x as i64,
-                            y: lineseq.start.y as i64,
-                        },
-                        boostvoronoi::Point {
-                            x: lineseq.end.x as i64,
-                            y: lineseq.end.y as i64,
-                        },
-                    ))
-                }
-            }
-            let mut c = centerline::Centerline::<i64, f64>::with_segments(segments);
-            if let Err(centerline_error) = c.build_voronoi() {
-                return Err(centerline_error.into());
-            }
-            if cmd_arg_remove_internals {
-                if let Err(centerline_error) =
-                    c.calculate_centerline_mesh(max_distance, shape.get_internals())
-                {
-                    return Err(centerline_error.into());
-                }
-            } else if let Err(centerline_error) = c.calculate_centerline_mesh(max_distance, None) {
-                return Err(centerline_error.into());
-            }
-
-            if cmd_arg_simplify && c.line_strings.is_some() {
-                // simplify every line string with rayon
-                c.line_strings = Some(
-                    c.line_strings
-                        .take()
-                        .unwrap()
-                        .into_par_iter()
-                        .map(|ls| {
-                            //let pre = ls.len();
-                            ls.simplify(max_distance)
-                            ////println!("simplified ls from {} to {}", pre, ls.len());
-                            //ls
-                        })
-                        .collect(),
-                );
-            }
-            Ok((shape, c))
-        })
-        .collect::<Result<
-            Vec<(
-                linestring::cgmath_2d::LineStringSet2<f64>,
-                centerline::Centerline<i64, f64>,
-            )>,
-            TBError,
-        >>()?;
-    //println!("<-build_voronoi");
-
-    let model = build_output_bp_model(&a_command, shapes, inverted_transform)?;
-
-    //println!("<-build_bp_model");
-    let mut reply = PB_Reply {
-        options: vec![PB_KeyValuePair {
-            key: "ONLY_EDGES".to_string(),
-            value: "True".to_string(),
-        }],
-        models: Vec::<PB_Model>::new(),
-    };
-    println!(
-        "<-PB_Reply vertices:{:?}, faces:{:?}",
-        model.vertices.len(),
-        model.faces.len()
-    );
-    reply.models.push(model);
-    Ok(reply)
 }
