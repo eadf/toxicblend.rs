@@ -222,6 +222,7 @@ impl DiagramHelper {
     }
 
     /// Convert voronoi cells into PB_Model data
+    #[allow(unused_labels)]
     fn convert_cells(
         &mut self,
         new_vertex_map: &mut ahash::AHashMap<(u64, u64), usize>,
@@ -246,22 +247,27 @@ impl DiagramHelper {
             .take()
             .unwrap_or_else(|| yabf::Yabf::with_capacity(0));
 
-        'cell_loop: for c_it in self.diagram.cell_iter() {
-            let start_edge = c_it
+        println!("There are {} faces", self.diagram.cells().len());
+
+        'cell_loop: for (c_id,c_it) in self.diagram.cell_iter().enumerate()/*.skip(0).take(2)*/ {
+
+            let mut edge_id = c_it
                 .get()
                 .get_incident_edge()
                 .ok_or_else(|| TBError::InternalError("Could not unwrap edge".to_string()))?;
+            let start_edge : VD::VoronoiEdgeIndex = edge_id;
 
-            let mut edge_id = start_edge;
             let mut kill_pill = 100;
             let mut pb_face = PB_Face { vertices: vec![] };
-            'edge_loop:loop {
+
+            'edge_loop: loop {
                 if rejected_edges.bit(edge_id.0) {
                     // don't collect any of the edges/vertices of this cell
                     println!("***************   Edge {} was rejected, aborting cell", edge_id.0);
                     continue 'cell_loop;
                 }
                 let edge = self.diagram.get_edge(edge_id).get();
+                println!("@{:?}",edge);
                 //println!(
                 //    "convert_cells, edge:{:?}, secondary:{}",
                 //    edge_id,
@@ -270,23 +276,26 @@ impl DiagramHelper {
 
                 let mut samples = Vec::<[f64; 2]>::new();
                 if !self.diagram.edge_is_finite(Some(edge_id)).unwrap() {
-                    self.clip_infinite_edge(edge_id, &mut samples)?;
+                    self.clip_infinite_edge(edge_id,false, &mut samples)?;
+                    println!("clip_infinite_edge : samples {:?}", samples);
                 } else {
-                    // only push v0 if samples is empty
-                    if samples.is_empty() {
-                        let vertex0 = self.diagram.vertex_get(edge.vertex0()).unwrap().get();
-                        samples.push([vertex0.x(), vertex0.y()]);
-                    }
-                    let vertex1 = self.diagram.edge_get_vertex1(Some(edge_id));
-                    let vertex1 = self.diagram.vertex_get(vertex1).unwrap().get();
 
-                    samples.push([vertex1.x(), vertex1.y()]);
+                    let vertex0 = self.diagram.vertex_get(edge.vertex0()).unwrap().get();
+                    println!("v0={:?}", vertex0);
+                    samples.push([vertex0.x(), vertex0.y()]);
+
                     if edge.is_curved() {
+                        let vertex1 = self.diagram.edge_get_vertex1(Some(edge_id));
+                        let vertex1 = self.diagram.vertex_get(vertex1).unwrap().get();
+                        println!("curved !!v1={:?}", vertex1);
+                        samples.push([vertex1.x(), vertex1.y()]);
+
                         self.sample_curved_edge(max_dist, &dummy_affine, edge_id, &mut samples);
+                        let _= samples.pop();
                     }
                 }
-
-                if samples.len() > 1 {
+                //println!("samples {:?}", samples);
+                if !samples.is_empty() {
                     let processed_samples: Vec<usize> = samples
                         .iter()
                         .map(|v| {
@@ -299,22 +308,15 @@ impl DiagramHelper {
                         })
                         .collect();
 
-                    for (v0, v1) in processed_samples.into_iter().tuple_windows::<(_, _)>() {
-                        let v0 = v0 as u64;
-                        let v1 = v1 as u64;
-
+                    for v in processed_samples.into_iter() {
+                        let v = v as u64;
                         if pb_face.vertices.is_empty() {
-                            pb_face.vertices.push(v0);
+                            pb_face.vertices.push(v);
                         } else {
-                            if *(pb_face.vertices.last().unwrap()) != v0 {
-                                pb_face.vertices.push(v0);
-                            }
-                        }
-                        if pb_face.vertices.is_empty() {
-                            pb_face.vertices.push(v1);
-                        } else {
-                            if *pb_face.vertices.last().unwrap() != v1 {
-                                pb_face.vertices.push(v1);
+                            if *(pb_face.vertices.last().unwrap()) != v {
+                                pb_face.vertices.push(v);
+                            } else {
+                                println!("would have placed {} again", v);
                             }
                         }
                     }
@@ -322,35 +324,37 @@ impl DiagramHelper {
                 kill_pill -= 1;
                 if kill_pill == 0 {
                     return Err(TBError::InternalError(
-                        "convert_cells(): Detected infinite loop".to_string(),
+                        "convert_cells() 2: Detected infinite loop".to_string(),
                     ));
                 }
                 edge_id = self.diagram.edge_get_next(Some(edge_id)).ok_or_else(|| {
                     TBError::InternalError("Could not unwrap next edge".to_string())
                 })?;
                 if edge_id == start_edge {
+                    println!("edge_id == start_edge {}=={}",edge_id.0, start_edge.0 );
                     break;
                 }
             }
             if !pb_face.vertices.is_empty(){
-                let first = pb_face.vertices.first().unwrap();
-                if pb_face.vertices.last().unwrap() != first {
-                    pb_face.vertices.push(*first);
-                    println!("edge geometry face was missing end point {:?}", pb_face.vertices);
+                let first = *pb_face.vertices.first().unwrap();
+                if *pb_face.vertices.last().unwrap() == first {
+                    let _ = pb_face.vertices.pop();
+                    println!("edge geometry face had double end point {:?} {}", &pb_face.vertices, first);
                 }
             }
+            println!("Cell:{} produced:{:?}", c_id, pb_face);
             pb_faces.push(pb_face);
+            //break 'cell_loop
         }
         self.rejected_edges = Some(rejected_edges);
         println!("pb vertices:{:?}", pb_vertices.len());
         for f in pb_faces.iter() {
-            println!(" pb face:{:?}", f.vertices);
+            println!(" pb face:{:2?}", f.vertices);
         }
         Ok(())
     }
 
     /// Important: sampled_edge should contain both edge endpoints initially.
-    /// sampled_edge should be 'screen' coordinates, i.e. affine transformed from voronoi output
     fn sample_curved_edge(
         &self,
         max_dist: f64,
@@ -408,6 +412,7 @@ impl DiagramHelper {
     fn clip_infinite_edge(
         &self,
         edge_id: VD::VoronoiEdgeIndex,
+        ignore_v1:bool,
         clipped_edge: &mut Vec<[f64; 2]>,
     ) -> Result<(), TBError> {
         let edge = self.diagram.get_edge(edge_id);
@@ -463,28 +468,27 @@ impl DiagramHelper {
         let side = side.x.max(side.y);
         let koef = side / (direction[0].abs().max(direction[1].abs()));
 
-        if clipped_edge.is_empty() {
-            // only push v0 if clipped edge is empty
-            let vertex0 = edge.get().vertex0();
-            if vertex0.is_none() {
-                clipped_edge.push([
-                    origin[0] - direction[0] * koef,
-                    origin[1] - direction[1] * koef,
-                ]);
-            } else {
-                let vertex0 = self.diagram.vertex_get(vertex0).unwrap().get();
-                clipped_edge.push([vertex0.x(), vertex0.y()]);
-            }
-        }
-        let vertex1 = self.diagram.edge_get_vertex1(Some(edge_id));
-        if vertex1.is_none() {
+        let vertex0 = edge.get().vertex0();
+        if vertex0.is_none() {
             clipped_edge.push([
-                origin[0] + direction[0] * koef,
-                origin[1] + direction[1] * koef,
+                origin[0] - direction[0] * koef,
+                origin[1] - direction[1] * koef,
             ]);
         } else {
-            let vertex1 = self.diagram.vertex_get(vertex1).unwrap().get();
-            clipped_edge.push([vertex1.x(), vertex1.y()]);
+            let vertex0 = self.diagram.vertex_get(vertex0).unwrap().get();
+            clipped_edge.push([vertex0.x(), vertex0.y()]);
+        }
+        if !ignore_v1 {
+            let vertex1 = self.diagram.edge_get_vertex1(Some(edge_id));
+            if vertex1.is_none() {
+                clipped_edge.push([
+                    origin[0] + direction[0] * koef,
+                    origin[1] + direction[1] * koef,
+                ]);
+            } else {
+                let vertex1 = self.diagram.vertex_get(vertex1).unwrap().get();
+                clipped_edge.push([vertex1.x(), vertex1.y()]);
+            }
         }
         Ok(())
     }
@@ -608,22 +612,21 @@ fn centerline_mesh(
     if diagram_helper.remove_externals {
         diagram_helper.reject_edges()?;
     }
-    build_output(input_pb_model, diagram_helper, inverted_transform)
+    build_output(false, input_pb_model, diagram_helper, inverted_transform)
 }
 
 fn build_output(
+    include_input_geometry:bool,
     input_pb_model: &PB_Model,
     diagram: DiagramHelper,
     inverted_transform: cgmath::Matrix4<f64>,
 ) -> Result<PB_Model, TBError> {
     // a map of hashtable point to vertex number
     let mut new_vertex_map = ahash::AHashMap::<(u64, u64), usize>::default();
-    let include_input_geometry = false;
 
-    let mut vertices_2d = if include_input_geometry {
-        // had to encase this in a block b/o the borrow checker.
-
+    let mut vertices_2d =  {
         // convert this back to network form again
+        // todo: use the duplicate checker of DiagramHelper
         let vertices_2d: Vec<PB_Vertex> = diagram
             .vertices
             .iter()
@@ -647,13 +650,12 @@ fn build_output(
             })
             .collect();
         vertices_2d
-    } else {
-        Vec::<PB_Vertex>::new()
-    };
+    }; //else {
+      //  Vec::<PB_Vertex>::new()
+    //};
 
     // push the line vertices to the same vec
     let mut faces_2d = if include_input_geometry {
-        // had to encase this in a block b/o the borrow checker.
         // todo: use the duplicate checker of DiagramHelper
         let mut faces_2d = Vec::<PB_Face>::with_capacity(diagram.segments.len());
         for l in diagram.segments.iter() {
