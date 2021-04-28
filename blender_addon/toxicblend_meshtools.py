@@ -704,8 +704,8 @@ class Toxicblend_Centerline(Operator):
 # Centerline operator
 class Toxicblend_Voronoi_Mesh(Operator):
     bl_idname = "mesh.toxicblend_meshtools_voronoi_mesh"
-    bl_label = "Centerline Mesh"
-    bl_description = "Calculate voronoi diagram add mesh, the geometry must be flat and on a plane intersecting origin."
+    bl_label = "Voronoi Mesh"
+    bl_description = "Calculate voronoi diagram and add mesh, the geometry must be flat and on a plane intersecting origin."
     bl_options = {'REGISTER', 'UNDO'}
 
     remove_externals: BoolProperty(
@@ -722,12 +722,6 @@ class Toxicblend_Voronoi_Mesh(Operator):
         max=4.9999,
         precision=6,
         subtype='PERCENTAGE'
-    )
-
-    simplify: BoolProperty(
-        name="Simplify line strings",
-        description="Simplify voronoi edges connected as in a line string. The 'distance' property is used.",
-        default=True
     )
 
     @classmethod
@@ -1022,12 +1016,6 @@ class TB_MeshToolsProps(PropertyGroup):
         max=4.9999,
         precision=6,
         subtype='PERCENTAGE'
-    )
-
-    voronoi_mesh_simplify: BoolProperty(
-        name="Simplify line strings",
-        description="Simplify voronoi edges connected as in a line string. The 'distance' property is used.",
-        default=True
     )
 
     voronoi_mesh_remove_externals: BoolProperty(
