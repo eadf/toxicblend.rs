@@ -7,9 +7,8 @@ use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
 use boostvoronoi::builder as VB;
 use boostvoronoi::diagram as VD;
-use boostvoronoi::visual_utils as VU;
 use cgmath::{EuclideanSpace, SquareMatrix, Transform, UlpsEq};
-use itertools::Itertools;
+//use itertools::Itertools;
 use linestring::cgmath_2d::Aabb2;
 use linestring::cgmath_2d::VoronoiParabolicArc;
 use std::collections::{HashMap, VecDeque};
@@ -211,10 +210,11 @@ impl DiagramHelper {
                 y: transformed_v.y,
                 z: transformed_v.z,
             });
-            println!(
+            /*println!(
                 "Found a new vertex:{:.12}, {:.12} named it {}",
                 vertex[0], vertex[1], n
             );
+            */
             n
         })
     }
@@ -257,7 +257,7 @@ impl DiagramHelper {
 
         // an affine that does nothing
         // Todo: replace with an option
-        let dummy_affine = boostvoronoi::visual_utils::SimpleAffine::<i64, f64>::default();
+        //let dummy_affine = boostvoronoi::visual_utils::SimpleAffine::<i64, f64>::default();
         //println!(
         //    "convert_cells, max_dist:{}, self.cmd_discrete_distance:{}%",
         //    max_dist, self.discrete_distance
@@ -268,7 +268,7 @@ impl DiagramHelper {
             .take()
             .unwrap_or_else(|| yabf::Yabf::with_capacity(0));
 
-        println!("There are {} faces", self.diagram.cells().len());
+        //println!("There are {} faces", self.diagram.cells().len());
 
         'cell_loop: for (cell_id, cell_c) in self.diagram.cell_iter().enumerate()
         /*.skip(1).take(1)*/
@@ -296,7 +296,7 @@ impl DiagramHelper {
 
             'edge_loop: loop {
                 let edge = self.diagram.get_edge(edge_id).get();
-                println!("@{:?}", edge);
+                //println!("@{:?}", edge);
 
                 let edge_twin_id = self.diagram.edge_get_twin(Some(edge_id)).ok_or_else(|| {
                     TBError::InternalError(format!("Could not get twin. {}", line!()))
@@ -307,7 +307,7 @@ impl DiagramHelper {
                     })?;
 
                 let (start_point, end_point) = if !edge_is_finite {
-                    self.replace_infinite_with_origin_2(edge_id)?
+                    self.replace_infinite_with_origin(edge_id)?
                 } else {
                     // Edge is finite so we know that vertex0 and vertex1 is_some()
 
@@ -393,10 +393,10 @@ impl DiagramHelper {
                 let mut samples = Vec::<[f64; 3]>::new();
 
                 if edge.is_curved() {
-                    println!(
+                    /*println!(
                         "curved !! start_point={:?}, end_point={:?}",
                         start_point, end_point
-                    );
+                    );*/
 
                     let arc = VoronoiParabolicArc::new(
                         segment,
@@ -415,36 +415,43 @@ impl DiagramHelper {
                         samples.push([p.x, p.y, p.z]);
                     }
                 } else {
-                    if  start_point.z.is_finite(){
+                    if start_point.z.is_finite() {
                         samples.push([start_point.x, start_point.y, start_point.z]);
                     } else {
                         let z_comp = if cell1.contains_point() {
-                            -linestring::cgmath_2d::distance_to_point_squared(&cell_point, &cgmath::Point2 {
-                                x: start_point.x,
-                                y: start_point.y,
-                            })
-                                .sqrt()
+                            -linestring::cgmath_2d::distance_to_point_squared(
+                                &cell_point,
+                                &cgmath::Point2 {
+                                    x: start_point.x,
+                                    y: start_point.y,
+                                },
+                            )
+                            .sqrt()
                         } else {
-                             -linestring::cgmath_2d::distance_to_line_squared_safe(
+                            -linestring::cgmath_2d::distance_to_line_squared_safe(
                                 &segment.start,
                                 &segment.end,
                                 &cgmath::Point2 {
                                     x: start_point.x,
                                     y: start_point.y,
                                 },
-                            ).sqrt()
+                            )
+                            .sqrt()
                         };
                         samples.push([start_point.x, start_point.y, z_comp]);
                     }
-                    if end_point.z.is_finite(){
+                    if end_point.z.is_finite() {
                         samples.push([end_point.x, end_point.y, end_point.z]);
                     } else {
                         let z_comp = if cell1.contains_point() {
-                            -linestring::cgmath_2d::distance_to_point_squared(&cell_point, &cgmath::Point2 {
-                                x: end_point.x,
-                                y: end_point.y,
-                            })
-                                .sqrt()
+                            -linestring::cgmath_2d::distance_to_point_squared(
+                                &cell_point,
+                                &cgmath::Point2 {
+                                    x: end_point.x,
+                                    y: end_point.y,
+                                },
+                            )
+                            .sqrt()
                         } else {
                             -linestring::cgmath_2d::distance_to_line_squared_safe(
                                 &segment.start,
@@ -453,7 +460,8 @@ impl DiagramHelper {
                                     x: end_point.x,
                                     y: end_point.y,
                                 },
-                            ).sqrt()
+                            )
+                            .sqrt()
                         };
                         samples.push([end_point.x, end_point.y, z_comp]);
                     }
@@ -475,21 +483,17 @@ impl DiagramHelper {
                         .collect();
                     if (!edge.is_secondary()) && rejected_edges.bit(edge_id.0) {
                         // don't collect any of the edges/vertices of this cell
-                        println!(
-                            "***************   Edge {} was rejected, skipping edge",
-                            edge_id.0
-                        );
+                        //println!(
+                        //    "***************   Edge {} was rejected, skipping edge",
+                        //    edge_id.0
+                        //);
                     } else {
                         for v in processed_samples.into_iter() {
                             let v = v as u64;
-                            if pb_face.vertices.is_empty() {
+                            if pb_face.vertices.is_empty() || *(pb_face.vertices.last().unwrap()) != v {
                                 pb_face.vertices.push(v);
                             } else {
-                                if *(pb_face.vertices.last().unwrap()) != v {
-                                    pb_face.vertices.push(v);
-                                } else {
-                                    println!("would have placed {} again", v);
-                                }
+                                //println!("would have placed {} again", v);
                             }
                         }
                     }
@@ -504,7 +508,7 @@ impl DiagramHelper {
                     TBError::InternalError("Could not unwrap next edge".to_string())
                 })?;
                 if edge_id == start_edge {
-                    println!("edge_id == start_edge {}=={}", edge_id.0, start_edge.0);
+                    //println!("edge_id == start_edge {}=={}", edge_id.0, start_edge.0);
                     break 'edge_loop;
                 }
             }
@@ -512,13 +516,13 @@ impl DiagramHelper {
                 let first = *pb_face.vertices.first().unwrap();
                 if *pb_face.vertices.last().unwrap() == first {
                     let _ = pb_face.vertices.pop();
-                    println!(
-                        "edge geometry face had double end point {:?} {}",
-                        &pb_face.vertices, first
-                    );
+                    //println!(
+                    //    "edge geometry face had double end point {:?} {}",
+                    //    &pb_face.vertices, first
+                    //);
                 }
             }
-            println!("Cell:{} produced:{:?}", cell_id, pb_face);
+            //println!("Cell:{} produced:{:?}", cell_id, pb_face);
             if cell_c.get().contains_segment() {
                 if let Some(split) = self.split_pb_faces(
                     &pb_face,
@@ -532,23 +536,21 @@ impl DiagramHelper {
                     if !split.1.vertices.is_empty() {
                         pb_faces.push(split.1);
                     }
-                } else {
-                    if !pb_face.vertices.is_empty() {
-                        pb_faces.push(pb_face);
-                    }
-                }
-            } else {
-                if !pb_face.vertices.is_empty() {
+                } else if !pb_face.vertices.is_empty() {
                     pb_faces.push(pb_face);
                 }
+            } else if !pb_face.vertices.is_empty() {
+                pb_faces.push(pb_face);
             }
+
             //break 'cell_loop
         }
         self.rejected_edges = Some(rejected_edges);
-        println!("pb vertices:{:?}", pb_vertices.len());
+        /*println!("pb vertices:{:?}", pb_vertices.len());
         for f in pb_faces.iter() {
             println!(" pb face:{:2?}", f.vertices);
         }
+        */
         Ok(())
     }
 
@@ -578,74 +580,42 @@ impl DiagramHelper {
         )?;
         if let Some(v0i) = pb_face.vertices.iter().position(|x| x == &v0n) {
             if let Some(v1i) = pb_face.vertices.iter().position(|x| x == &v1n) {
-                if pb_face.vertices.contains(&v0n) && pb_face.vertices.contains(&v1n) {
+                /*if pb_face.vertices.contains(&v0n) && pb_face.vertices.contains(&v1n) {
                     println!(
                         "COULD SPLIT v0n:{} v0i:{} v1n:{} v1i:{}",
                         v0n, v0i, v1n, v1i
                     );
-                }
+                }*/
+                let mut a = Vec::<u64>::new();
+                let mut b = Vec::<u64>::new();
                 if v0i < v1i {
-                    let mut a = Vec::<u64>::new();
-                    let mut b = Vec::<u64>::new();
+
                     for i in (0..=v0i).chain(v1i..pb_face.vertices.len()) {
                         a.push(pb_face.vertices[i]);
                     }
                     for i in v0i..=v1i {
                         b.push(pb_face.vertices[i]);
                     }
-                    println!("v:{:?}", pb_face.vertices);
-                    println!("a:{:?}", a);
-                    println!("b:{:?}", b);
-                    return Ok(Some((PB_Face { vertices: a }, PB_Face { vertices: b })));
+                    //println!("v:{:?}", pb_face.vertices);
+                    //println!("a:{:?}", a);
+                    //println!("b:{:?}", b);
+
                 } else {
-                    let mut a = Vec::<u64>::new();
-                    let mut b = Vec::<u64>::new();
+
                     for i in (0..=v1i).chain(v0i..pb_face.vertices.len()) {
                         a.push(pb_face.vertices[i]);
                     }
                     for i in v1i..=v0i {
                         b.push(pb_face.vertices[i]);
                     }
-                    println!("v:{:?}", pb_face.vertices);
-                    println!("a:{:?}", a);
-                    println!("b:{:?}", b);
-                    return Ok(Some((PB_Face { vertices: a }, PB_Face { vertices: b })));
-                }
+                    //println!("v:{:?}", pb_face.vertices);
+                    //println!("a:{:?}", a);
+                    //println!("b:{:?}", b);
+                };
+                return Ok(Some((PB_Face { vertices: a }, PB_Face { vertices: b })))
             }
         }
         Ok(None)
-    }
-
-    /// Important: sampled_edge should contain both edge endpoints initially.
-    fn sample_curved_edge(
-        &self,
-        max_dist: f64,
-        dummy_affine: &VU::SimpleAffine<i64, f64>,
-        cell_id: VD::VoronoiCellIndex,
-        edge_id: VD::VoronoiEdgeIndex,
-        sampled_edge: &mut Vec<[f64; 2]>,
-    ) {
-        let cell = self.diagram.get_cell(cell_id).get();
-        let twin_id = self.diagram.edge_get_twin(Some(edge_id)).unwrap();
-        let twin_cell_id = self.diagram.edge_get_cell(Some(twin_id)).unwrap();
-
-        let point = if cell.contains_point() {
-            self.retrieve_point(cell_id)
-        } else {
-            self.retrieve_point(twin_cell_id)
-        };
-        let segment = if cell.contains_point() {
-            self.retrieve_segment(twin_cell_id)
-        } else {
-            self.retrieve_segment(cell_id)
-        };
-        VU::VoronoiVisualUtils::<i64, f64>::discretize(
-            &point,
-            segment,
-            max_dist,
-            dummy_affine,
-            sampled_edge,
-        );
     }
 
     /// Retrieves a point from the voronoi input in the order it was presented to
@@ -671,7 +641,7 @@ impl DiagramHelper {
         &self.segments[index]
     }
 
-    fn replace_infinite_with_origin_2(
+    fn replace_infinite_with_origin(
         &self,
         edge_id: VD::VoronoiEdgeIndex,
     ) -> Result<(cgmath::Point3<f64>, cgmath::Point3<f64>), TBError> {
@@ -737,60 +707,6 @@ impl DiagramHelper {
         };
 
         Ok((start_point, end_point))
-    }
-
-    fn replace_infinite_with_origin(
-        &self,
-        edge_id: VD::VoronoiEdgeIndex,
-        ignore_v1: bool,
-        clipped_edge: &mut Vec<[f64; 2]>,
-    ) -> Result<(), TBError> {
-        let edge = self.diagram.get_edge(edge_id);
-        //const cell_type& cell1 = *edge.cell();
-        let cell1_id = self.diagram.edge_get_cell(Some(edge_id)).unwrap();
-        let cell1 = self.diagram.get_cell(cell1_id).get();
-        //const cell_type& cell2 = *edge.twin()->cell();
-        let cell2_id = self
-            .diagram
-            .edge_get_twin(Some(edge_id))
-            .and_then(|e| self.diagram.edge_get_cell(Some(e)))
-            .unwrap();
-        let cell2 = self.diagram.get_cell(cell2_id).get();
-
-        let mut origin = [0_f64, 0.0];
-        // Infinite edges could not be created by two segment sites.
-        if cell1.contains_point() && cell2.contains_point() {
-            let p1 = self.retrieve_point(cell1_id);
-            let p2 = self.retrieve_point(cell2_id);
-            origin[0] = ((p1.x as f64) + (p2.x as f64)) * 0.5;
-            origin[1] = ((p1.y as f64) + (p2.y as f64)) * 0.5;
-        } else {
-            origin = if cell1.contains_segment() {
-                let p = self.retrieve_point(cell2_id);
-                [p.x as f64, p.y as f64]
-            } else {
-                let p = self.retrieve_point(cell1_id);
-                [p.x as f64, p.y as f64]
-            };
-        }
-
-        let vertex0 = edge.get().vertex0();
-        if vertex0.is_none() {
-            clipped_edge.push([origin[0], origin[1]]);
-        } else {
-            let vertex0 = self.diagram.vertex_get(vertex0).unwrap().get();
-            clipped_edge.push([vertex0.x(), vertex0.y()]);
-        }
-        if !ignore_v1 {
-            let vertex1 = self.diagram.edge_get_vertex1(Some(edge_id));
-            if vertex1.is_none() {
-                clipped_edge.push([origin[0], origin[1]]);
-            } else {
-                let vertex1 = self.diagram.vertex_get(vertex1).unwrap().get();
-                clipped_edge.push([vertex1.x(), vertex1.y()]);
-            }
-        }
-        Ok(())
     }
 }
 
@@ -878,8 +794,8 @@ fn parse_input(
         .collect();
     drop(used_vertices);
 
-    println!("lines_2d.len():{:?}", vor_lines.len());
-    println!("vertices_2d.len():{:?}", vor_vertices.len());
+    //println!("lines_2d.len():{:?}", vor_lines.len());
+    //println!("vertices_2d.len():{:?}", vor_vertices.len());
     Ok((vor_vertices, vor_lines, vor_aabb, invers_transform))
 }
 
@@ -898,7 +814,7 @@ fn voronoi_mesh(
     vb.with_segments(vor_lines.iter())?;
     let vor_diagram = vb.construct()?;
     //println!("diagram:{:?}", vor_diagram);
-    println!("aabb2:{:?}", vor_aabb2);
+    //println!("aabb2:{:?}", vor_aabb2);
     let mut diagram_helper = DiagramHelper {
         vertices: vor_vertices,
         segments: vor_lines,
@@ -1024,28 +940,28 @@ fn build_output(
             &inverted_transform,
         )?;
     }
-
-    println!("input model vertices:{:?}", vertices_2d.len());
-    println!("2d vertices");
-    for v in diagram
-        .diagram
-        .vertices()
-        .iter()
-        .sorted_unstable_by(|v0, v1| v0.get().x().partial_cmp(&v1.get().x()).unwrap())
-    {
-        let v = v.get();
-        println!("#{}, {:.12},{:.12}", v.get_id().0, v.x(), v.y())
-    }
-    println!("output vertices");
-    for v in vertices_2d
-        .iter()
-        .enumerate()
-        .sorted_unstable_by(|v0, v1| v0.1.x.partial_cmp(&v1.1.x).unwrap())
-    {
-        println!("#{}, {:.12},{:.12},{:.12}", v.0, v.1.x, v.1.y, v.1.z)
-    }
-    println!("input model faces:{:?}", faces_2d.len());
-
+    /*
+        println!("input model vertices:{:?}", vertices_2d.len());
+        println!("2d vertices");
+        for v in diagram
+            .diagram
+            .vertices()
+            .iter()
+            .sorted_unstable_by(|v0, v1| v0.get().x().partial_cmp(&v1.get().x()).unwrap())
+        {
+            let v = v.get();
+            println!("#{}, {:.12},{:.12}", v.get_id().0, v.x(), v.y())
+        }
+        println!("output vertices");
+        for v in vertices_2d
+            .iter()
+            .enumerate()
+            .sorted_unstable_by(|v0, v1| v0.1.x.partial_cmp(&v1.1.x).unwrap())
+        {
+            println!("#{}, {:.12},{:.12},{:.12}", v.0, v.1.x, v.1.y, v.1.z)
+        }
+        println!("input model faces:{:?}", faces_2d.len());
+    */
     let model = PB_Model {
         name: input_pb_model.name.clone(),
         world_orientation: input_pb_model.world_orientation.clone(),

@@ -50,6 +50,15 @@ Works on 3D linestrings/polylines.
 
 This percentage change makes it possible to simplify tiny objects without having to scale them up, simplify and then scale them down again.
 
+### Voronoi mesh
+Runs the Voronoi sweepline algorithm on loops of 2D lines and builds a 2½D mesh (input geometry must be on a plane crossing origin).
+
+Encircle the input lines in an outer, closed, perimeter for better results.
+
+Do *not* input single points, only line loops.
+
+![from](img/voronoi_mesh.png)
+
 ### Centerline
 
 Takes the output of the 2d_outline command and calculates the 3D centerline.
@@ -62,9 +71,9 @@ Keyboard command: `s` `z` `0` for setting Z to zero.
 
 ![from](img/centerline.png)
 
-
 ### Voronoi
 Runs the Voronoi sweepline algorithm on 2D points and lines (geometry must be on a plane crossing origin).
+
 ![from](img/voronoi.png)
 
 ### Metavolume (object operation)
