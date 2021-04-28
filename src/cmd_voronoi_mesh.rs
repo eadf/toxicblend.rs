@@ -6,12 +6,12 @@ use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
 use boostvoronoi::builder as VB;
-use cgmath::{ulps_eq, EuclideanSpace, SquareMatrix, Transform, UlpsEq};
-use linestring::cgmath_2d::Aabb2;
-//use linestring::cgmath_3d::Plane;
 use boostvoronoi::diagram as VD;
 use boostvoronoi::visual_utils as VU;
+use cgmath::{EuclideanSpace, SquareMatrix, Transform, UlpsEq};
 use itertools::Itertools;
+use linestring::cgmath_2d::Aabb2;
+use linestring::cgmath_2d::VoronoiParabolicArc;
 use std::collections::{HashMap, VecDeque};
 //use boostvoronoi::{InputType, OutputType};
 
@@ -257,7 +257,7 @@ impl DiagramHelper {
 
         // an affine that does nothing
         // Todo: replace with an option
-        let dummy_affine = boostvoronoi::visual_utils::SimpleAffine::default();
+        let dummy_affine = boostvoronoi::visual_utils::SimpleAffine::<i64, f64>::default();
         //println!(
         //    "convert_cells, max_dist:{}, self.cmd_discrete_distance:{}%",
         //    max_dist, self.discrete_distance
@@ -270,9 +270,11 @@ impl DiagramHelper {
 
         println!("There are {} faces", self.diagram.cells().len());
 
-        'cell_loop: for (cell_id, cell_c) in self.diagram.cell_iter().enumerate().skip(1).take(1)
+        'cell_loop: for (cell_id, cell_c) in self.diagram.cell_iter().enumerate()
+        /*.skip(1).take(1)*/
         {
             assert_eq!(cell_c.get().get_id(), cell_id);
+            let mut kill_pill = 100;
 
             let mut edge_id = cell_c
                 .get()
@@ -280,59 +282,198 @@ impl DiagramHelper {
                 .ok_or_else(|| TBError::InternalError("Could not unwrap edge".to_string()))?;
             let start_edge: VD::VoronoiEdgeIndex = edge_id;
 
-            let mut kill_pill = 100;
+            let cell1_id = self.diagram.edge_get_cell(Some(edge_id)).ok_or_else(|| {
+                TBError::InternalError(format!(
+                    "Could not get cell id for edge:{}. {}",
+                    edge_id.0,
+                    line!()
+                ))
+            })?;
+
+            let cell1 = self.diagram.get_cell(cell1_id).get();
+
             let mut pb_face = PB_Face { vertices: vec![] };
 
             'edge_loop: loop {
-
                 let edge = self.diagram.get_edge(edge_id).get();
                 println!("@{:?}", edge);
-                //println!(
-                //    "convert_cells, edge:{:?}, secondary:{}",
-                //    edge_id,
-                //    edge.is_secondary()
-                //);
 
-                let mut samples = Vec::<[f64; 2]>::new();
-                if !self.diagram.edge_is_finite(Some(edge_id)).unwrap() {
-                    self.clip_infinite_edge(edge_id, false, &mut samples)?;
-                    //println!("clip_infinite_edge : samples {:?}", samples);
+                let edge_twin_id = self.diagram.edge_get_twin(Some(edge_id)).ok_or_else(|| {
+                    TBError::InternalError(format!("Could not get twin. {}", line!()))
+                })?;
+                let edge_is_finite =
+                    self.diagram.edge_is_finite(Some(edge_id)).ok_or_else(|| {
+                        TBError::InternalError(format!("Could not get edge. {}", line!()))
+                    })?;
+
+                let (start_point, end_point) = if !edge_is_finite {
+                    self.replace_infinite_with_origin_2(edge_id)?
                 } else {
-                    let vertex0 = self.diagram.vertex_get(edge.vertex0()).unwrap().get();
-                    println!("v0={:?}", vertex0);
-                    samples.push([vertex0.x(), vertex0.y()]);
+                    // Edge is finite so we know that vertex0 and vertex1 is_some()
 
-                    if edge.is_curved() {
-                        let vertex1 = self.diagram.edge_get_vertex1(Some(edge_id));
-                        let vertex1 = self.diagram.vertex_get(vertex1).unwrap().get();
-                        println!("curved !!v1={:?}", vertex1);
-                        samples.push([vertex1.x(), vertex1.y()]);
+                    let vertex0 = self
+                        .diagram
+                        .vertex_get(edge.vertex0())
+                        .ok_or_else(|| {
+                            TBError::InternalError(format!("Could not find vertex 0. {}", line!()))
+                        })?
+                        .get();
 
-                        self.sample_curved_edge(
-                            max_dist,
-                            &dummy_affine,
-                            VD::VoronoiCellIndex(cell_id),
-                            edge_id,
-                            &mut samples,
-                        );
-                        let _ = samples.pop();
+                    let vertex1 =
+                        self.diagram
+                            .edge_get_vertex1(Some(edge_id))
+                            .ok_or_else(|| {
+                                TBError::InternalError(format!(
+                                    "Could not find vertex 1. {}",
+                                    line!()
+                                ))
+                            })?;
+
+                    let vertex1 = self
+                        .diagram
+                        .vertex_get(Some(vertex1))
+                        .ok_or_else(|| {
+                            TBError::InternalError(format!("Could not find vertex 1. {}", line!()))
+                        })?
+                        .get();
+
+                    let start_point = if vertex0.is_site_point() {
+                        cgmath::Point3 {
+                            x: vertex0.x(),
+                            y: vertex0.y(),
+                            z: 0.0,
+                        }
+                    } else {
+                        cgmath::Point3 {
+                            x: vertex0.x(),
+                            y: vertex0.y(),
+                            z: f64::NAN,
+                        }
+                    };
+                    let end_point = if vertex1.is_site_point() {
+                        cgmath::Point3 {
+                            x: vertex1.x(),
+                            y: vertex1.y(),
+                            z: 0.0,
+                        }
+                    } else {
+                        cgmath::Point3 {
+                            x: vertex1.x(),
+                            y: vertex1.y(),
+                            z: f64::NAN,
+                        }
+                    };
+                    (start_point, end_point)
+                };
+
+                let twin_cell_id = self.diagram.get_edge(edge_twin_id).get().cell().unwrap();
+
+                let cell_point = if cell1.contains_point() {
+                    self.retrieve_point(cell1_id)
+                } else {
+                    self.retrieve_point(twin_cell_id)
+                };
+                let cell_point = cgmath::Point2 {
+                    x: cell_point.x as f64,
+                    y: cell_point.y as f64,
+                };
+
+                let segment = if cell1.contains_point() {
+                    self.retrieve_segment(twin_cell_id)
+                } else {
+                    self.retrieve_segment(cell1_id)
+                };
+                let segment = linestring::cgmath_2d::Line2::from([
+                    segment.start.x as f64,
+                    segment.start.y as f64,
+                    segment.end.x as f64,
+                    segment.end.y as f64,
+                ]);
+
+                let mut samples = Vec::<[f64; 3]>::new();
+
+                if edge.is_curved() {
+                    println!(
+                        "curved !! start_point={:?}, end_point={:?}",
+                        start_point, end_point
+                    );
+
+                    let arc = VoronoiParabolicArc::new(
+                        segment,
+                        cell_point,
+                        cgmath::Point2 {
+                            x: start_point.x,
+                            y: start_point.y,
+                        },
+                        cgmath::Point2 {
+                            x: end_point.x,
+                            y: end_point.y,
+                        },
+                    );
+                    let arc = arc.discretise_3d(max_dist);
+                    for p in arc.points().iter() {
+                        samples.push([p.x, p.y, p.z]);
+                    }
+                } else {
+                    if  start_point.z.is_finite(){
+                        samples.push([start_point.x, start_point.y, start_point.z]);
+                    } else {
+                        let z_comp = if cell1.contains_point() {
+                            -linestring::cgmath_2d::distance_to_point_squared(&cell_point, &cgmath::Point2 {
+                                x: start_point.x,
+                                y: start_point.y,
+                            })
+                                .sqrt()
+                        } else {
+                             -linestring::cgmath_2d::distance_to_line_squared_safe(
+                                &segment.start,
+                                &segment.end,
+                                &cgmath::Point2 {
+                                    x: start_point.x,
+                                    y: start_point.y,
+                                },
+                            ).sqrt()
+                        };
+                        samples.push([start_point.x, start_point.y, z_comp]);
+                    }
+                    if end_point.z.is_finite(){
+                        samples.push([end_point.x, end_point.y, end_point.z]);
+                    } else {
+                        let z_comp = if cell1.contains_point() {
+                            -linestring::cgmath_2d::distance_to_point_squared(&cell_point, &cgmath::Point2 {
+                                x: end_point.x,
+                                y: end_point.y,
+                            })
+                                .sqrt()
+                        } else {
+                            -linestring::cgmath_2d::distance_to_line_squared_safe(
+                                &segment.start,
+                                &segment.end,
+                                &cgmath::Point2 {
+                                    x: end_point.x,
+                                    y: end_point.y,
+                                },
+                            ).sqrt()
+                        };
+                        samples.push([end_point.x, end_point.y, z_comp]);
                     }
                 }
+
                 //println!("samples {:?}", samples);
                 if !samples.is_empty() {
                     let processed_samples: Vec<usize> = samples
                         .iter()
                         .map(|v| {
                             Self::place_new_pb_vertex_dup_check(
-                                v,
+                                &[v[0], v[1]],
                                 new_vertex_map,
                                 pb_vertices,
                                 &inverted_transform,
-                                0.0,
+                                v[2],
                             )
                         })
                         .collect();
-                    if rejected_edges.bit(edge_id.0) {
+                    if (!edge.is_secondary()) && rejected_edges.bit(edge_id.0) {
                         // don't collect any of the edges/vertices of this cell
                         println!(
                             "***************   Edge {} was rejected, skipping edge",
@@ -530,7 +671,75 @@ impl DiagramHelper {
         &self.segments[index]
     }
 
-    fn clip_infinite_edge(
+    fn replace_infinite_with_origin_2(
+        &self,
+        edge_id: VD::VoronoiEdgeIndex,
+    ) -> Result<(cgmath::Point3<f64>, cgmath::Point3<f64>), TBError> {
+        let edge = self.diagram.get_edge(edge_id);
+        //const cell_type& cell1 = *edge.cell();
+        let cell1_id = self.diagram.edge_get_cell(Some(edge_id)).unwrap();
+        let cell1 = self.diagram.get_cell(cell1_id).get();
+        //const cell_type& cell2 = *edge.twin()->cell();
+        let cell2_id = self
+            .diagram
+            .edge_get_twin(Some(edge_id))
+            .and_then(|e| self.diagram.edge_get_cell(Some(e)))
+            .unwrap();
+        let cell2 = self.diagram.get_cell(cell2_id).get();
+
+        let mut origin = [0_f64, 0.0];
+        // Infinite edges could not be created by two segment sites.
+        if cell1.contains_point() && cell2.contains_point() {
+            let p1 = self.retrieve_point(cell1_id);
+            let p2 = self.retrieve_point(cell2_id);
+            origin[0] = ((p1.x as f64) + (p2.x as f64)) * 0.5;
+            origin[1] = ((p1.y as f64) + (p2.y as f64)) * 0.5;
+        } else {
+            origin = if cell1.contains_segment() {
+                let p = self.retrieve_point(cell2_id);
+                [p.x as f64, p.y as f64]
+            } else {
+                let p = self.retrieve_point(cell1_id);
+                [p.x as f64, p.y as f64]
+            };
+        }
+
+        let vertex0 = edge.get().vertex0();
+        let start_point = if vertex0.is_none() {
+            cgmath::Point3 {
+                x: origin[0],
+                y: origin[1],
+                z: 0.0,
+            }
+        } else {
+            let vertex0 = self.diagram.vertex_get(vertex0).unwrap().get();
+            cgmath::Point3 {
+                x: vertex0.x(),
+                y: vertex0.y(),
+                z: f64::NAN,
+            }
+        };
+
+        let vertex1 = self.diagram.edge_get_vertex1(Some(edge_id));
+        let end_point = if vertex1.is_none() {
+            cgmath::Point3 {
+                x: origin[0],
+                y: origin[1],
+                z: 0.0,
+            }
+        } else {
+            let vertex1 = self.diagram.vertex_get(vertex1).unwrap().get();
+            cgmath::Point3 {
+                x: vertex1.x(),
+                y: vertex1.y(),
+                z: f64::NAN,
+            }
+        };
+
+        Ok((start_point, end_point))
+    }
+
+    fn replace_infinite_with_origin(
         &self,
         edge_id: VD::VoronoiEdgeIndex,
         ignore_v1: bool,
@@ -549,15 +758,12 @@ impl DiagramHelper {
         let cell2 = self.diagram.get_cell(cell2_id).get();
 
         let mut origin = [0_f64, 0.0];
-        let mut direction = [0_f64, 0.0];
         // Infinite edges could not be created by two segment sites.
         if cell1.contains_point() && cell2.contains_point() {
             let p1 = self.retrieve_point(cell1_id);
             let p2 = self.retrieve_point(cell2_id);
             origin[0] = ((p1.x as f64) + (p2.x as f64)) * 0.5;
             origin[1] = ((p1.y as f64) + (p2.y as f64)) * 0.5;
-            direction[0] = (p1.y as f64) - (p2.y as f64);
-            direction[1] = (p2.x as f64) - (p1.x as f64);
         } else {
             origin = if cell1.contains_segment() {
                 let p = self.retrieve_point(cell2_id);
@@ -566,35 +772,11 @@ impl DiagramHelper {
                 let p = self.retrieve_point(cell1_id);
                 [p.x as f64, p.y as f64]
             };
-            let segment = if cell1.contains_segment() {
-                self.retrieve_segment(cell1_id)
-            } else {
-                self.retrieve_segment(cell2_id)
-            };
-            let dx = segment.end.x - segment.start.x;
-            let dy = segment.end.y - segment.start.y;
-            if (ulps_eq!((segment.start.x as f64), origin[0])
-                && ulps_eq!((segment.start.y) as f64, origin[1]))
-                ^ cell1.contains_point()
-            {
-                direction[0] = dy as f64;
-                direction[1] = -dx as f64;
-            } else {
-                direction[0] = -dy as f64;
-                direction[1] = dx as f64;
-            }
         }
-
-        let side = self.aabb.get_high().unwrap() - self.aabb.get_low().unwrap();
-        let side = side.x.max(side.y);
-        let koef = side / (direction[0].abs().max(direction[1].abs()));
 
         let vertex0 = edge.get().vertex0();
         if vertex0.is_none() {
-            clipped_edge.push([
-                origin[0] - direction[0] * koef,
-                origin[1] - direction[1] * koef,
-            ]);
+            clipped_edge.push([origin[0], origin[1]]);
         } else {
             let vertex0 = self.diagram.vertex_get(vertex0).unwrap().get();
             clipped_edge.push([vertex0.x(), vertex0.y()]);
@@ -602,10 +784,7 @@ impl DiagramHelper {
         if !ignore_v1 {
             let vertex1 = self.diagram.edge_get_vertex1(Some(edge_id));
             if vertex1.is_none() {
-                clipped_edge.push([
-                    origin[0] + direction[0] * koef,
-                    origin[1] + direction[1] * koef,
-                ]);
+                clipped_edge.push([origin[0], origin[1]]);
             } else {
                 let vertex1 = self.diagram.vertex_get(vertex1).unwrap().get();
                 clipped_edge.push([vertex1.x(), vertex1.y()]);
