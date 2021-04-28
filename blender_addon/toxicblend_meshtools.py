@@ -213,8 +213,8 @@ def get_pydata(pb_model, only_edges=False):
                 else:
                     print("FIXME: was asked to make an edge between two identical vertices: %s and %s" % (
                         vertices[0], vertices[1]))
-                # rvFaces.append(vertices)
             else:
+                #print("Adding face:", vertices)
                 rv_faces.append(vertices)
 
     mat = IDENTITY4x4.copy()
@@ -702,10 +702,10 @@ class Toxicblend_Centerline(Operator):
 
 
 # Centerline operator
-class Toxicblend_Centerline_Mesh(Operator):
-    bl_idname = "mesh.toxicblend_meshtools_centerline_mesh"
+class Toxicblend_Voronoi_Mesh(Operator):
+    bl_idname = "mesh.toxicblend_meshtools_voronoi_mesh"
     bl_label = "Centerline Mesh"
-    bl_description = "Calculate centerline, the geometry must be flat and on a plane intersecting origin. This version of centerline tries to keep as many edges as possible. Intended for mesh generation by blender. (press F when done)"
+    bl_description = "Calculate voronoi diagram add mesh, the geometry must be flat and on a plane intersecting origin."
     bl_options = {'REGISTER', 'UNDO'}
 
     remove_externals: BoolProperty(
@@ -747,7 +747,7 @@ class Toxicblend_Centerline_Mesh(Operator):
         try:
             with grpc.insecure_channel(SOCKET) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
-                command = toxicblend_pb2.Command(command='centerline_mesh')
+                command = toxicblend_pb2.Command(command='voronoi_mesh')
                 build_pb_model(active_object, active_mesh, command.models.add())
                 opt = command.options.add()
                 opt.key = "REMOVE_EXTERNALS"
@@ -933,7 +933,7 @@ class VIEW3D_MT_edit_mesh_toxicblend_meshtools(Menu):
         layout.operator("mesh.toxicblend_meshtools_2d_outline")
         layout.operator("mesh.toxicblend_meshtools_knife_intersect")
         layout.operator("mesh.toxicblend_meshtools_centerline")
-        layout.operator("mesh.toxicblend_meshtools_centerline_mesh")
+        layout.operator("mesh.toxicblend_meshtools_voronoi_mesh")
         layout.operator("mesh.toxicblend_meshtools_voronoi")
         #layout.operator("mesh.toxicblend_meshtools_voxel")
         layout.operator("mesh.toxicblend_meshtools_select_end_vertices")
@@ -1008,19 +1008,13 @@ class TB_MeshToolsProps(PropertyGroup):
         default=True
     )
 
-    centerline_mesh_remove_internals: BoolProperty(
-        name="Remove internal edges",
-        description="Remove edges internal to islands in the geometry",
-        default=True
-    )
-
     centerline_weld: BoolProperty(
         name="Weld the centerline to outline",
         description="Centerline and outline will share vertices if they intersect",
         default=True
     )
 
-    centerline_mesh_distance: FloatProperty(
+    voronoi_mesh_distance: FloatProperty(
         name="Distance",
         description="Discrete distance as a percentage of the AABB",
         default=0.005,
@@ -1030,13 +1024,13 @@ class TB_MeshToolsProps(PropertyGroup):
         subtype='PERCENTAGE'
     )
 
-    centerline_mesh_simplify: BoolProperty(
+    voronoi_mesh_simplify: BoolProperty(
         name="Simplify line strings",
         description="Simplify voronoi edges connected as in a line string. The 'distance' property is used.",
         default=True
     )
 
-    centerline_mesh_externals: BoolProperty(
+    voronoi_mesh_remove_externals: BoolProperty(
         name="Remove external edges",
         description="Remove edges connected or indirectly connected to 'infinite' edges. Edges inside input geometry are always considered 'internal'",
         default=True
@@ -1079,7 +1073,7 @@ classes = (
     Toxicblend_2D_Outline,
     Toxicblend_Knife_Intersect,
     Toxicblend_Centerline,
-    Toxicblend_Centerline_Mesh,
+    Toxicblend_Voronoi_Mesh,
     Toxicblend_Voronoi,
     #Toxicblend_Voxel,
     ToxicBlend_SelectEndVertices,
