@@ -4,9 +4,11 @@
 [![dependency status](https://deps.rs/crate/toxicblend/0.0.5/status.svg)](https://deps.rs/crate/toxicblend/0.0.5)
 
 
-# toxicblend.rs
+![toxicblend.rs](img/header.png)
+
 Work in progress.\
-This will be a rust port of my now defunct (thanks bitbucket), scala based project [toxicblend](https://github.com/toxicblend/toxicblend)
+This will be a rust port of my old scala based project [toxicblend.](https://github.com/toxicblend/toxicblend) (now defunct)
+
 It is a [client-server](https://grpc.io) based addon for [Blender](blender.org) written in Rust (and Python for the client side parts).  
 
 ## Blender addon installation
