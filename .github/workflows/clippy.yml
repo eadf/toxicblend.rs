@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: install nightly
-        run : rustup toolchain install nightly
+        run : rustup toolchain install nightly nightly-2021-04-25
       - name: install clippy
         run : rustup +nightly component add clippy
       - name: install rustfmt
