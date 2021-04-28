@@ -708,12 +708,6 @@ class Toxicblend_Voronoi_Mesh(Operator):
     bl_description = "Calculate voronoi diagram and add mesh, the geometry must be flat and on a plane intersecting origin."
     bl_options = {'REGISTER', 'UNDO'}
 
-    remove_externals: BoolProperty(
-        name="Remove external edges",
-        description="Remove edges connected or indirectly connected to 'infinite' edges. Edges inside input geometry are always considered 'internal'",
-        default=True
-    )
-
     distance: FloatProperty(
         name="Distance",
         description="Discrete distance as a percentage of the AABB",
@@ -743,9 +737,7 @@ class Toxicblend_Voronoi_Mesh(Operator):
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='voronoi_mesh')
                 build_pb_model(active_object, active_mesh, command.models.add())
-                opt = command.options.add()
-                opt.key = "REMOVE_EXTERNALS"
-                opt.value = str(self.remove_externals).lower()
+
                 opt = command.options.add()
                 opt.key = "DISTANCE"
                 opt.value = str(self.distance)
@@ -1016,12 +1008,6 @@ class TB_MeshToolsProps(PropertyGroup):
         max=4.9999,
         precision=6,
         subtype='PERCENTAGE'
-    )
-
-    voronoi_mesh_remove_externals: BoolProperty(
-        name="Remove external edges",
-        description="Remove edges connected or indirectly connected to 'infinite' edges. Edges inside input geometry are always considered 'internal'",
-        default=True
     )
 
     voronoi_remove_externals: BoolProperty(

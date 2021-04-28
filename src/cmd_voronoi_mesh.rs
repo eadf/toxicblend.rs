@@ -975,7 +975,7 @@ pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    println!("Centerline mesh got command: \"{}\"", a_command.command);
+    println!("Voronoi mesh got command: \"{}\"", a_command.command);
     if a_command.models.len() > 1 {
         return Err(TBError::InvalidInputData(
             "This operation only supports one model as input".to_string(),
@@ -1020,7 +1020,7 @@ pub fn command(
     let max_distance = cmd_arg_max_voronoi_dimension * cmd_arg_discrete_distance / 100.0;
 
     let cmd_arg_remove_externals = {
-        let default_value = "false".to_string();
+        let default_value = "true".to_string();
         let value = options.get("REMOVE_EXTERNALS").unwrap_or(&default_value);
         value.parse::<bool>().map_err(|_| {
             TBError::InvalidInputData(format!(
