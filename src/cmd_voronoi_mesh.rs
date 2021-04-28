@@ -173,6 +173,22 @@ impl DiagramHelper {
         (x.to_bits(), y.to_bits())
     }
 
+    #[inline(always)]
+    fn get_dup_checked_vertex(
+        vertex: &[f64; 2],
+        new_vertex_map: &mut ahash::AHashMap<(u64, u64), usize>,
+    ) -> Result<u64, TBError> {
+        let key = Self::transmute_to_u64(vertex[0], vertex[1]);
+        if let Some(n) = new_vertex_map.get(&key) {
+            Ok(*n as u64)
+        } else {
+            Err(TBError::InternalError(format!(
+                "Could not find mapped vertex index of: ({:.12?},{:.12?})",
+                vertex[0], vertex[1]
+            )))
+        }
+    }
+
     /// transform the voronoi Point into a PB point. Perform duplication checks
     #[inline(always)]
     fn place_new_pb_vertex_dup_check(
@@ -180,6 +196,7 @@ impl DiagramHelper {
         new_vertex_map: &mut ahash::AHashMap<(u64, u64), usize>,
         pb_vertices: &mut Vec<PB_Vertex>,
         inverted_transform: &cgmath::Matrix4<f64>,
+        z_coord: f64,
     ) -> usize {
         let key = Self::transmute_to_u64(vertex[0], vertex[1]);
         *new_vertex_map.entry(key).or_insert_with(|| {
@@ -187,7 +204,7 @@ impl DiagramHelper {
             let transformed_v = inverted_transform.transform_point(cgmath::Point3 {
                 x: vertex[0],
                 y: vertex[1],
-                z: 0.0,
+                z: z_coord,
             });
             pb_vertices.push(PB_Vertex {
                 x: transformed_v.x,
@@ -209,11 +226,12 @@ impl DiagramHelper {
         vertex: &[f64; 2],
         pb_vertices: &mut Vec<PB_Vertex>,
         inverted_transform: &cgmath::Matrix4<f64>,
+        z_coord: f64,
     ) -> usize {
         let v = inverted_transform.transform_point(cgmath::Point3 {
             x: vertex[0],
             y: vertex[1],
-            z: 0.0,
+            z: z_coord,
         });
         let n = pb_vertices.len();
         pb_vertices.push(PB_Vertex {
@@ -252,8 +270,7 @@ impl DiagramHelper {
 
         println!("There are {} faces", self.diagram.cells().len());
 
-        'cell_loop: for (cell_id, cell_c) in self.diagram.cell_iter().enumerate()
-        /*.skip(0).take(2)*/
+        'cell_loop: for (cell_id, cell_c) in self.diagram.cell_iter().enumerate().skip(1).take(1)
         {
             assert_eq!(cell_c.get().get_id(), cell_id);
 
@@ -267,14 +284,7 @@ impl DiagramHelper {
             let mut pb_face = PB_Face { vertices: vec![] };
 
             'edge_loop: loop {
-                if rejected_edges.bit(edge_id.0) {
-                    // don't collect any of the edges/vertices of this cell
-                    println!(
-                        "***************   Edge {} was rejected, aborting cell",
-                        edge_id.0
-                    );
-                    continue 'cell_loop;
-                }
+
                 let edge = self.diagram.get_edge(edge_id).get();
                 println!("@{:?}", edge);
                 //println!(
@@ -318,19 +328,27 @@ impl DiagramHelper {
                                 new_vertex_map,
                                 pb_vertices,
                                 &inverted_transform,
+                                0.0,
                             )
                         })
                         .collect();
-
-                    for v in processed_samples.into_iter() {
-                        let v = v as u64;
-                        if pb_face.vertices.is_empty() {
-                            pb_face.vertices.push(v);
-                        } else {
-                            if *(pb_face.vertices.last().unwrap()) != v {
+                    if rejected_edges.bit(edge_id.0) {
+                        // don't collect any of the edges/vertices of this cell
+                        println!(
+                            "***************   Edge {} was rejected, skipping edge",
+                            edge_id.0
+                        );
+                    } else {
+                        for v in processed_samples.into_iter() {
+                            let v = v as u64;
+                            if pb_face.vertices.is_empty() {
                                 pb_face.vertices.push(v);
                             } else {
-                                println!("would have placed {} again", v);
+                                if *(pb_face.vertices.last().unwrap()) != v {
+                                    pb_face.vertices.push(v);
+                                } else {
+                                    println!("would have placed {} again", v);
+                                }
                             }
                         }
                     }
@@ -346,7 +364,7 @@ impl DiagramHelper {
                 })?;
                 if edge_id == start_edge {
                     println!("edge_id == start_edge {}=={}", edge_id.0, start_edge.0);
-                    break;
+                    break 'edge_loop;
                 }
             }
             if !pb_face.vertices.is_empty() {
@@ -366,17 +384,22 @@ impl DiagramHelper {
                     VD::VoronoiCellIndex(cell_id),
                     edge_id,
                     new_vertex_map,
-                    pb_vertices,
-                    inverted_transform,
-                ){
-                    pb_faces.push(split.0);
-                    pb_faces.push(split.1);
-                }
-                else {
-                    pb_faces.push(pb_face);
+                )? {
+                    if !split.0.vertices.is_empty() {
+                        pb_faces.push(split.0);
+                    }
+                    if !split.1.vertices.is_empty() {
+                        pb_faces.push(split.1);
+                    }
+                } else {
+                    if !pb_face.vertices.is_empty() {
+                        pb_faces.push(pb_face);
+                    }
                 }
             } else {
-                pb_faces.push(pb_face);
+                if !pb_face.vertices.is_empty() {
+                    pb_faces.push(pb_face);
+                }
             }
             //break 'cell_loop
         }
@@ -394,10 +417,7 @@ impl DiagramHelper {
         cell_id: VD::VoronoiCellIndex,
         edge_id: VD::VoronoiEdgeIndex,
         new_vertex_map: &mut ahash::AHashMap<(u64, u64), usize>,
-        pb_vertices: &mut Vec<PB_Vertex>,
-        inverted_transform: &cgmath::Matrix4<f64>,
-    ) -> Option<(PB_Face,PB_Face)> {
-
+    ) -> Result<Option<(PB_Face, PB_Face)>, TBError> {
         let cell = self.diagram.get_cell(cell_id).get();
         let twin_id = self.diagram.edge_get_twin(Some(edge_id)).unwrap();
         let twin_cell_id = self.diagram.edge_get_cell(Some(twin_id)).unwrap();
@@ -407,53 +427,52 @@ impl DiagramHelper {
         } else {
             self.retrieve_segment(cell_id)
         };
-        let v0n = Self::place_new_pb_vertex_dup_check(
+        let v0n = Self::get_dup_checked_vertex(
             &[segment.start.x as f64, segment.start.y as f64],
             new_vertex_map,
-            pb_vertices,
-            &inverted_transform,
-        ) as u64;
-        let v1n = Self::place_new_pb_vertex_dup_check(
+        )?;
+        let v1n = Self::get_dup_checked_vertex(
             &[segment.end.x as f64, segment.end.y as f64],
             new_vertex_map,
-            pb_vertices,
-            &inverted_transform,
-        ) as u64;
-        if let Some(v0i) = pb_face.vertices.iter().position(|x|x==&v0n) {
-           if let Some(v1i) = pb_face.vertices.iter().position(|x|x==&v1n) {
-               if pb_face.vertices.contains(&v0n) &&  pb_face.vertices.contains(&v1n) {
-                   println!("COULD SPLIT v0n:{} v0i:{} v1n:{} v1i:{}", v0n, v0i, v1n, v1i);
-               }
-               if v0i < v1i {
-                   let mut a = Vec::<u64>::new();
-                   let mut b = Vec::<u64>::new();
-                   for i in (0..=v0i).chain(v1i..pb_face.vertices.len()) {
+        )?;
+        if let Some(v0i) = pb_face.vertices.iter().position(|x| x == &v0n) {
+            if let Some(v1i) = pb_face.vertices.iter().position(|x| x == &v1n) {
+                if pb_face.vertices.contains(&v0n) && pb_face.vertices.contains(&v1n) {
+                    println!(
+                        "COULD SPLIT v0n:{} v0i:{} v1n:{} v1i:{}",
+                        v0n, v0i, v1n, v1i
+                    );
+                }
+                if v0i < v1i {
+                    let mut a = Vec::<u64>::new();
+                    let mut b = Vec::<u64>::new();
+                    for i in (0..=v0i).chain(v1i..pb_face.vertices.len()) {
                         a.push(pb_face.vertices[i]);
-                   }
-                   for i in v0i..=v1i {
-                       b.push(pb_face.vertices[i]);
-                   }
-                   println!("v:{:?}", pb_face.vertices);
-                   println!("a:{:?}", a);
-                   println!("b:{:?}", b);
-                   return Some((PB_Face{vertices:a},PB_Face{vertices:b}))
-               } else {
-                   let mut a = Vec::<u64>::new();
-                   let mut b = Vec::<u64>::new();
-                   for i in (0..=v1i).chain(v0i..pb_face.vertices.len()) {
-                       a.push(pb_face.vertices[i]);
-                   }
-                   for i in v1i..=v0i {
-                       b.push(pb_face.vertices[i]);
-                   }
-                   println!("v:{:?}", pb_face.vertices);
-                   println!("a:{:?}", a);
-                   println!("b:{:?}", b);
-                   return Some((PB_Face{vertices:a},PB_Face{vertices:b}))
-               }
-           }
+                    }
+                    for i in v0i..=v1i {
+                        b.push(pb_face.vertices[i]);
+                    }
+                    println!("v:{:?}", pb_face.vertices);
+                    println!("a:{:?}", a);
+                    println!("b:{:?}", b);
+                    return Ok(Some((PB_Face { vertices: a }, PB_Face { vertices: b })));
+                } else {
+                    let mut a = Vec::<u64>::new();
+                    let mut b = Vec::<u64>::new();
+                    for i in (0..=v1i).chain(v0i..pb_face.vertices.len()) {
+                        a.push(pb_face.vertices[i]);
+                    }
+                    for i in v1i..=v0i {
+                        b.push(pb_face.vertices[i]);
+                    }
+                    println!("v:{:?}", pb_face.vertices);
+                    println!("a:{:?}", a);
+                    println!("b:{:?}", b);
+                    return Ok(Some((PB_Face { vertices: a }, PB_Face { vertices: b })));
+                }
+            }
         }
-        None
+        Ok(None)
     }
 
     /// Important: sampled_edge should contain both edge endpoints initially.
@@ -687,7 +706,7 @@ fn parse_input(
 
 /// Runs boost voronoi over the input,
 /// Removes the external edges as we can't handle infinite length edges in blender.
-fn centerline_mesh(
+fn voronoi_mesh(
     input_pb_model: &PB_Model,
     cmd_arg_max_voronoi_dimension: f64,
     cmd_discrete_distance: f64,
@@ -751,6 +770,7 @@ fn build_output(
                 }
             })
             .collect();
+        assert_eq!(vertices_2d.len(), diagram.vertices.len());
         vertices_2d
     }; //else {
        //  Vec::<PB_Vertex>::new()
@@ -932,7 +952,7 @@ pub fn command(
 
     if !a_command.models.is_empty() {
         let input_model = &a_command.models[0];
-        let output_model = centerline_mesh(
+        let output_model = voronoi_mesh(
             &input_model,
             cmd_arg_max_voronoi_dimension,
             cmd_arg_discrete_distance,

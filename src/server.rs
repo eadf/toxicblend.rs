@@ -8,10 +8,10 @@
 
 mod cmd_2d_outline;
 mod cmd_centerline;
-mod cmd_voronoi_mesh;
 mod cmd_knife_intersect;
 mod cmd_simplify;
 mod cmd_voronoi;
+mod cmd_voronoi_mesh;
 
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
@@ -167,7 +167,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let address = "[::1]:50069".parse()?;
     let service = TheToxicBlendService::default();
 
-    println!("Toxicblend server starting, will listen for connections @{:?}", address);
+    println!(
+        "Toxicblend server starting, will listen for connections @{:?}",
+        address
+    );
     Server::builder()
         .add_service(ToxicBlendServiceServer::new(service))
         .serve(address)
