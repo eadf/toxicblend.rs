@@ -23,4 +23,4 @@ jobs:
       - name: install rustfmt
         run: rustup +nightly component add --toolchain nightly-2021-04-25 rustfmt
       - name: Run clippy
-        run: cargo +nightly clippy
+        run: cargo +nightly --toolchain nightly-2021-04-25 clippy
