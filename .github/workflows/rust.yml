@@ -21,7 +21,7 @@ jobs:
       - name: install nightly
         run: rustup toolchain install nightly-2021-04-25
       - name: install rustfmt
-        run: rustup +nightly component add rustfmt
+        run: rustup +nightly component add --toolchain nightly-2021-04-25 rustfmt
       - name: Build
         run: cargo +nightly build --verbose
       - name: Run tests
