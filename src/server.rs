@@ -12,6 +12,7 @@ mod cmd_knife_intersect;
 mod cmd_simplify;
 mod cmd_voronoi;
 mod cmd_voronoi_mesh;
+mod voronoi_utils;
 
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
