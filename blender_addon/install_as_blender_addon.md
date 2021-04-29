@@ -1,7 +1,7 @@
 
 # Addon Installation
 
-To install this blender addon you need to install `protobuf` and `grpcio` to the blender python installation.
+To install this blender addon you need to install the pip packages `toxicblend`, `protobuf` and `grpcio` to the blender python installation.
 This is an example of how this can be done.
 
 Run blender from the console so that you can see the console output. Then open the script tab in blender and run this:
@@ -12,7 +12,7 @@ import sys
 import os
 import site
 
-print("python executable:", sys.executable)
+print("this is the path to the python executable: ", sys.executable)
 
 # upgrade pip
 subprocess.call([sys.executable, "-m", "ensurepip"])

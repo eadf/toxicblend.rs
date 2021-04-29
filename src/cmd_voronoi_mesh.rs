@@ -255,25 +255,19 @@ impl DiagramHelper {
         let max_dist = max_dist.x.max(max_dist.y);
         let max_dist = self.discrete_distance * max_dist / 100.0;
 
-        // an affine that does nothing
-        // Todo: replace with an option
-        //let dummy_affine = boostvoronoi::visual_utils::SimpleAffine::<i64, f64>::default();
-        //println!(
-        //    "convert_cells, max_dist:{}, self.cmd_discrete_distance:{}%",
-        //    max_dist, self.discrete_distance
-        //);
-
         let rejected_edges = self
             .rejected_edges
             .take()
             .unwrap_or_else(|| yabf::Yabf::with_capacity(0));
 
+        let mut curved_edge_cache = ahash::AHashMap::<usize, VoronoiParabolicArc<f64>>::new();
+
         //println!("There are {} faces", self.diagram.cells().len());
 
-        'cell_loop: for (cell_id, cell_c) in self.diagram.cell_iter().enumerate()
+        'cell_loop: for (cell_id_n, cell_c) in self.diagram.cell_iter().enumerate()
         /*.skip(1).take(1)*/
         {
-            assert_eq!(cell_c.get().get_id(), cell_id);
+            assert_eq!(cell_c.get().get_id(), cell_id_n);
             let mut kill_pill = 100;
 
             let mut edge_id = cell_c
@@ -282,15 +276,16 @@ impl DiagramHelper {
                 .ok_or_else(|| TBError::InternalError("Could not unwrap edge".to_string()))?;
             let start_edge: VD::VoronoiEdgeIndex = edge_id;
 
-            let cell1_id = self.diagram.edge_get_cell(Some(edge_id)).ok_or_else(|| {
+            let cell_id = self.diagram.edge_get_cell(Some(edge_id)).ok_or_else(|| {
                 TBError::InternalError(format!(
                     "Could not get cell id for edge:{}. {}",
                     edge_id.0,
                     line!()
                 ))
             })?;
+            assert_eq!(cell_id.0, cell_id_n);
 
-            let cell1 = self.diagram.get_cell(cell1_id).get();
+            let cell = self.diagram.get_cell(cell_id).get();
 
             let mut pb_face = PB_Face { vertices: vec![] };
 
@@ -368,8 +363,8 @@ impl DiagramHelper {
 
                 let twin_cell_id = self.diagram.get_edge(edge_twin_id).get().cell().unwrap();
 
-                let cell_point = if cell1.contains_point() {
-                    self.retrieve_point(cell1_id)
+                let cell_point = if cell.contains_point() {
+                    self.retrieve_point(cell_id)
                 } else {
                     self.retrieve_point(twin_cell_id)
                 };
@@ -378,10 +373,10 @@ impl DiagramHelper {
                     y: cell_point.y as f64,
                 };
 
-                let segment = if cell1.contains_point() {
+                let segment = if cell.contains_point() {
                     self.retrieve_segment(twin_cell_id)
                 } else {
-                    self.retrieve_segment(cell1_id)
+                    self.retrieve_segment(cell_id)
                 };
                 let segment = linestring::cgmath_2d::Line2::from([
                     segment.start.x as f64,
@@ -393,32 +388,42 @@ impl DiagramHelper {
                 let mut samples = Vec::<[f64; 3]>::new();
 
                 if edge.is_curved() {
-                    /*println!(
-                        "curved !! start_point={:?}, end_point={:?}",
-                        start_point, end_point
-                    );*/
-
-                    let arc = VoronoiParabolicArc::new(
-                        segment,
-                        cell_point,
-                        cgmath::Point2 {
-                            x: start_point.x,
-                            y: start_point.y,
-                        },
-                        cgmath::Point2 {
-                            x: end_point.x,
-                            y: end_point.y,
-                        },
-                    );
-                    let arc = arc.discretise_3d(max_dist);
-                    for p in arc.points().iter() {
-                        samples.push([p.x, p.y, p.z]);
-                    }
+                    if let Some(arc) = curved_edge_cache.get(&edge_id.0) {
+                        println!("used arc cache from this edge. (should never happen)");
+                        for p in arc.discretise_3d(max_dist).points().iter() {
+                            samples.push([p.x, p.y, p.z]);
+                        }
+                    } else if let Some(arc) = curved_edge_cache.get(&edge_twin_id.0) {
+                        println!("used arc cache from twin");
+                        // using cached arc from twin, must traversed in reverse order
+                        for p in arc.discretise_3d(max_dist).points().iter().rev() {
+                            samples.push([p.x, p.y, p.z]);
+                        }
+                    } else {
+                        let arc = VoronoiParabolicArc::new(
+                            segment,
+                            cell_point,
+                            cgmath::Point2 {
+                                x: start_point.x,
+                                y: start_point.y,
+                            },
+                            cgmath::Point2 {
+                                x: end_point.x,
+                                y: end_point.y,
+                            },
+                        );
+                        //println!("made new arc");
+                        let arc: &VoronoiParabolicArc<f64> =
+                            curved_edge_cache.entry(edge_id.0).or_insert(arc);
+                        for p in arc.discretise_3d(max_dist).points().iter() {
+                            samples.push([p.x, p.y, p.z]);
+                        }
+                    };
                 } else {
                     if start_point.z.is_finite() {
                         samples.push([start_point.x, start_point.y, start_point.z]);
                     } else {
-                        let z_comp = if cell1.contains_point() {
+                        let z_comp = if cell.contains_point() {
                             -linestring::cgmath_2d::distance_to_point_squared(
                                 &cell_point,
                                 &cgmath::Point2 {
@@ -443,7 +448,7 @@ impl DiagramHelper {
                     if end_point.z.is_finite() {
                         samples.push([end_point.x, end_point.y, end_point.z]);
                     } else {
-                        let z_comp = if cell1.contains_point() {
+                        let z_comp = if cell.contains_point() {
                             -linestring::cgmath_2d::distance_to_point_squared(
                                 &cell_point,
                                 &cgmath::Point2 {
@@ -483,14 +488,16 @@ impl DiagramHelper {
                         .collect();
                     if (!edge.is_secondary()) && rejected_edges.bit(edge_id.0) {
                         // don't collect any of the edges/vertices of this cell
-                        //println!(
-                        //    "***************   Edge {} was rejected, skipping edge",
-                        //    edge_id.0
-                        //);
+                        println!(
+                            "***************   Edge {} was rejected, skipping edge",
+                            edge_id.0
+                        );
                     } else {
                         for v in processed_samples.into_iter() {
                             let v = v as u64;
-                            if pb_face.vertices.is_empty() || *(pb_face.vertices.last().unwrap()) != v {
+                            if pb_face.vertices.is_empty()
+                                || *(pb_face.vertices.last().unwrap()) != v
+                            {
                                 pb_face.vertices.push(v);
                             } else {
                                 //println!("would have placed {} again", v);
@@ -526,7 +533,7 @@ impl DiagramHelper {
             if cell_c.get().contains_segment() {
                 if let Some(split) = self.split_pb_faces(
                     &pb_face,
-                    VD::VoronoiCellIndex(cell_id),
+                    VD::VoronoiCellIndex(cell_id_n),
                     edge_id,
                     new_vertex_map,
                 )? {
@@ -589,7 +596,6 @@ impl DiagramHelper {
                 let mut a = Vec::<u64>::new();
                 let mut b = Vec::<u64>::new();
                 if v0i < v1i {
-
                     for i in (0..=v0i).chain(v1i..pb_face.vertices.len()) {
                         a.push(pb_face.vertices[i]);
                     }
@@ -599,9 +605,7 @@ impl DiagramHelper {
                     //println!("v:{:?}", pb_face.vertices);
                     //println!("a:{:?}", a);
                     //println!("b:{:?}", b);
-
                 } else {
-
                     for i in (0..=v1i).chain(v0i..pb_face.vertices.len()) {
                         a.push(pb_face.vertices[i]);
                     }
@@ -612,7 +616,7 @@ impl DiagramHelper {
                     //println!("a:{:?}", a);
                     //println!("b:{:?}", b);
                 };
-                return Ok(Some((PB_Face { vertices: a }, PB_Face { vertices: b })))
+                return Ok(Some((PB_Face { vertices: a }, PB_Face { vertices: b })));
             }
         }
         Ok(None)

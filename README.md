@@ -23,7 +23,7 @@ The blender addon is based on a client-server model using [grpc](https://grpc.io
 The blender addon is the client, and it only connects to `localhost`.
 The server binds to `localhost` as well; so it should not be reachable from any other computer (not thoroughly tested), run it with this command:
 ```
-cargo +nightly run --bin server --release
+cargo +nightly run --bin toxicblend_server --release
 ```
 
 ## Run blender
