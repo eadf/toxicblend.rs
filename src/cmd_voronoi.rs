@@ -45,7 +45,6 @@ struct DiagramHelper {
 }
 
 impl DiagramHelper {
-
     /// converts to a private, comparable and hash-able format
     /// only use this for floats that are f64::is_finite()
     #[inline(always)]
@@ -122,7 +121,10 @@ impl DiagramHelper {
         for it in self.diagram.edges().iter().enumerate() {
             let edge_id = VD::VoronoiEdgeIndex(it.0);
             let edge = it.1.get();
-            if already_drawn.bit(edge_id.0) || rejected_edges.bit(edge_id.0) {
+            if (self.remove_secondary_edges && edge.is_secondary())
+                || already_drawn.bit(edge_id.0)
+                || rejected_edges.bit(edge_id.0)
+            {
                 // already done this, or rather - it's twin
                 continue;
             }
@@ -456,7 +458,9 @@ fn voronoi(
         remove_secondary_edges: cmd_remove_secondary_edges,
     };
     if cmd_remove_externals {
-        diagram_helper.rejected_edges = Some(super::voronoi_utils::reject_edges(&diagram_helper.diagram)?);
+        diagram_helper.rejected_edges = Some(super::voronoi_utils::reject_external_edges(
+            &diagram_helper.diagram,
+        )?);
     }
     build_output(input_pb_model, diagram_helper, inverted_transform)
 }
@@ -572,13 +576,15 @@ pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    println!(r#"
+    println!(
+        r#"
                                               __
     ___  __ ____ _______  ____   ____   ____ |__|
     \  \/ // __ \\_  __ \/ __ \ /    \ / __ \|  |
      \   /(  \_\ )|  | \/  \_\ )   |  \  \_\ )  |
       \_/  \____/ |__|   \____/|___|  /\____/|__|
-                                    \/           "#);
+                                    \/           "#
+    );
     if a_command.models.len() > 1 {
         return Err(TBError::InvalidInputData(
             "This operation only supports one model as input".to_string(),

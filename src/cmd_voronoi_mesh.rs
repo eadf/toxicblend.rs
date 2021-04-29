@@ -710,7 +710,7 @@ fn voronoi_mesh(
     };
 
     if diagram_helper.remove_externals {
-        diagram_helper.rejected_edges = Some(super::voronoi_utils::reject_edges(&diagram_helper.diagram)?);
+        diagram_helper.rejected_edges = Some(super::voronoi_utils::reject_external_edges(&diagram_helper.diagram)?);
     }
     build_output(false, input_pb_model, diagram_helper, inverted_transform)
 }
