@@ -12,6 +12,7 @@ use cgmath::{EuclideanSpace, SquareMatrix, Transform, UlpsEq};
 use linestring::cgmath_2d::Aabb2;
 use linestring::cgmath_2d::VoronoiParabolicArc;
 use std::collections::{HashMap };
+use itertools::Itertools;
 //use boostvoronoi::{InputType, OutputType};
 
 /// converts from a private, comparable and hash-able format
@@ -168,6 +169,7 @@ impl DiagramHelper {
             let cell = self.diagram.get_cell(cell_id).get();
 
             let mut pb_face = PB_Face { vertices: vec![] };
+            let mut pb_curved_faces = Vec::<PB_Face>::new();
 
             'edge_loop: loop {
                 let edge = self.diagram.get_edge(edge_id).get();
@@ -268,13 +270,18 @@ impl DiagramHelper {
                 let mut samples = Vec::<[f64; 3]>::new();
 
                 if edge.is_curved() {
+                    // push the generating cell point on the sample, it will be removed first of all
+                    if cell.contains_point() {
+                        samples.push([cell_point.x, cell_point.y, 0.0]);
+                    }
+
                     if let Some(arc) = curved_edge_cache.get(&edge_id.0) {
                         println!("used arc cache from this edge. (should never happen)");
                         for p in arc.discretise_3d(max_dist).points().iter() {
                             samples.push([p.x, p.y, p.z]);
                         }
                     } else if let Some(arc) = curved_edge_cache.get(&edge_twin_id.0) {
-                        println!("used arc cache from twin");
+                        //println!("used arc cache from twin");
                         // using cached arc from twin, must traversed in reverse order
                         for p in arc.discretise_3d(max_dist).points().iter().rev() {
                             samples.push([p.x, p.y, p.z]);
@@ -373,14 +380,29 @@ impl DiagramHelper {
                             edge_id.0
                         );
                     } else {
-                        for v in processed_samples.into_iter() {
-                            let v = v as u64;
-                            if pb_face.vertices.is_empty()
-                                || *(pb_face.vertices.last().unwrap()) != v
-                            {
-                                pb_face.vertices.push(v);
-                            } else {
-                                //println!("would have placed {} again", v);
+                        if edge.is_curved() && cell.contains_point() && processed_samples.len() > 3 {
+                            println!("cpoint:{} edgeid:{}, iscurved:{}, processed_samples.len() = {}", cell.contains_point(), edge_id.0, edge.is_curved(), processed_samples.len());
+
+                            let first = *processed_samples.first().unwrap() as u64;
+                            for (v0,v1) in processed_samples.into_iter().skip(1).tuple_windows::<(_,_)>() {
+                                 pb_curved_faces.push(PB_Face{vertices:vec![first, v0 as u64, v1 as u64]});
+                            }
+                            // end the 'other' face in a controlled manner
+                            if !pb_face.vertices.contains(&first) {
+                                pb_face.vertices.push(first);
+                            }
+                            println!("curved pb_face:{:?}",pb_face);
+                        } else {
+                            println!("straight pb_face:{:?}",pb_face);
+                            for v in processed_samples.into_iter() {
+                                let v = v as u64;
+                                if pb_face.vertices.is_empty()
+                                    || *(pb_face.vertices.last().unwrap()) != v
+                                {
+                                    pb_face.vertices.push(v);
+                                } else {
+                                    //println!("would have placed {} again", v);
+                                }
                             }
                         }
                     }
@@ -410,6 +432,10 @@ impl DiagramHelper {
                 }
             }
             //println!("Cell:{} produced:{:?}", cell_id, pb_face);
+            if !pb_curved_faces.is_empty(){
+                pb_faces.append(&mut pb_curved_faces);
+                pb_curved_faces.clear();
+            }
             if cell_c.get().contains_segment() {
                 if let Some(split) = self.split_pb_faces(
                     &pb_face,
