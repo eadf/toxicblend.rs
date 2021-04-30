@@ -137,14 +137,6 @@ def terminate():
         bmesh.update_edit_mesh(obj.data, loop_triangles=True, destructive=True)
 
 
-# make an edge key object
-def make_key(v0, v1):
-    if v0 < v1:
-        return v0, v1
-    else:
-        return v1, v0
-
-
 IDENTITY4x4 = mathutils.Matrix.Identity(4)
 
 
@@ -176,17 +168,17 @@ def build_pb_model(bpy_object, bm, pb_model):
         for v in f.verts:
             pb_face.vertices.append(v.index)
             if prev_vertex:
-                sent_edges.add(make_key(prev_vertex, v.index))
+                sent_edges.add(make_edge_key(prev_vertex, v.index))
 
             prev_vertex = v.index
             if prev_vertex and len(f.verts) > 0:
                 first_vertex = f.verts[0].index
-                sent_edges.add(make_key(first_vertex, prev_vertex))
+                sent_edges.add(make_edge_key(first_vertex, prev_vertex))
 
     for e in bm.edges:
         f = e.verts[0].index
         t = e.verts[1].index
-        key = make_key(f, t)
+        key = make_edge_key(f, t)
         if key not in sent_edges:
             pb_face = pb_model.faces.add()
             pb_face.vertices.append(f)
@@ -214,7 +206,7 @@ def get_pydata(pb_model, only_edges=False):
                     print("FIXME: was asked to make an edge between two identical vertices: %s and %s" % (
                         vertices[0], vertices[1]))
             else:
-                #print("Adding face:", vertices)
+                # print("Adding face:", vertices)
                 rv_faces.append(vertices)
 
     mat = IDENTITY4x4.copy()
@@ -282,6 +274,58 @@ def handle_received_object(active_object, pb_message, remove_doubles_threshold=N
                 bpy.ops.object.mode_set(mode='OBJECT')
             if set_origin_to_cursor:
                 bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+
+
+def angle_between_edges(p0, p1, p2):
+    """ angle between the two vectors defined as p0->p1 and p1->p2
+    return value in degrees """
+    v1 = p1 - p0
+    v2 = p2 - p1
+
+    v1mag = math.sqrt(v1.x * v1.x + v1.y * v1.y + v1.z * v1.z)
+    if v1mag == 0.0:
+        return 0.0
+
+    v1norm = [v1.x / v1mag, v1.y / v1mag, v1.z / v1mag]
+    v2mag = math.sqrt(v2.x * v2.x + v2.y * v2.y + v2.z * v2.z)
+    if v2mag == 0.0:
+        return 0.0
+
+    v2norm = [v2.x / v2mag, v2.y / v2mag, v2.z / v2mag]
+    res = v1norm[0] * v2norm[0] + v1norm[1] * v2norm[1] + v1norm[2] * v2norm[2]
+    angle = math.degrees(math.acos(res))
+    return angle
+
+
+# make an edge key object
+def make_edge_key(v0, v1):
+    if v0 < v1:
+        return v0, v1
+    else:
+        return v1, v0
+
+
+def append_value(dict_obj, key, value):
+    # Check if key exist in dict or not
+    if key in dict_obj:
+        # Key exist in dict.
+        # Check if type of value of key is list or not
+        if not isinstance(dict_obj[key], list):
+            # If type is not list then make it list
+            dict_obj[key] = [dict_obj[key]]
+        # Append the value in list
+        dict_obj[key].append(value)
+    else:
+        # As key is not in dict,
+        # so, add key-value pair
+        dict_obj[key] = [value]
+
+
+def get_or_empty_list(dict_obj, key):
+    if key in dict_obj:
+        return dict_obj[key]
+    else:
+        return []
 
 
 # ########################################
@@ -373,6 +417,136 @@ class ToxicBlend_SelectEndVertices(Operator):
         bpy.ops.mesh.select_all(action='DESELECT')
 
         if len(bm.edges) > 0 or len(bm.faces) > 0:
+            vertex_connections = array.array('i', (0 for i in range(0, len(bm.verts))))
+            for e in bm.edges:
+                for vi in e.verts:
+                    vertex_connections[vi.index] += 1
+            for f in bm.faces:
+                for vi in f.verts:
+                    vertex_connections[vi.index] += 1
+
+            for vi in range(0, len(vertex_connections)):
+                if vertex_connections[vi] < 2:
+                    bm.verts[vi].select = True
+
+        # Show the updates in the viewport
+        bmesh.update_edit_mesh(me, False)
+
+        return {'FINISHED'}
+
+
+class ToxicBlend_SelectEdgeSmooth(Operator):
+    """Selects edges that are connected to the selected edges, but limit by an angle constraint (offline plugin)"""
+    bl_idname = "mesh.toxicblend_meshtools_select_edges_smooth"
+    bl_label = "Select edges smooth"
+    bl_description = "Selects edges that are connected to the selected edges, but limit by an angle constraint (offline plugin)"
+    bl_options = {'REGISTER', 'UNDO'}  # enable undo for the operator.
+
+    angle: FloatProperty(
+        name="Angle selection constraint",
+        description="selects edges with an angle smaller than this.",
+        default=math.radians(1.0),
+        min=math.radians(0.0),
+        max=math.radians(180.0),
+        precision=6,
+        subtype='ANGLE'
+    )
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def execute(self, context):
+
+        # Get the active mesh
+        obj = bpy.context.edit_object
+        me = obj.data
+
+        # Get a BMesh representation
+        bm = bmesh.from_edit_mesh(me)
+        bm.verts.ensure_lookup_table()
+        bm.edges.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+
+        angle_citeria = math.degrees(self.angle)
+
+        # angle_between_edges(p0,p1,p2)
+        # make_edge_key(v0, v1):
+        # append_value(dict_obj, key, value):
+
+        vertex_dict = dict()  # key by vertex.index to [edges]
+        already_selected = set()  # key by edge.index
+        work_queue = []  # edges
+
+        for e in bm.edges:
+            append_value(vertex_dict, e.verts[0].index, e)
+            append_value(vertex_dict, e.verts[1].index, e)
+            if e.select:
+                #already_selected.add(e.index)
+                work_queue.append(e)
+
+        #print("len(vertex_dict)", len(vertex_dict))
+        #print("len(already_selected)", len(already_selected))
+        #print("len(work_queue)", len(work_queue))
+
+        while len(work_queue) > 0:
+            e = work_queue.pop()
+            if e.index in already_selected:
+                #print(e, " was already selected")
+                continue
+            #else:
+                #print(e, " was NOT already selected")
+
+            from_v = e.verts[0].index
+            to_v = e.verts[1].index
+
+            to_v_v = get_or_empty_list(vertex_dict, to_v)
+            for candidate_e in to_v_v:
+                if candidate_e.index != e.index:
+                    #print("from_v:", from_v, " is connnected to edge :", candidate_e.index)
+                    if to_v == candidate_e.verts[0].index:
+                        angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
+                                                    bm.verts[candidate_e.verts[1].index].co)
+                        #print("from_v<->to_v<->candidate_e.verts[1] angle:", angle)
+                        if angle <= angle_citeria:
+                            #print("appending!", candidate_e)
+                            work_queue.append(candidate_e)
+
+                    elif to_v == candidate_e.verts[1].index:
+                        angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
+                                                  bm.verts[candidate_e.verts[0].index].co)
+                        #print("from_v<->to_v<->candidate_e.verts[0] angle:",angle)
+                        if angle <= angle_citeria:
+                            #print("appending!", candidate_e)
+                            work_queue.append(candidate_e)
+
+            from_v = e.verts[1].index
+            to_v = e.verts[0].index
+            to_v_v = get_or_empty_list(vertex_dict, to_v)
+            for candidate_e in to_v_v:
+                if candidate_e.index != e.index:
+                    #print("from_v:", from_v, " is connnected to edge :", candidate_e.index)
+                    if to_v == candidate_e.verts[0].index:
+                        angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
+                                                    bm.verts[candidate_e.verts[1].index].co)
+                        #print("from_v<->to_v<->candidate_e.verts[1] angle:", angle)
+                        if angle <= angle_citeria:
+                            #print("appending!", candidate_e)
+                            work_queue.append(candidate_e)
+
+                    elif to_v == candidate_e.verts[1].index:
+                        angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
+                                                    bm.verts[candidate_e.verts[0].index].co)
+                        #print("from_v<->to_v<->candidate_e.verts[0] angle:", angle)
+                        if angle <= angle_citeria:
+                            #print("appending!", candidate_e)
+                            work_queue.append(candidate_e)
+
+            e.select = True
+            already_selected.add(e.index)
+        #print("Done")
+
+        if False or len(bm.edges) > 0 or len(bm.faces) > 0:
             vertex_connections = array.array('i', (0 for i in range(0, len(bm.verts))))
             for e in bm.edges:
                 for vi in e.verts:
@@ -759,6 +933,7 @@ class Toxicblend_Voronoi_Mesh(Operator):
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
 
+
 # Centerline operator
 class Toxicblend_Voxel(Operator):
     bl_idname = "mesh.toxicblend_meshtools_voxel"
@@ -847,6 +1022,7 @@ class Toxicblend_Voxel(Operator):
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
 
+
 # 2d_outline operator
 class Toxicblend_Simplify(Operator):
     bl_idname = "mesh.toxicblend_meshtools_simplify"
@@ -921,8 +1097,9 @@ class VIEW3D_MT_edit_mesh_toxicblend_meshtools(Menu):
         layout.operator("mesh.toxicblend_meshtools_centerline")
         layout.operator("mesh.toxicblend_meshtools_voronoi_mesh")
         layout.operator("mesh.toxicblend_meshtools_voronoi")
-        #layout.operator("mesh.toxicblend_meshtools_voxel")
+        # layout.operator("mesh.toxicblend_meshtools_voxel")
         layout.operator("mesh.toxicblend_meshtools_select_end_vertices")
+        layout.operator("mesh.toxicblend_meshtools_select_edges_smooth")
         layout.operator("mesh.toxicblend_meshtools_select_intersection_vertices")
         layout.operator("mesh.toxicblend_meshtools_debug_object")
 
@@ -1032,6 +1209,16 @@ class TB_MeshToolsProps(PropertyGroup):
         default=False
     )
 
+    select_edges_smooth_angle: FloatProperty(
+        name="Angle selection constraint",
+        description="selects edges with an angle smaller than this.",
+        default=math.radians(1.0),
+        min=math.radians(0.0),
+        max=math.radians(180.0),
+        precision=6,
+        subtype='ANGLE'
+    )
+
 
 # draw function for integration in menus
 def menu_func(self, context):
@@ -1049,9 +1236,10 @@ classes = (
     Toxicblend_Centerline,
     Toxicblend_Voronoi_Mesh,
     Toxicblend_Voronoi,
-    #Toxicblend_Voxel,
+    # Toxicblend_Voxel,
     ToxicBlend_SelectEndVertices,
     ToxicBlend_SelectIntersectionVertices,
+    ToxicBlend_SelectEdgeSmooth,
     ToxicBlend_debug_object,
 )
 

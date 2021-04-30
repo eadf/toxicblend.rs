@@ -95,6 +95,12 @@ If an intersection is found, the intersecting edges will be split at that point.
 
 Selects all vertexes that only connects to one other vertex. Useful for identifying dangling vertices.
 
+### Select edge smooth
+
+Select edges that are connected to the selected edges, but limit by an angle constraint.
+If edge A is selected and edge B is directly connected to it, B will be selected if the angle between A and B 
+is smaller than the angle limit. B will then be used to select more edges in the same way.
+
 ### Select intersection vertices
 
 Selects all vertexes that connects to three or more other vertices. Useful for selecting intersections.
