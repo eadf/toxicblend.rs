@@ -32,12 +32,10 @@ and click 'Install Add-on'. Same thing for the `blender_addon/toxicblend_metavol
 Don't forget to enable the addon in the list.
 
 # Uninstall
-
+From blender script tab:
 ```
 import subprocess
 import sys
-import os
-import site
 
 # uninstall the pip package toxicblend 
 subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "toxicblend"])
@@ -45,7 +43,7 @@ subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "toxicblend"])
 subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "protobuf", "grpcio"])
 ```
 
-or 
+or from a terminal (try without sudo first):
 
 ```
 sudo <path to the blender built in python>/python3.7m -m pip uninstall toxicblend 
