@@ -381,7 +381,7 @@ impl DiagramHelper {
                         );
                     } else {
                         if edge.is_curved() && cell.contains_point() && processed_samples.len() > 3 {
-                            println!("cpoint:{} edgeid:{}, iscurved:{}, processed_samples.len() = {}", cell.contains_point(), edge_id.0, edge.is_curved(), processed_samples.len());
+                            //println!("cpoint:{} edgeid:{}, iscurved:{}, processed_samples.len() = {}", cell.contains_point(), edge_id.0, edge.is_curved(), processed_samples.len());
 
                             let first = *processed_samples.first().unwrap() as u64;
                             for (v0,v1) in processed_samples.into_iter().skip(1).tuple_windows::<(_,_)>() {
@@ -391,9 +391,9 @@ impl DiagramHelper {
                             if !pb_face.vertices.contains(&first) {
                                 pb_face.vertices.push(first);
                             }
-                            println!("curved pb_face:{:?}",pb_face);
+                            //println!("curved pb_face:{:?}",pb_face);
                         } else {
-                            println!("straight pb_face:{:?}",pb_face);
+                            //println!("straight pb_face:{:?}",pb_face);
                             for v in processed_samples.into_iter() {
                                 let v = v as u64;
                                 if pb_face.vertices.is_empty()

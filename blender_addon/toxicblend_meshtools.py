@@ -435,17 +435,17 @@ class ToxicBlend_SelectEndVertices(Operator):
         return {'FINISHED'}
 
 
-class ToxicBlend_SelectEdgeSmooth(Operator):
+class ToxicBlend_SelectCollinearEdges(Operator):
     """Selects edges that are connected to the selected edges, but limit by an angle constraint (offline plugin)"""
-    bl_idname = "mesh.toxicblend_meshtools_select_edges_smooth"
-    bl_label = "Select edges smooth"
+    bl_idname = "mesh.toxicblend_meshtools_select_collinear_edges"
+    bl_label = "Select collinear edges"
     bl_description = "Selects edges that are connected to the selected edges, but limit by an angle constraint (offline plugin)"
     bl_options = {'REGISTER', 'UNDO'}  # enable undo for the operator.
 
     angle: FloatProperty(
         name="Angle selection constraint",
-        description="selects edges with an angle smaller than this.",
-        default=math.radians(1.0),
+        description="selects edges with a relative angle (compared to an already selected edge) smaller than this.",
+        default=math.radians(12.0),
         min=math.radians(0.0),
         max=math.radians(180.0),
         precision=6,
@@ -468,7 +468,7 @@ class ToxicBlend_SelectEdgeSmooth(Operator):
         bm.edges.ensure_lookup_table()
         bm.faces.ensure_lookup_table()
 
-        angle_citeria = math.degrees(self.angle)
+        angle_criteria = math.degrees(self.angle)
 
         # angle_between_edges(p0,p1,p2)
         # make_edge_key(v0, v1):
@@ -476,88 +476,76 @@ class ToxicBlend_SelectEdgeSmooth(Operator):
 
         vertex_dict = dict()  # key by vertex.index to [edges]
         already_selected = set()  # key by edge.index
-        work_queue = []  # edges
+        work_queue = set()  # edges
 
         for e in bm.edges:
             append_value(vertex_dict, e.verts[0].index, e)
             append_value(vertex_dict, e.verts[1].index, e)
             if e.select:
-                #already_selected.add(e.index)
-                work_queue.append(e)
+                # already_selected.add(e.index)
+                work_queue.add(e)
 
-        #print("len(vertex_dict)", len(vertex_dict))
-        #print("len(already_selected)", len(already_selected))
-        #print("len(work_queue)", len(work_queue))
+        # print("len(vertex_dict)", len(vertex_dict))
+        # print("len(already_selected)", len(already_selected))
+        # print("len(work_queue)", len(work_queue))
 
         while len(work_queue) > 0:
             e = work_queue.pop()
             if e.index in already_selected:
-                #print(e, " was already selected")
                 continue
-            #else:
-                #print(e, " was NOT already selected")
 
             from_v = e.verts[0].index
             to_v = e.verts[1].index
 
-            to_v_v = get_or_empty_list(vertex_dict, to_v)
-            for candidate_e in to_v_v:
-                if candidate_e.index != e.index:
-                    #print("from_v:", from_v, " is connnected to edge :", candidate_e.index)
-                    if to_v == candidate_e.verts[0].index:
-                        angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
-                                                    bm.verts[candidate_e.verts[1].index].co)
-                        #print("from_v<->to_v<->candidate_e.verts[1] angle:", angle)
-                        if angle <= angle_citeria:
-                            #print("appending!", candidate_e)
-                            work_queue.append(candidate_e)
+            for candidate_e in get_or_empty_list(vertex_dict, to_v):
+                if candidate_e.select or candidate_e.index == e.index:
+                    continue
 
-                    elif to_v == candidate_e.verts[1].index:
-                        angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
-                                                  bm.verts[candidate_e.verts[0].index].co)
-                        #print("from_v<->to_v<->candidate_e.verts[0] angle:",angle)
-                        if angle <= angle_citeria:
-                            #print("appending!", candidate_e)
-                            work_queue.append(candidate_e)
+                # print("from_v:", from_v, " is connected to edge :", candidate_e.index)
+                if to_v == candidate_e.verts[0].index:
+                    angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
+                                                bm.verts[candidate_e.verts[1].index].co)
+                    # print("from_v<->to_v<->candidate_e.verts[1] angle:", angle)
+                    if angle <= angle_criteria:
+                        # print("appending!", candidate_e)
+                        work_queue.add(candidate_e)
 
+                elif to_v == candidate_e.verts[1].index:
+                    angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
+                                                bm.verts[candidate_e.verts[0].index].co)
+                    # print("from_v<->to_v<->candidate_e.verts[0] angle:",angle)
+                    if angle <= angle_criteria:
+                        # print("appending!", candidate_e)
+                        work_queue.add(candidate_e)
+
+            # Do the search again, in the other direction
             from_v = e.verts[1].index
             to_v = e.verts[0].index
-            to_v_v = get_or_empty_list(vertex_dict, to_v)
-            for candidate_e in to_v_v:
-                if candidate_e.index != e.index:
-                    #print("from_v:", from_v, " is connnected to edge :", candidate_e.index)
-                    if to_v == candidate_e.verts[0].index:
-                        angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
-                                                    bm.verts[candidate_e.verts[1].index].co)
-                        #print("from_v<->to_v<->candidate_e.verts[1] angle:", angle)
-                        if angle <= angle_citeria:
-                            #print("appending!", candidate_e)
-                            work_queue.append(candidate_e)
 
-                    elif to_v == candidate_e.verts[1].index:
-                        angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
-                                                    bm.verts[candidate_e.verts[0].index].co)
-                        #print("from_v<->to_v<->candidate_e.verts[0] angle:", angle)
-                        if angle <= angle_citeria:
-                            #print("appending!", candidate_e)
-                            work_queue.append(candidate_e)
+            for candidate_e in get_or_empty_list(vertex_dict, to_v):
+                if candidate_e.select or candidate_e.index == e.index:
+                    continue
+
+                # print("from_v:", from_v, " is connected to edge :", candidate_e.index)
+                if to_v == candidate_e.verts[0].index:
+                    angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
+                                                bm.verts[candidate_e.verts[1].index].co)
+                    # print("from_v<->to_v<->candidate_e.verts[1] angle:", angle)
+                    if angle <= angle_criteria:
+                        # print("appending!", candidate_e)
+                        work_queue.add(candidate_e)
+
+                elif to_v == candidate_e.verts[1].index:
+                    angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
+                                                bm.verts[candidate_e.verts[0].index].co)
+                    # print("from_v<->to_v<->candidate_e.verts[0] angle:", angle)
+                    if angle <= angle_criteria:
+                        # print("appending!", candidate_e)
+                        work_queue.add(candidate_e)
 
             e.select = True
+            # only mark edges as already_selected if they've been through the loop once
             already_selected.add(e.index)
-        #print("Done")
-
-        if False or len(bm.edges) > 0 or len(bm.faces) > 0:
-            vertex_connections = array.array('i', (0 for i in range(0, len(bm.verts))))
-            for e in bm.edges:
-                for vi in e.verts:
-                    vertex_connections[vi.index] += 1
-            for f in bm.faces:
-                for vi in f.verts:
-                    vertex_connections[vi.index] += 1
-
-            for vi in range(0, len(vertex_connections)):
-                if vertex_connections[vi] < 2:
-                    bm.verts[vi].select = True
 
         # Show the updates in the viewport
         bmesh.update_edit_mesh(me, False)
@@ -1099,7 +1087,7 @@ class VIEW3D_MT_edit_mesh_toxicblend_meshtools(Menu):
         layout.operator("mesh.toxicblend_meshtools_voronoi")
         # layout.operator("mesh.toxicblend_meshtools_voxel")
         layout.operator("mesh.toxicblend_meshtools_select_end_vertices")
-        layout.operator("mesh.toxicblend_meshtools_select_edges_smooth")
+        layout.operator("mesh.toxicblend_meshtools_select_collinear_edges")
         layout.operator("mesh.toxicblend_meshtools_select_intersection_vertices")
         layout.operator("mesh.toxicblend_meshtools_debug_object")
 
@@ -1209,10 +1197,10 @@ class TB_MeshToolsProps(PropertyGroup):
         default=False
     )
 
-    select_edges_smooth_angle: FloatProperty(
+    select_collinear_edges_angle: FloatProperty(
         name="Angle selection constraint",
         description="selects edges with an angle smaller than this.",
-        default=math.radians(1.0),
+        default=math.radians(12.0),
         min=math.radians(0.0),
         max=math.radians(180.0),
         precision=6,
@@ -1239,7 +1227,7 @@ classes = (
     # Toxicblend_Voxel,
     ToxicBlend_SelectEndVertices,
     ToxicBlend_SelectIntersectionVertices,
-    ToxicBlend_SelectEdgeSmooth,
+    ToxicBlend_SelectCollinearEdges,
     ToxicBlend_debug_object,
 )
 
