@@ -5,15 +5,15 @@ use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
+use building_blocks::core::prelude::*;
 use itertools::Itertools;
 use linestring::cgmath_3d;
 use std::collections::HashMap;
-use building_blocks::core::prelude::*;
 //use building_blocks::core::point::*;
-use building_blocks::storage::{prelude::*};
 use building_blocks::core::prelude::PointN;
 use building_blocks::core::sdfu::{self, SDF};
 use building_blocks::mesh::*;
+use building_blocks::storage::prelude::*;
 //use rayon::prelude::*;
 
 /// Simplify the model into a sequence of connected vertices.
@@ -190,7 +190,6 @@ fn walk_single_line_edges(
     }
 
     'outer: loop {
-
         if to_v == started_at_vertex {
             //println!("to_v == started_at_vertex == {}", started_at_vertex);
             end_vertex = to_v;
@@ -298,27 +297,29 @@ fn build_voxel(
         radius, dimensions, radius_multiplier
     );
     println!("lines:{:?}", lines);
-    println!("aabb.high:{:?}",aabb.get_high().unwrap());
-    println!("aabb.low:{:?}",aabb.get_low().unwrap());
-    println!("delta:{:?}",aabb.get_high().unwrap() - aabb.get_low().unwrap());
+    println!("aabb.high:{:?}", aabb.get_high().unwrap());
+    println!("aabb.low:{:?}", aabb.get_low().unwrap());
+    println!(
+        "delta:{:?}",
+        aabb.get_high().unwrap() - aabb.get_low().unwrap()
+    );
 
-    let thickness = (radius*2.0) as f32 ;
+    let thickness = (radius * 2.0) as f32;
 
-    let mut sdfus = Vec::<( PointN<[f32;3]>,  PointN<[f32;3]>,Box<dyn Fn(Point3f) -> f32>)>::new();
+    let mut sdfu_vec = Vec::<(
+        PointN<[f32; 3]>,
+        PointN<[f32; 3]>,
+        Box<dyn Fn(Point3f) -> f32>,
+    )>::new();
     if !lines.is_empty() {
-        let p0 = lines.first().unwrap().1.points().first().unwrap();
-        let p1 = lines.first().unwrap().1.points().get(1).unwrap();
-        let p0 = PointN([p0.x as f32, p0.y as f32, p0.z as f32]);
-        let p1 = PointN([p1.x as f32, p1.y as f32, p1.z as f32]);
-
         for (_, lines, _) in lines.into_iter() {
-            println!("lines.len():{}", lines.len());
+            //println!("lines.len():{}", lines.len());
             for (lf, lt) in lines.points().iter().tuple_windows::<(_, _)>() {
                 //println!("{:?}->{:?}", line.start, line.end);
-                let f: PointN<[f32;3]> = PointN([lf.x as f32, lf.y as f32, lf.z as f32]);
-                let t: PointN<[f32;3]> = PointN([lt.x as f32, lt.y as f32, lt.z as f32]);
+                let f: PointN<[f32; 3]> = PointN([lf.x as f32, lf.y as f32, lf.z as f32]);
+                let t: PointN<[f32; 3]> = PointN([lt.x as f32, lt.y as f32, lt.z as f32]);
                 //let sdf = sdfu::Line::new(f, t, 5.0);
-                println!(
+                /*println!(
                     "({},{},{})->({},{},{})",
                     f.x(),
                     f.y(),
@@ -326,68 +327,78 @@ fn build_voxel(
                     t.x(),
                     t.y(),
                     t.z()
-                );
+                );*/
                 //sdfus.push( (f,t,Box::new(move |p:Point3f|->f32 {sdfu::Line::new(f, t, thickness).dist(Point3f::from(p.yzx()))})));
-                sdfus.push( (f,t,Box::new(move |p:Point3f|->f32 {sdfu::Line::new(f, t, thickness).dist(p)})));
+                sdfu_vec.push((
+                    f,
+                    t,
+                    Box::new(move |p: Point3f| -> f32 { sdfu::Line::new(f, t, thickness).dist(p) }),
+                ));
             }
-            println!("end line");
+            //println!("end line");
         }
     }
 
-    let p = PointN([0_f32,0.0,0.0]);
-    for x in sdfus.iter() {
-        println!("f:{:?}, t:{:?} dist:{:?}", x.0, x.1, x.2(p));
-    }
-
-    let sdf_func = move |p:Point3i|{
+    let union_sdf_func = move |p: Point3i| {
         let pf = Point3f::from(p);
-        let sdfirst = sdfus.first().unwrap();
-        let mut f = &sdfirst.0;
-        let mut t = &sdfirst.1;
+        let sdfirst = sdfu_vec.first().unwrap();
         let mut min_dist = sdfirst.2(pf);
-        for s in sdfus.iter().skip(1) {
+        for s in sdfu_vec.iter().skip(1) {
             let dist = s.2(pf);
-            if dist <  min_dist{
+            if dist < min_dist {
                 min_dist = dist;
             }
         }
         Sd16::from(min_dist)
     };
-    let sample_point = PointN([0_i32,0,0]);
-    println!("dist:{:?}", sdf_func(sample_point));
 
-    let extent = Extent3i::from_min_and_max(Point3i::fill(-20), Point3i::fill(20));
-    let samples = Array3x1::fill_with(extent, sdf_func);
+    let extent = {
+        let aabb_min = aabb.get_low().unwrap();
+        let aabb_max = aabb.get_high().unwrap();
+        Extent3i::from_min_and_max(
+            PointN([aabb_min.x as i32, aabb_min.y as i32, aabb_min.z as i32]),
+            PointN([aabb_max.x as i32, aabb_max.y as i32, aabb_max.z as i32]),
+        ).padded(thickness as i32 + 2)
+    };
+    println!("extent:{:?}", extent);
 
+    let samples = Array3x1::fill_with(extent, union_sdf_func);
     let mut mesh_buffer = SurfaceNetsBuffer::default();
     let voxel_size = 1.0;
     surface_nets(&samples, samples.extent(), voxel_size, &mut mesh_buffer);
-    let mesh = mesh_buffer.mesh;
-    println!("mesh.indices.len():{}",mesh.indices.len());
-    println!("mesh.positions.len():{}",mesh.positions.len());
-    Ok(mesh)
+    Ok(mesh_buffer.mesh)
 }
 
 /// Build the return model
 /// lines contains a vector of (<first vertex index>,<a list of points><last vertex index>)
-fn build_bp_model(
-    a_command: &PB_Command,
-    mesh: PosNormMesh,
-) -> Result<PB_Model, TBError> {
+fn build_bp_model(a_command: &PB_Command, mesh: PosNormMesh) -> Result<PB_Model, TBError> {
     let input_pb_model = &a_command.models[0];
 
-    let pb_vertices =  mesh.positions.iter().map(|[x,y,z]|PB_Vertex{x:*x as f64,y:*y as f64,z:*z as f64}).collect();
-    let pb_faces = mesh.indices.iter().tuple_windows::<(_,_,_)>().step_by(3).map(|(a,b,c)|PB_Face{vertices:vec![*a as u64,*b  as u64,*c  as u64]}).collect();
+    let pb_vertices = mesh
+        .positions
+        .iter()
+        .map(|[x, y, z]| PB_Vertex {
+            x: *x as f64,
+            y: *y as f64,
+            z: *z as f64,
+        })
+        .collect();
+    let pb_faces = mesh
+        .indices
+        .iter()
+        .tuple_windows::<(_, _, _)>()
+        .step_by(3)
+        .map(|(a, b, c)| PB_Face {
+            vertices: vec![*a as u64, *b as u64, *c as u64],
+        })
+        .collect();
 
-    let mut output_pb_model = PB_Model {
+    Ok(PB_Model {
         name: input_pb_model.name.clone(),
         world_orientation: input_pb_model.world_orientation.clone(),
         vertices: pb_vertices,
         faces: pb_faces,
-    };
-
-    Ok(output_pb_model)
-    //return Err(TBError::InvalidData(format!("not implemented")));
+    })
 }
 
 pub fn command(
@@ -431,14 +442,12 @@ pub fn command(
     let mesh = build_voxel(&a_command.models[0], radius, lines)?;
     let model = build_bp_model(&a_command, mesh)?;
 
-    let mut reply = PB_Reply {
+    let reply = PB_Reply {
         options: vec![PB_KeyValuePair {
             key: "ONLY_EDGES".to_string(),
             value: "False".to_string(),
         }],
-        models: vec!(model),//Vec::<PB_Model>::new(),
+        models: vec![model],
     };
-
-    //reply.models.push(model);
     Ok(reply)
 }
