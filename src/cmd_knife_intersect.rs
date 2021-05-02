@@ -91,7 +91,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
         }
     }
     //println!("Lines:{:?}", lines);
-    let mut edge_split = fnv::FnvHashMap::<usize, smallvec::SmallVec<[(u64, u64); 1]>>::default();
+    let mut edge_split = ahash::AHashMap::<usize, smallvec::SmallVec<[(u64, u64); 1]>>::default();
     let mut edge_is_split = yabf::Yabf::with_capacity(input_pb_model.faces.len());
     {
         let intersection_result =
@@ -143,7 +143,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
     // Add the intersecting edges, but split them first
 
     // a map of hashable point to vertex number
-    let mut new_vertex_map = fnv::FnvHashMap::<(u64, u64), usize>::default();
+    let mut new_vertex_map = ahash::AHashMap::<(u64, u64), usize>::default();
     for (edge, hash_pos) in edge_split.into_iter() {
         let mut new_edge = smallvec::SmallVec::<[u64; 4]>::new();
         let old_face = &input_pb_model.faces[edge];

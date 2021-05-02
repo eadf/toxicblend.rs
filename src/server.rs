@@ -8,11 +8,12 @@
 
 mod cmd_2d_outline;
 mod cmd_centerline;
-mod cmd_centerline_mesh;
 mod cmd_knife_intersect;
 mod cmd_simplify;
 mod cmd_voronoi;
 mod cmd_voxel;
+mod cmd_voronoi_mesh;
+mod voronoi_utils;
 
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
@@ -134,13 +135,16 @@ impl ToxicBlendService for TheToxicBlendService {
     ) -> Result<PB_Response<PB_Reply>, PB_Status> {
         let a_command = request.get_ref();
         let map = options_to_map(&a_command.options);
+        println!("########################################");
+        println!("# Received command:{}", a_command.command.as_str());
+        println!("########################################");
 
         let rv = match a_command.command.as_str() {
             "2d_outline" => cmd_2d_outline::command(a_command, map),
             "simplify" => cmd_simplify::command(a_command, map),
             "knife_intersect" => cmd_knife_intersect::command(a_command, map),
             "centerline" => cmd_centerline::command(a_command, map),
-            "centerline_mesh" => cmd_centerline_mesh::command(a_command, map),
+            "voronoi_mesh" => cmd_voronoi_mesh::command(a_command, map),
             "voronoi" => cmd_voronoi::command(a_command, map),
             "voxel" => cmd_voxel::command(a_command, map),
             _ => Err(TBError::UnknownCommand(a_command.command.clone())),
@@ -166,6 +170,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let address = "[::1]:50069".parse()?;
     let service = TheToxicBlendService::default();
 
+    println!(
+        "Toxicblend server starting, will listen for connections @{:?}",
+        address
+    );
     Server::builder()
         .add_service(ToxicBlendServiceServer::new(service))
         .serve(address)

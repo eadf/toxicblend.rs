@@ -12,7 +12,7 @@ use linestring::cgmath_2d::Aabb2;
 use boostvoronoi::diagram as VD;
 use boostvoronoi::visual_utils as VU;
 use itertools::Itertools;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 //use boostvoronoi::{InputType, OutputType};
 
 /// converts from a private, comparable and hash-able format
@@ -33,6 +33,7 @@ fn transmute_to_u64(a: &cgmath::Point2<f64>) -> (u64, u64) {
     (a.x.to_bits(), a.y.to_bits())
 }
 
+/// Helper structs that build PB buffer from VoronoiDiagram
 struct DiagramHelper {
     diagram: VD::VoronoiDiagram<i64, f64>,
     vertices: Vec<boostvoronoi::Point<i64>>,
@@ -44,134 +45,6 @@ struct DiagramHelper {
 }
 
 impl DiagramHelper {
-    /// Mark infinite edges and their adjacent edges as EXTERNAL.
-    /// Also mark secondary edges if self.remove_secondary_edges is set
-    fn reject_edges(&mut self) -> Result<(), TBError> {
-        let mut rejected_edges = yabf::Yabf::default();
-        // ensure capacity of bit field by setting last bit +1 to true
-        rejected_edges.set_bit(self.diagram.edges().len(), true);
-
-        for edge in self.diagram.edges().iter() {
-            let edge = edge.get();
-            let edge_id = edge.get_id();
-            if self.remove_secondary_edges && edge.is_secondary() {
-                rejected_edges.set_bit(edge_id.0, true);
-                let twin_id = self
-                    .diagram
-                    .edge_get_twin(Some(edge_id))
-                    .ok_or_else(|| TBError::InternalError("Could not get edge twin".to_string()))?;
-                rejected_edges.set_bit(twin_id.0, true);
-            }
-            if !self
-                .diagram
-                .edge_is_finite(Some(edge_id))
-                .ok_or_else(|| TBError::InternalError("Could not get edge status".to_string()))?
-            {
-                self.mark_connected_edges(edge_id, &mut rejected_edges, true)?;
-                rejected_edges.set_bit(edge_id.0, true);
-            }
-        }
-        self.rejected_edges = Some(rejected_edges);
-        Ok(())
-    }
-
-    /// Marks this edge and all other edges connecting to it via vertex1.
-    /// Repeat stops when connecting to input geometry.
-    /// if 'initial' is set to true it will search both ways, edge and the twin edge.
-    /// 'initial' will be set to false when going past the first edge
-    fn mark_connected_edges(
-        &self,
-        edge_id: VD::VoronoiEdgeIndex,
-        marked_edges: &mut yabf::Yabf,
-        initial: bool,
-    ) -> Result<(), TBError> {
-        if marked_edges.bit(edge_id.0) {
-            return Ok(());
-        }
-
-        let mut initial = initial;
-        let mut queue = VecDeque::<VD::VoronoiEdgeIndex>::new();
-        queue.push_front(edge_id);
-
-        'outer: while !queue.is_empty() {
-            // unwrap is safe since we just checked !queue.is_empty()
-            let edge_id = queue.pop_back().unwrap();
-
-            if marked_edges.bit(edge_id.0) {
-                initial = false;
-                continue 'outer;
-            }
-
-            let v1 = self.diagram.edge_get_vertex1(Some(edge_id));
-            if self.diagram.edge_get_vertex0(Some(edge_id)).is_some() && v1.is_none() {
-                // this edge leads to nowhere
-                marked_edges.set_bit(edge_id.0, true);
-                initial = false;
-                continue 'outer;
-            }
-            marked_edges.set_bit(edge_id.0, true);
-
-            #[allow(unused_assignments)]
-            if initial {
-                initial = false;
-                queue.push_back(self.diagram.edge_get_twin(Some(edge_id)).ok_or_else(|| {
-                    TBError::InternalError("Could not get edge twin".to_string())
-                })?);
-            } else {
-                marked_edges.set_bit(
-                    self.diagram
-                        .edge_get_twin(Some(edge_id))
-                        .ok_or_else(|| {
-                            TBError::InternalError("Could not get edge twin".to_string())
-                        })?
-                        .0,
-                    true,
-                );
-            }
-
-            if v1.is_none()
-                || !self.diagram.edges()[(Some(edge_id))
-                    .ok_or_else(|| TBError::InternalError("Could not get edge twin".to_string()))?
-                    .0]
-                    .get()
-                    .is_primary()
-            {
-                // stop traversing this line if vertex1 is not found or if the edge is not primary
-                initial = false;
-                continue 'outer;
-            }
-            // v1 is always Some from this point on
-            if let Some(v1) = v1 {
-                let v1 = self
-                    .diagram
-                    .vertex_get(Some(v1))
-                    .ok_or_else(|| {
-                        TBError::InternalError("Could not get expected vertex".to_string())
-                    })?
-                    .get();
-                if v1.is_site_point() {
-                    // stop iterating line when site points detected
-                    initial = false;
-                    continue 'outer;
-                }
-                //self.reject_vertex(v1, color);
-                let mut e = v1.get_incident_edge();
-                let v_incident_edge = e;
-                while let Some(this_edge) = e {
-                    if !marked_edges.bit(this_edge.0) {
-                        queue.push_back(this_edge);
-                    }
-                    e = self.diagram.edge_rot_next(Some(this_edge));
-                    if e == v_incident_edge {
-                        break;
-                    }
-                }
-            }
-            initial = false;
-        }
-        Ok(())
-    }
-
     /// converts to a private, comparable and hash-able format
     /// only use this for floats that are f64::is_finite()
     #[inline(always)]
@@ -183,7 +56,7 @@ impl DiagramHelper {
     #[inline(always)]
     fn place_new_pb_vertex_dup_check(
         vertex: &[f64; 2],
-        new_vertex_map: &mut fnv::FnvHashMap<(u64, u64), usize>,
+        new_vertex_map: &mut ahash::AHashMap<(u64, u64), usize>,
         pb_vertices: &mut Vec<PB_Vertex>,
         inverted_transform: &cgmath::Matrix4<f64>,
     ) -> usize {
@@ -228,7 +101,7 @@ impl DiagramHelper {
     /// Convert voronoi edges into PB_Model data
     fn convert_edges(
         &mut self,
-        new_vertex_map: &mut fnv::FnvHashMap<(u64, u64), usize>,
+        new_vertex_map: &mut ahash::AHashMap<(u64, u64), usize>,
         pb_vertices: &mut Vec<PB_Vertex>,
         pb_faces: &mut Vec<PB_Face>,
         inverted_transform: cgmath::Matrix4<f64>,
@@ -236,8 +109,8 @@ impl DiagramHelper {
         let max_dist = self.aabb.get_high().unwrap() - self.aabb.get_low().unwrap();
         let max_dist = max_dist.x.max(max_dist.y);
         let max_dist = self.discrete_distance * max_dist;
-
-        let simpleaffine = boostvoronoi::visual_utils::SimpleAffine::default();
+        //println!("max distance = {}",max_dist);
+        let dummy_affine = boostvoronoi::visual_utils::SimpleAffine::default();
 
         let mut already_drawn = yabf::Yabf::default();
         let rejected_edges = self
@@ -248,7 +121,10 @@ impl DiagramHelper {
         for it in self.diagram.edges().iter().enumerate() {
             let edge_id = VD::VoronoiEdgeIndex(it.0);
             let edge = it.1.get();
-            if already_drawn.bit(edge_id.0) || rejected_edges.bit(edge_id.0) {
+            if (self.remove_secondary_edges && edge.is_secondary())
+                || already_drawn.bit(edge_id.0)
+                || rejected_edges.bit(edge_id.0)
+            {
                 // already done this, or rather - it's twin
                 continue;
             }
@@ -274,7 +150,7 @@ impl DiagramHelper {
                 if edge.is_curved() {
                     self.sample_curved_edge(
                         max_dist,
-                        &simpleaffine,
+                        &dummy_affine,
                         VD::VoronoiEdgeIndex(it.0),
                         &mut samples,
                     );
@@ -333,7 +209,7 @@ impl DiagramHelper {
     fn sample_curved_edge(
         &self,
         max_dist: f64,
-        affine: &VU::SimpleAffine<i64, f64>,
+        dummy_affine: &VU::SimpleAffine<i64, f64>,
         edge_id: VD::VoronoiEdgeIndex,
         sampled_edge: &mut Vec<[f64; 2]>,
     ) {
@@ -356,7 +232,7 @@ impl DiagramHelper {
             &point,
             segment,
             max_dist,
-            affine,
+            dummy_affine,
             sampled_edge,
         );
     }
@@ -582,7 +458,9 @@ fn voronoi(
         remove_secondary_edges: cmd_remove_secondary_edges,
     };
     if cmd_remove_externals {
-        diagram_helper.reject_edges()?;
+        diagram_helper.rejected_edges = Some(super::voronoi_utils::reject_external_edges(
+            &diagram_helper.diagram,
+        )?);
     }
     build_output(input_pb_model, diagram_helper, inverted_transform)
 }
@@ -593,7 +471,7 @@ fn build_output(
     inverted_transform: cgmath::Matrix4<f64>,
 ) -> Result<PB_Model, TBError> {
     // a map of hashtable point to vertex number
-    let mut new_vertex_map = fnv::FnvHashMap::<(u64, u64), usize>::default();
+    let mut new_vertex_map = ahash::AHashMap::<(u64, u64), usize>::default();
 
     let mut vertices_2d = {
         // had to encase this in a block b/o the borrow checker.
@@ -698,7 +576,15 @@ pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    println!("voronoi got command: \"{}\"", a_command.command);
+    println!(
+        r#"
+                                              __
+    ___  __ ____ _______  ____   ____   ____ |__|
+    \  \/ // __ \\_  __ \/ __ \ /    \ / __ \|  |
+     \   /(  \_\ )|  | \/  \_\ )   |  \  \_\ )  |
+      \_/  \____/ |__|   \____/|___|  /\____/|__|
+                                    \/           "#
+    );
     if a_command.models.len() > 1 {
         return Err(TBError::InvalidInputData(
             "This operation only supports one model as input".to_string(),
@@ -766,6 +652,9 @@ pub fn command(
         })?
     };
 
+    // used for simplification and discretization distance
+    let max_distance = cmd_arg_max_voronoi_dimension * cmd_arg_discrete_distance / 100.0;
+
     for model in a_command.models.iter() {
         println!("model.name:{:?}, ", model.name);
         println!("model.vertices:{:?}, ", model.vertices.len());
@@ -777,6 +666,7 @@ pub fn command(
         println!("MAX_VORONOI_DIMENSION:{:?}", cmd_arg_max_voronoi_dimension);
         println!("REMOVE_EXTERNALS:{:?}", cmd_arg_remove_externals);
         println!("VORONOI_DISCRETE_DISTANCE:{:?}%", cmd_arg_discrete_distance);
+        println!("max_distance:{:?}", max_distance);
         println!();
     }
 
