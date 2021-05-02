@@ -136,7 +136,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28598f486c248e11ff2817ac3a576033521de4e98ed0386a18c3760536a82f11"
 dependencies = [
  "itertools 0.9.0",
- "mint",
  "num 0.3.1",
  "sdfu",
  "serde",
@@ -571,12 +570,6 @@ checksum = "f83fb6581e8ed1f85fd45c116db8405483899489e38406156c25eb743554361d"
 dependencies = [
  "autocfg",
 ]
-
-[[package]]
-name = "mint"
-version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "519df8d6856dcd4b40519947737b408f81be051fc032590659cae5d77d664185"
 
 [[package]]
 name = "mio"

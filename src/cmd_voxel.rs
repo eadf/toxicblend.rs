@@ -7,14 +7,14 @@ use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
 use itertools::Itertools;
 use linestring::cgmath_3d;
-//use rayon::prelude::*;
 use std::collections::HashMap;
-//use building_blocks::core::prelude::*;
+use building_blocks::core::prelude::*;
 //use building_blocks::core::point::*;
-//use building_blocks::storage::{prelude::*};
+use building_blocks::storage::{prelude::*};
 use building_blocks::core::prelude::PointN;
 use building_blocks::core::sdfu::{self, SDF};
-//use building_blocks::mesh::*;
+use building_blocks::mesh::*;
+//use rayon::prelude::*;
 
 /// Simplify the model into a sequence of connected vertices.
 /// The end and start points has duplicate-checked vertex numbers, the 'in the middle' vertexes do not.
@@ -190,14 +190,7 @@ fn walk_single_line_edges(
     }
 
     'outer: loop {
-        /*println!(
-            "loop from:{}, to:{}, end_vertex:{}, kill:{}",
-            from_v, to_v, end_vertex, kill_pill
-        );*/
-        /*
-        if !first_loop && from_v == started_at_vertex {
-            println!("from_v == started_at_vertex == {}", started_at_vertex);
-        }*/
+
         if to_v == started_at_vertex {
             //println!("to_v == started_at_vertex == {}", started_at_vertex);
             end_vertex = to_v;
@@ -215,20 +208,7 @@ fn walk_single_line_edges(
         }
 
         let key = make_key(from_v, to_v);
-        /*if !first_loop && key == end_key {
-            println!(
-                "*****************************************should probably stop at {:?}",
-                key
-            );
-        }*/
-        //first_loop = false;
-        /*println!(
-            "->traverse_edges {}->{} {:?} {:?}",
-            from_v,
-            to_v,
-            connections_map.get(&from_v),
-            connections_map.get(&to_v)
-        );*/
+
         if edge_set.contains(&key) {
             let v1 = vertices.get(to_v).ok_or_else(|| {
                 TBError::InternalError(format!("Lost a vertex somehow.. index:{}", to_v))
@@ -259,10 +239,7 @@ fn walk_single_line_edges(
 
                 from_v = to_v;
                 to_v = next_v;
-                /*println!(
-                    "meta recursion continues at {}->{}, connection:{:?}",
-                    from_v, to_v, connection
-                );*/
+
                 continue 'outer;
             } else {
                 //println!("#1 breaking at to_v={}", to_v);
@@ -270,7 +247,6 @@ fn walk_single_line_edges(
                 break 'outer;
             }
         }
-        //println!("#2 breaking at to_v={}", to_v);
         break 'outer;
     }
 
@@ -282,11 +258,17 @@ fn walk_single_line_edges(
             end_vertex
         ))
     })?;
-    result.push(cgmath::Point3 {
-        x: end_vertex_value.x,
-        y: end_vertex_value.y,
-        z: end_vertex_value.z,
-    });
+    let result_point_last = result.points().last().unwrap();
+    if !(result_point_last.x == end_vertex_value.x
+        && result_point_last.y == end_vertex_value.y
+        && result_point_last.z == end_vertex_value.z)
+    {
+        result.push(cgmath::Point3 {
+            x: end_vertex_value.x,
+            y: end_vertex_value.y,
+            z: end_vertex_value.z,
+        });
+    }
     if end_vertex == started_at_vertex {
         //let key = make_key(from_v,to_v);
         //println!("#2 Pushing vertex {:?}, {}->{} dropping:{:?}", to_v, from_v, to_v, key);
@@ -301,126 +283,109 @@ fn walk_single_line_edges(
 /// Build the voxel data from the input
 fn build_voxel(
     pb_model: &PB_Model,
-    distance_multiplier: f64,
+    radius_multiplier: f64,
     lines: Vec<(usize, cgmath_3d::LineString3<f64>, usize)>,
-) -> Result<(), TBError> {
+) -> Result<PosNormMesh, TBError> {
     let mut aabb = linestring::cgmath_3d::Aabb3::<f64>::default();
     for v in pb_model.vertices.iter() {
         aabb.update_point(&cgmath::Point3::new(v.x, v.y, v.z))
     }
     let dimensions = aabb.get_high().unwrap() - aabb.get_low().unwrap();
     let dimensions = dimensions.x.max(dimensions.y).max(dimensions.z);
-    let discrete_distance = dimensions * distance_multiplier;
+    let radius = dimensions * radius_multiplier;
+    println!(
+        "Voxelizing using tube radius. {} = {}*{}.",
+        radius, dimensions, radius_multiplier
+    );
+    println!("lines:{:?}", lines);
+    println!("aabb.high:{:?}",aabb.get_high().unwrap());
+    println!("aabb.low:{:?}",aabb.get_low().unwrap());
+    println!("delta:{:?}",aabb.get_high().unwrap() - aabb.get_low().unwrap());
 
-    if lines.len() > 2 {
+    let thickness = (radius*2.0) as f32 ;
+
+    let mut sdfus = Vec::<( PointN<[f32;3]>,  PointN<[f32;3]>,Box<dyn Fn(Point3f) -> f32>)>::new();
+    if !lines.is_empty() {
         let p0 = lines.first().unwrap().1.points().first().unwrap();
         let p1 = lines.first().unwrap().1.points().get(1).unwrap();
         let p0 = PointN([p0.x as f32, p0.y as f32, p0.z as f32]);
         let p1 = PointN([p1.x as f32, p1.y as f32, p1.z as f32]);
-        let mut sdf/*: dyn SDF<_,_>+Sized*/ = sdfu::Line::new(p0, p1, discrete_distance as f32)
-            .union_smooth(sdfu::Line::new(p0, p1, discrete_distance as f32), 0.1);
-        //sdf.
+
         for (_, lines, _) in lines.into_iter() {
-            for line in lines.as_lines_iter() {
-                println!("{:?}->{:?}", line.start, line.end);
-                let f = PointN([
-                    line.start.x as f32,
-                    line.start.y as f32,
-                    line.start.z as f32,
-                ]);
-                let t = PointN([line.end.x as f32, line.end.y as f32, line.end.z as f32]);
-                //sdf + sdf.union_smooth(sdfu::Line::new(f, t,discrete_distance as f32), 0.1);
+            println!("lines.len():{}", lines.len());
+            for (lf, lt) in lines.points().iter().tuple_windows::<(_, _)>() {
+                //println!("{:?}->{:?}", line.start, line.end);
+                let f: PointN<[f32;3]> = PointN([lf.x as f32, lf.y as f32, lf.z as f32]);
+                let t: PointN<[f32;3]> = PointN([lt.x as f32, lt.y as f32, lt.z as f32]);
+                //let sdf = sdfu::Line::new(f, t, 5.0);
+                println!(
+                    "({},{},{})->({},{},{})",
+                    f.x(),
+                    f.y(),
+                    f.z(),
+                    t.x(),
+                    t.y(),
+                    t.z()
+                );
+                //sdfus.push( (f,t,Box::new(move |p:Point3f|->f32 {sdfu::Line::new(f, t, thickness).dist(Point3f::from(p.yzx()))})));
+                sdfus.push( (f,t,Box::new(move |p:Point3f|->f32 {sdfu::Line::new(f, t, thickness).dist(p)})));
             }
+            println!("end line");
         }
     }
-    println!(
-        "Simplifying using percentage. discrete distance={} = {}*{}.",
-        discrete_distance, dimensions, distance_multiplier
-    );
-    /*println!("after");
-    for ls in rv.iter() {
-        println!("ls: {:?} {:?} {:?}", ls.0, ls.1.len(), ls.2);
-    }*/
-    Ok(())
+
+    let p = PointN([0_f32,0.0,0.0]);
+    for x in sdfus.iter() {
+        println!("f:{:?}, t:{:?} dist:{:?}", x.0, x.1, x.2(p));
+    }
+
+    let sdf_func = move |p:Point3i|{
+        let pf = Point3f::from(p);
+        let sdfirst = sdfus.first().unwrap();
+        let mut f = &sdfirst.0;
+        let mut t = &sdfirst.1;
+        let mut min_dist = sdfirst.2(pf);
+        for s in sdfus.iter().skip(1) {
+            let dist = s.2(pf);
+            if dist <  min_dist{
+                min_dist = dist;
+            }
+        }
+        Sd16::from(min_dist)
+    };
+    let sample_point = PointN([0_i32,0,0]);
+    println!("dist:{:?}", sdf_func(sample_point));
+
+    let extent = Extent3i::from_min_and_max(Point3i::fill(-20), Point3i::fill(20));
+    let samples = Array3x1::fill_with(extent, sdf_func);
+
+    let mut mesh_buffer = SurfaceNetsBuffer::default();
+    let voxel_size = 1.0;
+    surface_nets(&samples, samples.extent(), voxel_size, &mut mesh_buffer);
+    let mesh = mesh_buffer.mesh;
+    println!("mesh.indices.len():{}",mesh.indices.len());
+    println!("mesh.positions.len():{}",mesh.positions.len());
+    Ok(mesh)
 }
 
 /// Build the return model
 /// lines contains a vector of (<first vertex index>,<a list of points><last vertex index>)
 fn build_bp_model(
     a_command: &PB_Command,
-    lines: Vec<(usize, cgmath_3d::LineString3<f64>, usize)>,
+    mesh: PosNormMesh,
 ) -> Result<PB_Model, TBError> {
     let input_pb_model = &a_command.models[0];
-    // capacity is not correct, but in a ballpark range
-    let rough_capacity = lines.iter().map(|x| x.1.len()).sum();
+
+    let pb_vertices =  mesh.positions.iter().map(|[x,y,z]|PB_Vertex{x:*x as f64,y:*y as f64,z:*z as f64}).collect();
+    let pb_faces = mesh.indices.iter().tuple_windows::<(_,_,_)>().step_by(3).map(|(a,b,c)|PB_Face{vertices:vec![*a as u64,*b  as u64,*c  as u64]}).collect();
+
     let mut output_pb_model = PB_Model {
         name: input_pb_model.name.clone(),
         world_orientation: input_pb_model.world_orientation.clone(),
-        vertices: Vec::<PB_Vertex>::with_capacity(rough_capacity),
-        faces: Vec::<PB_Face>::with_capacity(rough_capacity),
+        vertices: pb_vertices,
+        faces: pb_faces,
     };
 
-    // map between old and new vertex number
-    let mut v_map = fnv::FnvHashMap::<usize, usize>::default();
-    let mut vertex_list = Vec::<usize>::new();
-
-    for ls in lines.into_iter() {
-        let v0 = ls.0;
-        let l = ls.1;
-        let v1 = ls.2;
-        let v0_mapped = *v_map.entry(v0).or_insert(output_pb_model.vertices.len());
-        if v0_mapped == output_pb_model.vertices.len() {
-            output_pb_model
-                .vertices
-                .push(input_pb_model.vertices[v0].clone());
-            //println!(" v0:{} is mapped to {}", v0, v0_mapped);
-        }
-        vertex_list.push(v0_mapped);
-
-        //print!("new sequence: {},", v0_mapped);
-        //output_pb_model.faces.push(PB_Face{vertices:vec!(v0_mapped as u64, (v0_mapped+1) as u64)});
-        //println!("1pushed: {:?}", output_pb_model.faces.last());
-        //let mut last_push = v0_mapped;
-        for p in l.points().iter().skip(1).take(l.points().len() - 2) {
-            //output_pb_model.faces.push(PB_Face{vertices:vec!(last_push as u64, output_pb_model.vertices.len() as u64)});
-            //println!("2pushed: {:?}", output_pb_model.faces.last());
-            vertex_list.push(output_pb_model.vertices.len());
-
-            //last_push = output_pb_model.vertices.len();
-            //print!("{},", output_pb_model.vertices.len());
-            output_pb_model.vertices.push(PB_Vertex {
-                x: p.x,
-                y: p.y,
-                z: p.z,
-            });
-        }
-        let v1_mapped = *v_map.entry(v1).or_insert(output_pb_model.vertices.len());
-        if v1_mapped == output_pb_model.vertices.len() {
-            output_pb_model
-                .vertices
-                .push(input_pb_model.vertices[v1].clone());
-            //println!(" v1:{} is mapped to {}", v1, v1_mapped);
-        }
-        //println!("{}", v1_mapped);
-        vertex_list.push(v1_mapped);
-        //output_pb_model.faces.push(PB_Face{vertices:vec!(last_push as u64, v1_mapped as u64)});
-        //println!("3pushed: {:?}", output_pb_model.faces.last());
-        for v in vertex_list.iter().tuple_windows::<(_, _)>() {
-            output_pb_model.faces.push(PB_Face {
-                vertices: vec![*v.0 as u64, *v.1 as u64],
-            });
-        }
-        vertex_list.clear();
-    }
-    /*println!("output_pb_model.faces:");
-    for f in  output_pb_model.faces.iter() {
-        println!(" face:{:?}", f.vertices);
-    }*/
-    println!(
-        "Reduced to {} vertices (from {}) ",
-        output_pb_model.vertices.len(),
-        input_pb_model.vertices.len()
-    );
     Ok(output_pb_model)
     //return Err(TBError::InvalidData(format!("not implemented")));
 }
@@ -441,6 +406,15 @@ pub fn command(
             "Model did not contain any data".to_string(),
         ));
     }
+    let radius = options
+        .get("RADIUS")
+        .ok_or_else(|| TBError::InvalidInputData("Missing the RADIUS parameter".to_string()))?
+        .parse::<f64>()
+        .map_err(|_| {
+            TBError::InvalidInputData("Could not parse the RADIUS parameter".to_string())
+        })?
+        / 100.0;
+
     for model in a_command.models.iter() {
         println!("model.name:{:?}, ", model.name);
         println!("model.vertices:{:?}, ", model.vertices.len());
@@ -449,27 +423,20 @@ pub fn command(
             "model.world_orientation:{:?}, ",
             model.world_orientation.as_ref().map_or(0, |_| 16)
         );
+        println!("Radius:{:?}% multiplier ", radius);
         println!();
     }
 
-    let distance_multiplier = options
-        .get("DISTANCE")
-        .ok_or_else(|| TBError::InvalidInputData("Missing the DISTANCE parameter".to_string()))?
-        .parse::<f64>()
-        .map_err(|_| {
-            TBError::InvalidInputData("Could not parse the DISTANCE parameter".to_string())
-        })?;
-
     let lines = find_linestrings(&a_command.models[0])?;
-    let lines = build_voxel(&a_command.models[0], distance_multiplier, lines)?;
-    //let model = build_bp_model(&a_command, lines)?;
+    let mesh = build_voxel(&a_command.models[0], radius, lines)?;
+    let model = build_bp_model(&a_command, mesh)?;
 
     let mut reply = PB_Reply {
         options: vec![PB_KeyValuePair {
             key: "ONLY_EDGES".to_string(),
-            value: "True".to_string(),
+            value: "False".to_string(),
         }],
-        models: Vec::<PB_Model>::new(),
+        models: vec!(model),//Vec::<PB_Model>::new(),
     };
 
     //reply.models.push(model);

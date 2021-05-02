@@ -922,43 +922,21 @@ class Toxicblend_Voronoi_Mesh(Operator):
             return {'CANCELLED'}
 
 
-# Centerline operator
+# Voxel operator
 class Toxicblend_Voxel(Operator):
     bl_idname = "mesh.toxicblend_meshtools_voxel"
     bl_label = "Voxel"
     bl_description = "Calculate voxel tubes around edges"
     bl_options = {'REGISTER', 'UNDO'}
 
-    angle: FloatProperty(
-        name="Angle",
-        description="Edge rejection angle, edges with edge-to-segment angles larger than this will be rejected",
-        default=math.radians(50.0),
-        min=math.radians(0.000001),
-        max=math.radians(89.999999),
-        precision=6,
-        subtype='ANGLE',
-    )
-
-    remove_internals: BoolProperty(
-        name="Remove internal edges",
-        description="Remove edges internal to islands in the geometry",
-        default=True
-    )
-
-    distance: FloatProperty(
-        name="Distance",
-        description="Discrete distance as a percentage of the AABB",
-        default=0.005,
-        min=0.0001,
+    radius: FloatProperty(
+        name="Radius",
+        description="Voxel tube radius as a percentage of the total AABB",
+        default=1.0,
+        min=0.01,
         max=4.9999,
         precision=6,
         subtype='PERCENTAGE'
-    )
-
-    simplify: BoolProperty(
-        name="Simplify line strings",
-        description="Simplify voronoi edges connected as in a line string. The 'distance' property is used.",
-        default=True
     )
 
     @classmethod
@@ -980,18 +958,10 @@ class Toxicblend_Voxel(Operator):
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='voxel')
                 build_pb_model(active_object, active_mesh, command.models.add())
+
                 opt = command.options.add()
-                opt.key = "ANGLE"
-                opt.value = str(math.degrees(self.angle))
-                opt = command.options.add()
-                opt.key = "REMOVE_INTERNALS"
-                opt.value = str(self.remove_internals).lower()
-                opt = command.options.add()
-                opt.key = "DISTANCE"
-                opt.value = str(self.distance)
-                opt = command.options.add()
-                opt.key = "SIMPLIFY"
-                opt.value = str(self.simplify).lower()
+                opt.key = "RADIUS"
+                opt.value = str(self.radius)
 
                 response = stub.execute(command)
                 handle_response(response)
@@ -1085,7 +1055,7 @@ class VIEW3D_MT_edit_mesh_toxicblend_meshtools(Menu):
         layout.operator("mesh.toxicblend_meshtools_centerline")
         layout.operator("mesh.toxicblend_meshtools_voronoi_mesh")
         layout.operator("mesh.toxicblend_meshtools_voronoi")
-        # layout.operator("mesh.toxicblend_meshtools_voxel")
+        layout.operator("mesh.toxicblend_meshtools_voxel")
         layout.operator("mesh.toxicblend_meshtools_select_end_vertices")
         layout.operator("mesh.toxicblend_meshtools_select_collinear_edges")
         layout.operator("mesh.toxicblend_meshtools_select_intersection_vertices")
@@ -1207,6 +1177,16 @@ class TB_MeshToolsProps(PropertyGroup):
         subtype='ANGLE'
     )
 
+    voxel_radius: FloatProperty(
+        name="Radius",
+        description="Voxel tube radius as a percentage of the total AABB",
+        default=1.0,
+        min=0.01,
+        max=4.9999,
+        precision=6,
+        subtype='PERCENTAGE'
+    )
+
 
 # draw function for integration in menus
 def menu_func(self, context):
@@ -1224,7 +1204,7 @@ classes = (
     Toxicblend_Centerline,
     Toxicblend_Voronoi_Mesh,
     Toxicblend_Voronoi,
-    # Toxicblend_Voxel,
+    Toxicblend_Voxel,
     ToxicBlend_SelectEndVertices,
     ToxicBlend_SelectIntersectionVertices,
     ToxicBlend_SelectCollinearEdges,
