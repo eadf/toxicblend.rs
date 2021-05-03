@@ -110,7 +110,7 @@ fn build_voxel(
         }
     }
 
-    let hard_union_sdf_func = move |p: Point3i| {
+    /*let hard_union_sdf_func = move |p: Point3i| {
         let pf = Point3f::from(p);
         let sdfirst = sdfu_vec.first().unwrap();
         let mut min_dist = sdfirst.2(pf);
@@ -121,21 +121,46 @@ fn build_voxel(
             }
         }
         Sd16::from(min_dist)
-    };
+    };*/
 
-    let extent = {
-        let aabb_min = aabb.get_low().unwrap() * (scale as f64);
-        let aabb_max = aabb.get_high().unwrap() * (scale as f64);
-        Extent3i::from_min_and_max(
-            PointN([aabb_min.x as i32, aabb_min.y as i32, aabb_min.z as i32]),
-            PointN([aabb_max.x as i32, aabb_max.y as i32, aabb_max.z as i32]),
-        )
-        .padded(thickness as i32 + 2)
+    let samples = {
+        let extent = {
+            let aabb_min = aabb.get_low().unwrap() * (scale as f64);
+            let aabb_max = aabb.get_high().unwrap() * (scale as f64);
+            Extent3i::from_min_and_max(
+                PointN([aabb_min.x as i32, aabb_min.y as i32, aabb_min.z as i32]),
+                PointN([aabb_max.x as i32, aabb_max.y as i32, aabb_max.z as i32]),
+            )
+            .padded(thickness as i32 + 2)
+        };
+        println!("extent:{:?}", extent);
+        let now = time::Instant::now();
+        let first = sdfu_vec.first().unwrap();
+
+        let mut samples = Array3x1::fill(extent, thickness*10.0_f32);
+        for sdff in sdfu_vec.into_iter()
+        {
+            let extent = {
+                let aabb_min = [
+                    sdff.0.x().min(sdff.1.x()) as i32,
+                    sdff.0.y().min(sdff.1.y()) as i32,
+                    sdff.0.z().min(sdff.1.z()) as i32,
+                ];
+                let aabb_max = [
+                    sdff.0.x().max(sdff.1.x()) as i32,
+                    sdff.0.y().max(sdff.1.y()) as i32,
+                    sdff.0.z().max(sdff.1.z()) as i32,
+                ];
+                Extent3i::from_min_and_max(PointN(aabb_min), PointN(aabb_max))
+                    .padded(thickness as i32 + 2)
+            };
+            samples.for_each_mut(&extent, |p: Point3i, dist| {
+                *dist = dist.min(sdff.2(Point3f::from(p)));
+            });
+        }
+        println!("fill_with() duration: {:?}", now.elapsed());
+        samples
     };
-    println!("extent:{:?}", extent);
-    let now = time::Instant::now();
-    let samples = Array3x1::fill_with(extent, hard_union_sdf_func);
-    println!("fill_with() duration: {:?}", now.elapsed());
 
     let mut mesh_buffer = SurfaceNetsBuffer::default();
     let voxel_size = 1.0 / scale;
