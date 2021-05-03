@@ -78,9 +78,18 @@ Runs the Voronoi sweepline algorithm on 2D points and lines (geometry must be on
 
 ![from](img/voronoi.png)
 
+### operation: Voxel
+
+![from](img/voxel.png)
+
+Takes an edge-only 3D mesh, like the output of the Voronoi operation, and puts voxelized tubes along the edges.
+This operation does *not* require flat input.
+
+This operation uses [building-blocks](https://crates.io/crates/building-blocks) and [sdfu](https://crates.io/crates/sdfu) for the voxel generation.
+
 ### operation: Metavolume (object operation)
-Takes the output of the Voronoi operation and puts metaballs along the edges.
-This operation does *not* require flat input. 
+Takes an edge-only mesh, like the output of the Voronoi operation, and puts metaballs along the edges.
+This operation does *not* require flat input.
 
 This operation is located under `Object` -> `Add` -> `Metaball` -> `MetaVolume`
 
@@ -117,3 +126,5 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 - [ ] Port the rest of the operations.
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
 - [ ] completely replace fnv
+- [ ] make the gRPC protocol much more efficient, support f32 and packed triangles 
+
