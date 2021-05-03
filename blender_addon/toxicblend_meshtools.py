@@ -20,28 +20,27 @@
 # Germano Cavalcante (mano-wii), Florian Meyer (testscreenings), Brendon Murphy (meta-androcto) and Bart Crouch
 
 
-# To install this addon you need to install 'protobuf' and 'grpcio' to the blender python installation.
+# To install this addon you need to install 'toxicblend', 'protobuf' and 'grpcio' to the blender python installation.
 # This is an example of how this can be done: Open the script tab in blender and run this:
+#
 # """
 # import subprocess
-#  import sys
-#  import os
-#  import site
+# import sys
+# import os
+# import site
 #
-#  print("python executable:", sys.executable)
+# print("this is the path to the python executable: ", sys.executable)
 #
-#  # upgrade pip
-#  subprocess.call([sys.executable, "-m", "ensurepip"])
-#  subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
-#
-#  # install required packages
-#  subprocess.call([sys.executable, "-m", "pip", "install", "protobuf"])
-#  subprocess.call([sys.executable, "-m", "pip", "install", "grpcio"])
+# # upgrade pip
+# subprocess.call([sys.executable, "-m", "ensurepip"])
+# subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+
+# # install the pip package toxicblend + the dependencies protobuf and grpcio
+# subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "toxicblend"])
 # """
 #
-# You will also have to copy the toxicblend_pb2.py and toxicblend_pb2_grpc.py files to the
-# site packages of the same python environment.
-# See install_as_blender_addon.md for examples
+# Then you need to install this file as a blender addon as usual.
+# See install_as_blender_addon.md details
 
 
 from __future__ import print_function
