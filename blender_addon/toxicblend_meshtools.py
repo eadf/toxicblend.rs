@@ -939,6 +939,16 @@ class Toxicblend_Voxel(Operator):
         subtype='PERCENTAGE'
     )
 
+    divisions: FloatProperty(
+        name="Voxel Divisions",
+        description="The larges scale of the AABB will be divided up into this number of voxels",
+        default=100.0,
+        min=50,
+        max=150,
+        precision=1,
+        subtype='FACTOR'
+    )
+
     @classmethod
     def poll(cls, context):
         ob = context.active_object
@@ -962,6 +972,10 @@ class Toxicblend_Voxel(Operator):
                 opt = command.options.add()
                 opt.key = "RADIUS"
                 opt.value = str(self.radius)
+
+                opt = command.options.add()
+                opt.key = "DIVISIONS"
+                opt.value = str(self.divisions)
 
                 response = stub.execute(command)
                 handle_response(response)
