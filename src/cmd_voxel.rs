@@ -110,21 +110,8 @@ fn build_voxel(
         }
     }
 
-    /*let hard_union_sdf_func = move |p: Point3i| {
-        let pf = Point3f::from(p);
-        let sdfirst = sdfu_vec.first().unwrap();
-        let mut min_dist = sdfirst.2(pf);
-        for s in sdfu_vec.iter().skip(1) {
-            let dist = s.2(pf);
-            if dist < min_dist {
-                min_dist = dist;
-            }
-        }
-        Sd16::from(min_dist)
-    };*/
-
     let samples = {
-        let extent = {
+        let main_extent = {
             let aabb_min = aabb.get_low().unwrap() * (scale as f64);
             let aabb_max = aabb.get_high().unwrap() * (scale as f64);
             Extent3i::from_min_and_max(
@@ -133,32 +120,30 @@ fn build_voxel(
             )
             .padded(thickness as i32 + 2)
         };
-        println!("extent:{:?}", extent);
+        println!("extent:{:?}", main_extent);
         let now = time::Instant::now();
-        let first = sdfu_vec.first().unwrap();
 
-        let mut samples = Array3x1::fill(extent, thickness*10.0_f32);
-        for sdff in sdfu_vec.into_iter()
-        {
-            let extent = {
+        let mut samples = Array3x1::fill(main_extent, thickness * 10.0_f32);
+        for sample_sdf in sdfu_vec.into_iter() {
+            let sample_extent = {
                 let aabb_min = [
-                    sdff.0.x().min(sdff.1.x()) as i32,
-                    sdff.0.y().min(sdff.1.y()) as i32,
-                    sdff.0.z().min(sdff.1.z()) as i32,
+                    sample_sdf.0.x().min(sample_sdf.1.x()) as i32,
+                    sample_sdf.0.y().min(sample_sdf.1.y()) as i32,
+                    sample_sdf.0.z().min(sample_sdf.1.z()) as i32,
                 ];
                 let aabb_max = [
-                    sdff.0.x().max(sdff.1.x()) as i32,
-                    sdff.0.y().max(sdff.1.y()) as i32,
-                    sdff.0.z().max(sdff.1.z()) as i32,
+                    sample_sdf.0.x().max(sample_sdf.1.x()) as i32,
+                    sample_sdf.0.y().max(sample_sdf.1.y()) as i32,
+                    sample_sdf.0.z().max(sample_sdf.1.z()) as i32,
                 ];
                 Extent3i::from_min_and_max(PointN(aabb_min), PointN(aabb_max))
                     .padded(thickness as i32 + 2)
             };
-            samples.for_each_mut(&extent, |p: Point3i, dist| {
-                *dist = dist.min(sdff.2(Point3f::from(p)));
+            samples.for_each_mut(&sample_extent, |p: Point3i, dist| {
+                *dist = dist.min(sample_sdf.2(Point3f::from(p)));
             });
         }
-        println!("fill_with() duration: {:?}", now.elapsed());
+        println!("fill() duration: {:?}", now.elapsed());
         samples
     };
 
