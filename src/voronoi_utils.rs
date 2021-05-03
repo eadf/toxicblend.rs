@@ -3,7 +3,9 @@ use boostvoronoi::diagram as VD;
 use std::collections::VecDeque;
 
 /// Mark infinite edges and their adjacent edges as EXTERNAL.
-pub(crate) fn reject_external_edges(diagram: &VD::VoronoiDiagram<i64, f64>) -> Result<yabf::Yabf, TBError> {
+pub(crate) fn reject_external_edges(
+    diagram: &VD::VoronoiDiagram<i64, f64>,
+) -> Result<yabf::Yabf, TBError> {
     let mut rejected_edges = yabf::Yabf::with_capacity(diagram.edges().len());
 
     for edge in diagram.edges().iter() {
@@ -29,7 +31,6 @@ pub(crate) fn mark_connected_edges(
     edge_id: VD::VoronoiEdgeIndex,
     marked_edges: &mut yabf::Yabf,
 ) -> Result<(), TBError> {
-
     let mut initial = true;
     let mut queue = VecDeque::<VD::VoronoiEdgeIndex>::new();
     queue.push_front(edge_id);

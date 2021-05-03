@@ -9,10 +9,10 @@ use boostvoronoi::builder as VB;
 use boostvoronoi::diagram as VD;
 use cgmath::{EuclideanSpace, SquareMatrix, Transform, UlpsEq};
 //use itertools::Itertools;
+use itertools::Itertools;
 use linestring::cgmath_2d::Aabb2;
 use linestring::cgmath_2d::VoronoiParabolicArc;
-use std::collections::{HashMap };
-use itertools::Itertools;
+use std::collections::HashMap;
 //use boostvoronoi::{InputType, OutputType};
 
 /// converts from a private, comparable and hash-able format
@@ -45,7 +45,6 @@ struct DiagramHelper {
 }
 
 impl DiagramHelper {
-
     /// converts to a private, comparable and hash-able format
     /// only use this for floats that are f64::is_finite()
     #[inline(always)]
@@ -380,12 +379,19 @@ impl DiagramHelper {
                             edge_id.0
                         );
                     } else {
-                        if edge.is_curved() && cell.contains_point() && processed_samples.len() > 3 {
+                        if edge.is_curved() && cell.contains_point() && processed_samples.len() > 3
+                        {
                             //println!("cpoint:{} edgeid:{}, iscurved:{}, processed_samples.len() = {}", cell.contains_point(), edge_id.0, edge.is_curved(), processed_samples.len());
 
                             let first = *processed_samples.first().unwrap() as u64;
-                            for (v0,v1) in processed_samples.into_iter().skip(1).tuple_windows::<(_,_)>() {
-                                 pb_curved_faces.push(PB_Face{vertices:vec![first, v0 as u64, v1 as u64]});
+                            for (v0, v1) in processed_samples
+                                .into_iter()
+                                .skip(1)
+                                .tuple_windows::<(_, _)>()
+                            {
+                                pb_curved_faces.push(PB_Face {
+                                    vertices: vec![first, v0 as u64, v1 as u64],
+                                });
                             }
                             // end the 'other' face in a controlled manner
                             if !pb_face.vertices.contains(&first) {
@@ -432,7 +438,7 @@ impl DiagramHelper {
                 }
             }
             //println!("Cell:{} produced:{:?}", cell_id, pb_face);
-            if !pb_curved_faces.is_empty(){
+            if !pb_curved_faces.is_empty() {
                 pb_faces.append(&mut pb_curved_faces);
                 pb_curved_faces.clear();
             }
@@ -736,7 +742,9 @@ fn voronoi_mesh(
     };
 
     if diagram_helper.remove_externals {
-        diagram_helper.rejected_edges = Some(super::voronoi_utils::reject_external_edges(&diagram_helper.diagram)?);
+        diagram_helper.rejected_edges = Some(super::voronoi_utils::reject_external_edges(
+            &diagram_helper.diagram,
+        )?);
     }
     build_output(false, input_pb_model, diagram_helper, inverted_transform)
 }
@@ -885,13 +893,15 @@ pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    println!(r#"
+    println!(
+        r#"
                                               __                         /\
     ___  __ ____ _______  ____   ____   ____ |__|   _____   ____   ______  |__
     \  \/ // __ \\_  __ \/ __ \ /    \ / __ \|  |  /     \_/ __ \ /  ___/  |  \
      \   /(  \_\ )|  | \/  \_\ )   |  \  \_\ )  | |  | |  \  ___/_\___ \|      \
       \_/  \____/ |__|   \____/|___|  /\____/|__| |__|_|  /\___  /____  \___|  /
-                                    \/                  \/     \/     \/     \/"#);
+                                    \/                  \/     \/     \/     \/"#
+    );
     if a_command.models.len() > 1 {
         return Err(TBError::InvalidInputData(
             "This operation only supports one model as input".to_string(),

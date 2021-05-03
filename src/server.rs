@@ -11,8 +11,8 @@ mod cmd_centerline;
 mod cmd_knife_intersect;
 mod cmd_simplify;
 mod cmd_voronoi;
-mod cmd_voxel;
 mod cmd_voronoi_mesh;
+mod cmd_voxel;
 mod voronoi_utils;
 
 use crate::toxicblend_pb::Command as PB_Command;
