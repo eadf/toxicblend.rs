@@ -100,12 +100,14 @@ fn build_voxel(
     )>::new();
     if !edges.is_empty() {
         for (from, to) in edges.into_iter() {
-            let f = vertices[from];
-            let t = vertices[to];
+            let from_v = vertices[from];
+            let to_v = vertices[to];
             sdfu_vec.push((
-                f,
-                t,
-                Box::new(move |p: Point3f| -> f32 { sdfu::Line::new(f, t, thickness).dist(p) }),
+                from_v,
+                to_v,
+                Box::new(move |p: Point3f| -> f32 {
+                    sdfu::Line::new(from_v, to_v, thickness).dist(p)
+                }),
             ));
         }
     }
