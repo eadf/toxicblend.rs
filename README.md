@@ -125,4 +125,5 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
 - [ ] completely replace fnv
 - [ ] make the gRPC protocol much more efficient, support f32 and packed triangles 
+- [ ] voronoi mesh generates some faulty faces 
 
