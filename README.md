@@ -1,5 +1,5 @@
 [![Crates.io](https://meritbadge.herokuapp.com/toxicblend)](https://crates.io/crates/toxicblend)
-[![dependency status](https://deps.rs/crate/toxicblend/0.0.5/status.svg)](https://deps.rs/crate/toxicblend/0.0.5)
+[![dependency status](https://deps.rs/crate/toxicblend/0.0.6/status.svg)](https://deps.rs/crate/toxicblend/0.0.6)
 
 
 ![toxicblend.rs](img/header.png)
