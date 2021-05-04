@@ -10,7 +10,7 @@ use building_blocks::core::prelude::*;
 use building_blocks::core::sdfu::{self, SDF};
 use building_blocks::mesh::*;
 use building_blocks::storage::prelude::*;
-use itertools::Itertools;
+//use itertools::Itertools;
 use std::collections::HashMap;
 use std::time;
 
@@ -71,19 +71,21 @@ fn build_voxel(
 
     let radius = max_dimension * radius_multiplier;
     let scale = (divisions / max_dimension) as f32;
-    let thickness = (radius * 2.0) as f32 * (scale.sqrt());
+    let thickness = (radius * 2.0) as f32 * scale;
     println!(
-        "Voxelizing using tube thickness. {} = {}*{}*sqrt({})",
+        "Voxelizing using tube thickness. {} = {}*{}*{}",
         thickness, max_dimension, radius_multiplier, scale
     );
 
     println!(
-        "Voxelizing using divisions {}, max dimension = {}, scale factor={} test={}",
+        "Voxelizing using divisions = {}, max dimension = {}, scale factor={} (max_dimension*scale={})",
         divisions,
         max_dimension,
         scale,
         (max_dimension as f32) * scale
     );
+    println!();
+
     //println!("lines:{:?}", edges);
     println!("aabb.high:{:?}", aabb.get_high().unwrap());
     println!("aabb.low:{:?}", aabb.get_low().unwrap());
@@ -93,22 +95,27 @@ fn build_voxel(
     );
     let vertices: Vec<PointN<[f32; 3]>> = vertices.into_iter().map(|v| v * scale).collect();
 
-    let mut sdfu_vec = Vec::<(
-        PointN<[f32; 3]>,
-        PointN<[f32; 3]>,
-        Box<dyn Fn(Point3f) -> f32>,
-    )>::new();
+    let mut sdfu_vec = Vec::<(Extent3i, Box<dyn Fn(Point3f) -> f32>)>::new();
     if !edges.is_empty() {
         for (from, to) in edges.into_iter() {
             let from_v = vertices[from];
             let to_v = vertices[to];
-            sdfu_vec.push((
-                from_v,
-                to_v,
-                Box::new(move |p: Point3f| -> f32 {
-                    sdfu::Line::new(from_v, to_v, thickness).dist(p)
-                }),
-            ));
+            let sdfu_func = Box::new(move |p: Point3f| -> f32 {
+                sdfu::Line::new(from_v, to_v, thickness).dist(p)
+            });
+            let extent_min = PointN([
+                from_v.x().min(to_v.x()).round() as i32,
+                from_v.y().min(to_v.y()).round() as i32,
+                from_v.z().min(to_v.z()).round() as i32,
+            ]);
+            let extent_max = PointN([
+                from_v.x().max(to_v.x()).round() as i32,
+                from_v.y().max(to_v.y()).round() as i32,
+                from_v.z().max(to_v.z()).round() as i32,
+            ]);
+            let extent =
+                Extent3i::from_min_and_max(extent_min, extent_max).padded(thickness as i32 + 2);
+            sdfu_vec.push((extent, sdfu_func));
         }
     }
 
@@ -126,23 +133,9 @@ fn build_voxel(
         let now = time::Instant::now();
 
         let mut samples = Array3x1::fill(main_extent, thickness * 10.0_f32);
-        for sample_sdf in sdfu_vec.into_iter() {
-            let sample_extent = {
-                let aabb_min = [
-                    sample_sdf.0.x().min(sample_sdf.1.x()) as i32,
-                    sample_sdf.0.y().min(sample_sdf.1.y()) as i32,
-                    sample_sdf.0.z().min(sample_sdf.1.z()) as i32,
-                ];
-                let aabb_max = [
-                    sample_sdf.0.x().max(sample_sdf.1.x()) as i32,
-                    sample_sdf.0.y().max(sample_sdf.1.y()) as i32,
-                    sample_sdf.0.z().max(sample_sdf.1.z()) as i32,
-                ];
-                Extent3i::from_min_and_max(PointN(aabb_min), PointN(aabb_max))
-                    .padded(thickness as i32 + 2)
-            };
+        for (sample_extent, sdf_func) in sdfu_vec.into_iter() {
             samples.for_each_mut(&sample_extent, |p: Point3i, dist| {
-                *dist = dist.min(sample_sdf.2(Point3f::from(p)));
+                *dist = dist.min(sdf_func(Point3f::from(p)));
             });
         }
         println!("fill() duration: {:?}", now.elapsed());
@@ -171,21 +164,15 @@ fn build_output_bp_model(a_command: &PB_Command, mesh: PosNormMesh) -> Result<PB
             z: *z as f64,
         })
         .collect();
-    let pb_faces = mesh
-        .indices
-        .iter()
-        .tuple_windows::<(_, _, _)>()
-        .step_by(3)
-        .map(|(a, b, c)| PB_Face {
-            vertices: vec![*a as u64, *b as u64, *c as u64],
-        })
-        .collect();
+    let pb_faces = PB_Face {
+        vertices: mesh.indices.iter().map(|a| *a as u64).collect(),
+    };
 
     Ok(PB_Model {
         name: input_pb_model.name.clone(),
         world_orientation: input_pb_model.world_orientation.clone(),
         vertices: pb_vertices,
-        faces: pb_faces,
+        faces: vec![pb_faces],
     })
 }
 
@@ -221,10 +208,10 @@ pub fn command(
         .map_err(|_| {
             TBError::InvalidInputData("Could not parse the DIVISIONS parameter".to_string())
         })?;
-    if !(9.9..1000.1).contains(&cmd_arg_divisions) {
+    if !(9.9..200.1).contains(&cmd_arg_divisions) {
         return Err(TBError::InvalidInputData(format!(
             "The valid range of DIVISIONS is [{}..{}[% :({})",
-            10, 1000, cmd_arg_divisions
+            10, 200, cmd_arg_divisions
         )));
     }
 
@@ -236,8 +223,8 @@ pub fn command(
             "model.world_orientation:{:?}, ",
             model.world_orientation.as_ref().map_or(0, |_| 16)
         );
-        println!("Tube radius:{:?}% multiplier ", cmd_arg_radius_multiplier);
-        println!("Divisions:{:?} ", cmd_arg_divisions);
+        println!("Tube radius:{:?} multiplier ", cmd_arg_radius_multiplier);
+        println!("Voxel divisions:{:?} ", cmd_arg_divisions);
         println!();
     }
 
@@ -249,14 +236,32 @@ pub fn command(
         edges,
         aabb,
     )?;
-    let model = build_output_bp_model(&a_command, mesh)?;
+    let packed_faces_model = build_output_bp_model(&a_command, mesh)?;
+    println!(
+        "packed_faces_model.vertices.len() {}",
+        packed_faces_model.vertices.len()
+    );
+    println!(
+        "packed_faces_model.faces.len() {}",
+        packed_faces_model.faces.len()
+    );
+    println!(
+        "packed_faces_model.faces[0].vertices.len() {}",
+        packed_faces_model.faces[0].vertices.len()
+    );
 
     let reply = PB_Reply {
-        options: vec![PB_KeyValuePair {
-            key: "ONLY_EDGES".to_string(),
-            value: "False".to_string(),
-        }],
-        models: vec![model],
+        options: vec![
+            PB_KeyValuePair {
+                key: "ONLY_EDGES".to_string(),
+                value: "False".to_string(),
+            },
+            PB_KeyValuePair {
+                key: "PACKED_FACES".to_string(),
+                value: "True".to_string(),
+            },
+        ],
+        models: vec![packed_faces_model],
     };
     Ok(reply)
 }

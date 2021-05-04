@@ -79,7 +79,7 @@ bl_info = {
     "category": "Mesh",
 }
 
-SOCKET = 'localhost:50069'
+SERVER_URL = 'localhost:50069'
 
 
 class ToxicblendException(Exception):
@@ -184,29 +184,34 @@ def build_pb_model(bpy_object, bm, pb_model):
             pb_face.vertices.append(t)
 
 
-def get_pydata(pb_model, only_edges=False):
+def get_pydata(pb_model, only_edges=False, packed_faces=False):
     """Convert the received proto buffer data into something useful"""
     rv_vertices = [(v.x, v.y, v.z) for v in pb_model.vertices]
     rv_edges = []
     rv_faces = []
-    for f in pb_model.faces:
-        vertices = []
-        for v in f.vertices:
-            if 0 <= v < len(rv_vertices):
-                vertices.append(v)
-            else:
-                print("Vertex %d is unknown -> ignored" % (v,))
-        no_vertices = len(vertices)
-        if no_vertices > 1:
-            if only_edges or no_vertices == 2:
-                if vertices[0] != vertices[1]:
-                    rv_edges.append(vertices)
+    if packed_faces:
+        for face in pb_model.faces:
+            for i in range(0, len(face.vertices), 3):
+                rv_faces.append([face.vertices[i], face.vertices[i + 1], face.vertices[i + 2]])
+    else:
+        for f in pb_model.faces:
+            vertices = []
+            for v in f.vertices:
+                if 0 <= v < len(rv_vertices):
+                    vertices.append(v)
                 else:
-                    print("FIXME: was asked to make an edge between two identical vertices: %s and %s" % (
-                        vertices[0], vertices[1]))
-            else:
-                # print("Adding face:", vertices)
-                rv_faces.append(vertices)
+                    print("Vertex %d is unknown -> ignored" % (v,))
+            no_vertices = len(vertices)
+            if no_vertices > 1:
+                if only_edges or no_vertices == 2:
+                    if vertices[0] != vertices[1]:
+                        rv_edges.append(vertices)
+                    else:
+                        print("FIXME: was asked to make an edge between two identical vertices: %s and %s" % (
+                            vertices[0], vertices[1]))
+                else:
+                    # print("Adding face:", vertices)
+                    rv_faces.append(vertices)
 
     mat = IDENTITY4x4.copy()
     if pb_model.HasField("worldOrientation"):
@@ -226,17 +231,20 @@ def handle_response(pb_message):
 
 def handle_received_object(active_object, pb_message, remove_doubles_threshold=None, set_origin_to_cursor=False):
     only_edges = False
+    packed_faces = False
     for option in pb_message.options:
         if option.key == "ERROR":
             raise ToxicblendException(str(option.value))
         if option.key == "ONLY_EDGES" and option.value == "True":
             only_edges = True
+        if option.key == "PACKED_FACES" and option.value == "True":
+            packed_faces = True
 
     # active_object.select = False
 
     if len(pb_message.models) == 1:
         pb_model = pb_message.models[0]
-        (vertices, edges, faces, matrix) = get_pydata(pb_model, only_edges)
+        (vertices, edges, faces, matrix) = get_pydata(pb_model, only_edges, packed_faces)
         if len(faces) > 0 or len(edges) > 0:
             new_mesh = bpy.data.meshes.new(pb_model.name)
             # ob = bpy.data.objects.new(pb_model.name, new_mesh)
@@ -614,12 +622,9 @@ class Toxicblend_2D_Outline(Operator):
         active_object, active_mesh = initialise()
         settings_write(self)
         try:
-            with grpc.insecure_channel(SOCKET) as channel:
+            with grpc.insecure_channel(SERVER_URL) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='2d_outline')
-                opt = command.options.add()
-                opt.key = "a key"
-                opt.value = "a value"
                 build_pb_model(active_object, active_mesh, command.models.add())
 
                 response = stub.execute(command)
@@ -684,7 +689,7 @@ class Toxicblend_Voronoi(Operator):
         active_object, active_mesh = initialise()
         settings_write(self)
         try:
-            with grpc.insecure_channel(SOCKET) as channel:
+            with grpc.insecure_channel(SERVER_URL) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='voronoi')
 
@@ -741,7 +746,7 @@ class Toxicblend_Knife_Intersect(Operator):
         active_object, active_mesh = initialise()
         settings_write(self)
         try:
-            with grpc.insecure_channel(SOCKET) as channel:
+            with grpc.insecure_channel(SERVER_URL) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='knife_intersect')
                 build_pb_model(active_object, active_mesh, command.models.add())
@@ -824,7 +829,7 @@ class Toxicblend_Centerline(Operator):
         active_object, active_mesh = initialise()
         settings_write(self)
         try:
-            with grpc.insecure_channel(SOCKET) as channel:
+            with grpc.insecure_channel(SERVER_URL) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='centerline')
                 build_pb_model(active_object, active_mesh, command.models.add())
@@ -894,7 +899,7 @@ class Toxicblend_Voronoi_Mesh(Operator):
         active_object, active_mesh = initialise()
         settings_write(self)
         try:
-            with grpc.insecure_channel(SOCKET) as channel:
+            with grpc.insecure_channel(SERVER_URL) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='voronoi_mesh')
                 build_pb_model(active_object, active_mesh, command.models.add())
@@ -963,7 +968,9 @@ class Toxicblend_Voxel(Operator):
         active_object, active_mesh = initialise()
         settings_write(self)
         try:
-            with grpc.insecure_channel(SOCKET) as channel:
+            channel_opt = [('grpc.max_send_message_length', 512 * 1024 * 1024),
+                           ('grpc.max_receive_message_length', 512 * 1024 * 1024)]
+            with grpc.insecure_channel(SERVER_URL, options=channel_opt) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='voxel')
                 build_pb_model(active_object, active_mesh, command.models.add())
@@ -1026,7 +1033,7 @@ class Toxicblend_Simplify(Operator):
         active_object, active_mesh = initialise()
         settings_write(self)
         try:
-            with grpc.insecure_channel(SOCKET) as channel:
+            with grpc.insecure_channel(SERVER_URL) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='simplify')
                 opt = command.options.add()
