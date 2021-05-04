@@ -378,37 +378,37 @@ impl DiagramHelper {
                             "***************   Edge {} was rejected, skipping edge",
                             edge_id.0
                         );
-                    } else {
-                        if edge.is_curved() && cell.contains_point() && processed_samples.len() > 3
-                        {
-                            //println!("cpoint:{} edgeid:{}, iscurved:{}, processed_samples.len() = {}", cell.contains_point(), edge_id.0, edge.is_curved(), processed_samples.len());
+                    } else if edge.is_curved()
+                        && cell.contains_point()
+                        && processed_samples.len() > 3
+                    {
+                        //println!("cpoint:{} edgeid:{}, iscurved:{}, processed_samples.len() = {}", cell.contains_point(), edge_id.0, edge.is_curved(), processed_samples.len());
 
-                            let first = *processed_samples.first().unwrap() as u64;
-                            for (v0, v1) in processed_samples
-                                .into_iter()
-                                .skip(1)
-                                .tuple_windows::<(_, _)>()
+                        let first = *processed_samples.first().unwrap() as u64;
+                        for (v0, v1) in processed_samples
+                            .into_iter()
+                            .skip(1)
+                            .tuple_windows::<(_, _)>()
+                        {
+                            pb_curved_faces.push(PB_Face {
+                                vertices: vec![first, v0 as u64, v1 as u64],
+                            });
+                        }
+                        // end the 'other' face in a controlled manner
+                        if !pb_face.vertices.contains(&first) {
+                            pb_face.vertices.push(first);
+                        }
+                        //println!("curved pb_face:{:?}",pb_face);
+                    } else {
+                        //println!("straight pb_face:{:?}",pb_face);
+                        for v in processed_samples.into_iter() {
+                            let v = v as u64;
+                            if pb_face.vertices.is_empty()
+                                || *(pb_face.vertices.last().unwrap()) != v
                             {
-                                pb_curved_faces.push(PB_Face {
-                                    vertices: vec![first, v0 as u64, v1 as u64],
-                                });
-                            }
-                            // end the 'other' face in a controlled manner
-                            if !pb_face.vertices.contains(&first) {
-                                pb_face.vertices.push(first);
-                            }
-                            //println!("curved pb_face:{:?}",pb_face);
-                        } else {
-                            //println!("straight pb_face:{:?}",pb_face);
-                            for v in processed_samples.into_iter() {
-                                let v = v as u64;
-                                if pb_face.vertices.is_empty()
-                                    || *(pb_face.vertices.last().unwrap()) != v
-                                {
-                                    pb_face.vertices.push(v);
-                                } else {
-                                    //println!("would have placed {} again", v);
-                                }
+                                pb_face.vertices.push(v);
+                            } else {
+                                //println!("would have placed {} again", v);
                             }
                         }
                     }

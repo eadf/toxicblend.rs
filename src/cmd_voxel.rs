@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use std::time;
 
 /// unpack the input PB_Model
+#[allow(clippy::type_complexity)]
 pub fn parse_input_pb_model(
     obj: &PB_Model,
 ) -> Result<
