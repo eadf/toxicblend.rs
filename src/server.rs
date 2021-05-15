@@ -14,6 +14,7 @@ mod cmd_voronoi;
 mod cmd_voronoi_mesh;
 mod cmd_voxel;
 mod voronoi_utils;
+mod cmd_dragon_curve;
 
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
@@ -147,6 +148,7 @@ impl ToxicBlendService for TheToxicBlendService {
             "voronoi_mesh" => cmd_voronoi_mesh::command(a_command, map),
             "voronoi" => cmd_voronoi::command(a_command, map),
             "voxel" => cmd_voxel::command(a_command, map),
+            "dragon_curve" => cmd_dragon_curve::command(a_command, map),
             _ => Err(TBError::UnknownCommand(a_command.command.clone())),
         };
         // convert TBError to a valid Error message

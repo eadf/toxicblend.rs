@@ -29,6 +29,7 @@ smallvec = "^1.6.1"
 cgmath = "^0.18.0"
 itertools = "^0.10.0"
 building-blocks = { version="^0.6.0", default-features = false, features = ["mesh", "sdfu"]}
+dcc-lsystem = { path="../dcc-lsystem/dcc-lsystem", default-features=false, features=["data_renderer"]}
 
 [[bin]]
 name = "toxicblend_server"

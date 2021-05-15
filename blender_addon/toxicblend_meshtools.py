@@ -73,9 +73,9 @@ bl_info = {
     "version": (0, 0, 1),
     "blender": (2, 92, 0),
     "location": "View3D > Sidebar > Edit Tab / Edit Mode Context Menu",
-    "warning": "",
+    "warning": "Communicates with a gRPC server on localhost",
     "description": "Tools for handling lines and linestrings in edit mesh mode",
-    "doc_url": "{BLENDER_MANUAL_URL}/addons/mesh/toxicblend_meshtools.html",
+    #"doc_url": "{BLENDER_MANUAL_URL}/addons/mesh/toxicblend_meshtools.html",
     "category": "Mesh",
 }
 
@@ -948,7 +948,7 @@ class Toxicblend_Voxel(Operator):
         description="The larges scale of the AABB will be divided up into this number of voxels",
         default=100.0,
         min=50,
-        max=200,
+        max=300,
         precision=1,
         subtype='FACTOR'
     )
@@ -1212,7 +1212,7 @@ class TB_MeshToolsProps(PropertyGroup):
         description="The larges scale of the AABB will be divided up into this number of voxels",
         default=100.0,
         min=50,
-        max=200,
+        max=300,
         precision=1,
         subtype='FACTOR'
     )
