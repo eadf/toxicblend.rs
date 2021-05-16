@@ -47,14 +47,14 @@ from bpy_extras.object_utils import AddObjectHelper
 # See install_as_blender_addon.md details
 
 bl_info = {
-    'name': "Toxicblend - Add Dragon curve",
+    'name': "Toxicblend - Add Lindenmayer systems",
     "author": "EADF",
     "version": (0, 0, 1),
     "blender": (2, 92, 0),
     # "location": "View3D > Sidebar > Edit Tab / Edit Mode Context Menu",
     "warning": "Communicates with a gRPC server on localhost",
-    'description': 'Generates a parametric Lindenmayer systems curve.',
-    # "doc_url": "{BLENDER_MANUAL_URL}/addons/mesh/toxicblend_dragon_curve.html",
+    'description': 'Generates a parametric Lindenmayer systems graph.',
+    # "doc_url": "{BLENDER_MANUAL_URL}/addons/mesh/toxicblend_lsystems.html",
     "category": "Mesh",
 }
 SERVER_URL = 'localhost:50069'
@@ -138,8 +138,8 @@ def get_pydata(pb_model, only_edges=False, packed_faces=False):
         mat[2][0], mat[2][1], mat[2][2], mat[2][3] = pbm.m20, pbm.m21, pbm.m22, pbm.m23
         mat[3][0], mat[3][1], mat[3][2], mat[3][3] = pbm.m30, pbm.m31, pbm.m32, pbm.m33
 
-    print("rv_vertices:", rv_vertices)
-    print("rv_edges:", rv_edges)
+    #print("rv_vertices:", rv_vertices)
+    #print("rv_edges:", rv_edges)
 
     return rv_vertices, rv_edges, rv_faces, mat
 
@@ -188,32 +188,47 @@ def handle_received_object(dest_mesh, pb_message, remove_doubles_threshold=None,
 
 
 class TbAddLindenmayerSystems(bpy.types.Operator):
-    """Adds a Lindenmayer systems edges. from toxiclibs server"""
+    """Adds Lindenmayer systems edges/curves from local toxicblend server"""
     bl_idname = "mesh.toxicblend_add_lindenmayer_systems"
     bl_label = "Toxicblend:Add Lindenmayer systems"
     bl_options = {'REGISTER', 'UNDO'}  # enable undo for the operator.
 
     iterations = bpy.props.IntProperty(name="Iterations", default=4, min=1, max=15)
+
     location = bpy.props.FloatVectorProperty(
         name="Location",
         subtype='TRANSLATION',
     )
+
     rotation = bpy.props.FloatVectorProperty(
         name="Rotation",
         subtype='EULER',
     )
+
     # generic transform props
     align_items = (
         ('WORLD', "World", "Align the new object to the world"),
         ('VIEW', "View", "Align the new object to the view"),
         ('CURSOR', "3D Cursor", "Use the 3D cursor orientation for the new object")
     )
-    align: bpy.props.EnumProperty(
+
+    align = bpy.props.EnumProperty(
         name="Align",
         items=align_items,
         default='WORLD',
         update=AddObjectHelper.align_update_callback,
     )
+
+    cmd_variant_items = (("CANTOR_SETS", "cantor sets", "draw cantor sets"),
+                         ("DRAGON_CURVE", "dragon curve", "draw dragon curve"),
+                         ("FRACTAL_BINARY_TREE", "fractal binary tree", "draw fractal binary tree"),
+                         ("FRACTAL_PLANT", "fractal plant", "draw fractal plant"),
+                         ("KOCH_CURVE", "koch curve", "draw koch curve"),
+                         ("RANDOM_FRACTAL_GENERATOR", "random fractal generator", "draw random fractal generator"),
+                         ("SIERPINSKI_ARROWHEAD","sierpinski arrowhead", "draw sierpinski arrowhead"),
+                         ("SIERPINSKI_TRIANGLE","sierpinski triangle", "draw sierpinski triangle")
+                        )
+    cmd_variant = bpy.props.EnumProperty(name="Variant", items=cmd_variant_items, default="DRAGON_CURVE")
 
     def invoke(self, context, event):
         # load custom settings
@@ -227,7 +242,7 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
         try:
             with grpc.insecure_channel(SERVER_URL) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
-                command = toxicblend_pb2.Command(command='dragon_curve')
+                command = toxicblend_pb2.Command(command='lsystems')
                 opt = command.options.add()
                 opt.key = "ITERATIONS"
                 opt.value = str(self.iterations)
@@ -240,12 +255,15 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
                 opt = command.options.add()
                 opt.key = "CURSOR_POS_Z"
                 opt.value = str(cursor_location.z)
+                opt = command.options.add()
+                opt.key = "CMD_VARIANT"
+                opt.value = str(self.cmd_variant)
 
                 response = stub.execute(command)
                 handle_response(response)
 
                 if len(response.models) > 0:
-                    mesh = bpy.data.meshes.new("dragon_curve")
+                    mesh = bpy.data.meshes.new("lsystems")
                     #bm = bmesh.new()
                     #bm.verts.ensure_lookup_table()
 
@@ -272,7 +290,7 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
 
 
 def menu_func(self, context):
-    self.layout.operator(TbAddLindenmayerSystems.bl_idname, icon='MESH_CUBE')
+    self.layout.operator(TbAddLindenmayerSystems.bl_idname, icon='MESH_DATA')
 
 
 def register():

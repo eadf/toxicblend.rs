@@ -948,7 +948,7 @@ class Toxicblend_Voxel(Operator):
         description="The larges scale of the AABB will be divided up into this number of voxels",
         default=100.0,
         min=50,
-        max=300,
+        max=400,
         precision=1,
         subtype='FACTOR'
     )
@@ -1212,7 +1212,7 @@ class TB_MeshToolsProps(PropertyGroup):
         description="The larges scale of the AABB will be divided up into this number of voxels",
         default=100.0,
         min=50,
-        max=300,
+        max=400,
         precision=1,
         subtype='FACTOR'
     )

@@ -101,6 +101,7 @@ Generates a Lindenmayer systems graph/curve using [dcc-lsystem](https://github.c
 This operation is located under `Object` -> `Add` -> `Mesh` -> `LSystem`
 
 ![metavolume](img/lsystems.png)
+![metavolume](img/plant.png)
 
 ### operation: Knife intersect
 

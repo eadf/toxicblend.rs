@@ -88,7 +88,7 @@ class ToxicBlend_MetaVolume(bpy.types.Operator):
 
 
 def menu_func(self, context):
-    self.layout.operator(ToxicBlend_MetaVolume.bl_idname)
+    self.layout.operator(ToxicBlend_MetaVolume.bl_idname, icon='META_BALL')
 
 
 def register():
