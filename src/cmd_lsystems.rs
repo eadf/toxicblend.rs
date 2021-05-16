@@ -5,13 +5,14 @@ use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
-use std::collections::HashMap;
-use std::time;
-
 use dcc_lsystem::renderer::DataRendererOptions;
 use dcc_lsystem::renderer::Renderer;
 use dcc_lsystem::turtle::{TurtleAction, TurtleLSystemBuilder};
 use dcc_lsystem::LSystemBuilder;
+use rand::seq::SliceRandom;
+use rand::{thread_rng, Rng};
+use std::collections::HashMap;
+use std::time;
 
 /// Code directly copy & pasted from dcc-lsystem examples
 fn build_dragon_curve(cmd_arg_iterations: usize) -> Result<Vec<(i32, i32, i32, i32)>, TBError> {
@@ -104,6 +105,126 @@ fn koch_curve(cmd_arg_iterations: usize) -> Result<Vec<(i32, i32, i32, i32)>, TB
     let options = DataRendererOptions::default();
     let rv = renderer.render(&system, &options);
     println!("koch_curve render() duration: {:?}", now.elapsed());
+
+    Ok(rv)
+}
+
+fn valid_rule(rule: &[&str]) -> bool {
+    if rule.is_empty() {
+        return false;
+    }
+
+    let r = rule.join("");
+
+    if r.contains("+-") || !r.contains('+') {
+        return false;
+    }
+
+    let mut level = 0;
+
+    for c in rule {
+        if c == &"+" {
+            level += 1;
+        } else if c == &"-" {
+            if level == 0 {
+                return false;
+            }
+            level -= 1;
+        }
+    }
+
+    level == 0
+}
+
+/// Code directly copy & pasted from dcc-lsystem examples
+fn random_fractal_generator(
+    cmd_arg_iterations: usize,
+) -> Result<Vec<(i32, i32, i32, i32)>, TBError> {
+    // generate random axiom out of L, R, F, X, Y
+    // and random rules for X, Y
+    let mut rng = thread_rng();
+
+    // generate a random axiom
+    let axiom_length = rng.gen_range(0..=2);
+    let mut axiom = vec!["X"];
+    let choices = ["L", "R", "F", "X", "Y"];
+    let weighted_choices = [
+        ("F", rng.gen_range(1..=8)),
+        ("X", rng.gen_range(2..=4)),
+        ("Y", rng.gen_range(2..=4)),
+        ("L", rng.gen_range(2..=6)),
+        ("R", rng.gen_range(2..=6)),
+        ("+", rng.gen_range(4..=8)),
+        ("-", rng.gen_range(4..=8)),
+    ];
+
+    for _ in 0..axiom_length {
+        axiom.push(<&str>::clone(choices.choose(&mut rng).unwrap()));
+    }
+
+    // generate a random X rule
+    let mut x_rule = Vec::new();
+
+    while !valid_rule(&x_rule) {
+        x_rule.clear();
+
+        let x_rule_length = rng.gen_range(4..=10);
+
+        for _ in 0..x_rule_length {
+            x_rule.push(<&str>::clone(
+                &weighted_choices
+                    .choose_weighted(&mut rng, |item| item.1)
+                    .unwrap()
+                    .0,
+            ));
+        }
+    }
+
+    let mut y_rule = Vec::new();
+
+    while !valid_rule(&y_rule) {
+        y_rule.clear();
+        // generate a random Y rule
+        let y_rule_length = rng.gen_range(4..=10);
+
+        for _ in 0..y_rule_length {
+            y_rule.push(
+                weighted_choices
+                    .choose_weighted(&mut rng, |item| item.1)
+                    .unwrap()
+                    .0
+                    .clone(),
+            );
+        }
+    }
+
+    let mut builder = TurtleLSystemBuilder::new();
+
+    // Build our system up
+    let _ = builder
+        .token("L", TurtleAction::Rotate(25))
+        .token("R", TurtleAction::Rotate(-25))
+        .token("F", TurtleAction::Forward(100))
+        .token("+", TurtleAction::Push)
+        .token("-", TurtleAction::Pop)
+        .token("X", TurtleAction::Nothing)
+        .token("Y", TurtleAction::Nothing)
+        .axiom(&axiom.join(" "))
+        .rule(format!("X => {}", x_rule.join(" ")).as_str())
+        .rule(format!("Y => {}", y_rule.join(" ")).as_str());
+
+    // Consume the builder to construct an LSystem and the associated renderer
+    let (mut system, renderer) = builder.finish();
+    system.step_by(cmd_arg_iterations);
+
+    let now = time::Instant::now();
+    let options = DataRendererOptions::default();
+    let rv = renderer.render(&system, &options);
+
+    println!(
+        "random_fractal_generator render() duration: {:?}",
+        now.elapsed()
+    );
 
     Ok(rv)
 }
@@ -258,23 +379,25 @@ fn build_output_bp_model(
             vertices: vec![i0 as u64, i1 as u64],
         });
     }
-
-    let to_center = cgmath::Vector2 {
-        x: -(src_aabb.get_high().unwrap().x + src_aabb.get_low().unwrap().x) / 2.0,
-        y: -(src_aabb.get_high().unwrap().y + src_aabb.get_low().unwrap().y) / 2.0,
-    };
-    let scale = if (src_aabb.get_high().unwrap().x - src_aabb.get_low().unwrap().x)
-        > (src_aabb.get_high().unwrap().y - src_aabb.get_low().unwrap().y)
-    {
-        3.0 / (src_aabb.get_high().unwrap().x - src_aabb.get_low().unwrap().x)
-    } else {
-        3.0 / (src_aabb.get_high().unwrap().y - src_aabb.get_low().unwrap().y)
-    };
-    //println!("Aabb:{:?} to center: {:?}, scale: {:?}", src_aabb, to_center, scale);
-    // center and scale the result so that no axis is larger than 3 'units'
-    for v in pb_vertices.iter_mut() {
-        v.x = (v.x + to_center.x) * scale;
-        v.y = (v.y + to_center.y) * scale;
+    if !pb_vertices.is_empty() {
+        let to_center = cgmath::Vector2 {
+            x: -(src_aabb.get_high().unwrap().x + src_aabb.get_low().unwrap().x) / 2.0,
+            y: -(src_aabb.get_high().unwrap().y + src_aabb.get_low().unwrap().y) / 2.0,
+        };
+        let scale = if (src_aabb.get_high().unwrap().x - src_aabb.get_low().unwrap().x)
+            > (src_aabb.get_high().unwrap().y - src_aabb.get_low().unwrap().y)
+        {
+            3.0 / (src_aabb.get_high().unwrap().x - src_aabb.get_low().unwrap().x)
+        } else {
+            3.0 / (src_aabb.get_high().unwrap().y - src_aabb.get_low().unwrap().y)
+        };
+        let scale = if scale.is_finite() { scale } else { 1.0 };
+        //println!("Aabb:{:?} to center: {:?}, scale: {:?}", src_aabb, to_center, scale);
+        // center and scale the result so that no axis is larger than 3 'units'
+        for v in pb_vertices.iter_mut() {
+            v.x = (v.x + to_center.x) * scale;
+            v.y = (v.y + to_center.y) * scale;
+        }
     }
 
     Ok(PB_Model {
@@ -331,6 +454,7 @@ pub fn command(
         "SIERPINSKI_TRIANGLE" => sierpinski_triangle(cmd_arg_iterations),
         "SIERPINSKI_ARROWHEAD" => sierpinski_arrowhead(cmd_arg_iterations),
         "KOCH_CURVE" => koch_curve(cmd_arg_iterations),
+        "RANDOM_FRACTAL_GENERATOR" => random_fractal_generator(cmd_arg_iterations),
         _ => Err(TBError::InvalidInputData(format!(
             "Invalid CMD_VARIANT parameter:{}",
             cmd_arg_variant
@@ -340,10 +464,6 @@ pub fn command(
     let pb_model = build_output_bp_model(&a_command, mesh)?;
     println!("pb_model.vertices.len() {}", pb_model.vertices.len());
     println!("pb_model.faces.len() {}", pb_model.faces.len());
-    println!(
-        "pb_model.faces[0].vertices.len() {}",
-        pb_model.faces[0].vertices.len()
-    );
 
     let reply = PB_Reply {
         options: vec![PB_KeyValuePair {
