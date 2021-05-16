@@ -219,14 +219,20 @@ fn build_output_bp_model(
     // Default capacity is probably a little bit too low
     let mut pb_vertices = Vec::<PB_Vertex>::with_capacity(lines.len());
     let mut pb_faces = Vec::<PB_Face>::with_capacity(lines.len());
+    let mut src_aabb = linestring::cgmath_2d::Aabb2::default();
 
     for (x0, y0, x1, y1) in lines.into_iter() {
         let key = (x0, y0);
         let i0 = *vertices_map.entry(key).or_insert_with(|| {
             let n = pb_vertices.len();
-            pb_vertices.push(PB_Vertex {
+            let point = cgmath::Point2 {
                 x: x0 as f64,
                 y: y0 as f64,
+            };
+            src_aabb.update_point(&point);
+            pb_vertices.push(PB_Vertex {
+                x: point.x,
+                y: point.y,
                 z: 0.0,
             });
             n
@@ -235,9 +241,14 @@ fn build_output_bp_model(
         let key = (x1, y1);
         let i1 = *vertices_map.entry(key).or_insert_with(|| {
             let n = pb_vertices.len();
-            pb_vertices.push(PB_Vertex {
+            let point = cgmath::Point2 {
                 x: x1 as f64,
                 y: y1 as f64,
+            };
+            src_aabb.update_point(&point);
+            pb_vertices.push(PB_Vertex {
+                x: point.x,
+                y: point.y,
                 z: 0.0,
             });
             n
@@ -246,6 +257,24 @@ fn build_output_bp_model(
         pb_faces.push(PB_Face {
             vertices: vec![i0 as u64, i1 as u64],
         });
+    }
+
+    let to_center = cgmath::Vector2 {
+        x: -(src_aabb.get_high().unwrap().x + src_aabb.get_low().unwrap().x) / 2.0,
+        y: -(src_aabb.get_high().unwrap().y + src_aabb.get_low().unwrap().y) / 2.0,
+    };
+    let scale = if (src_aabb.get_high().unwrap().x - src_aabb.get_low().unwrap().x)
+        > (src_aabb.get_high().unwrap().y - src_aabb.get_low().unwrap().y)
+    {
+        3.0 / (src_aabb.get_high().unwrap().x - src_aabb.get_low().unwrap().x)
+    } else {
+        3.0 / (src_aabb.get_high().unwrap().y - src_aabb.get_low().unwrap().y)
+    };
+    //println!("Aabb:{:?} to center: {:?}, scale: {:?}", src_aabb, to_center, scale);
+    // center and scale the result so that no axis is larger than 3 'units'
+    for v in pb_vertices.iter_mut() {
+        v.x = (v.x + to_center.x) * scale;
+        v.y = (v.y + to_center.y) * scale;
     }
 
     Ok(PB_Model {
@@ -308,18 +337,12 @@ pub fn command(
         ))),
     }?;
 
-    let packed_faces_model = build_output_bp_model(&a_command, mesh)?;
+    let pb_model = build_output_bp_model(&a_command, mesh)?;
+    println!("pb_model.vertices.len() {}", pb_model.vertices.len());
+    println!("pb_model.faces.len() {}", pb_model.faces.len());
     println!(
-        "packed_faces_model.vertices.len() {}",
-        packed_faces_model.vertices.len()
-    );
-    println!(
-        "packed_faces_model.faces.len() {}",
-        packed_faces_model.faces.len()
-    );
-    println!(
-        "packed_faces_model.faces[0].vertices.len() {}",
-        packed_faces_model.faces[0].vertices.len()
+        "pb_model.faces[0].vertices.len() {}",
+        pb_model.faces[0].vertices.len()
     );
 
     let reply = PB_Reply {
@@ -327,7 +350,7 @@ pub fn command(
             key: "ONLY_EDGES".to_string(),
             value: "True".to_string(),
         }],
-        models: vec![packed_faces_model],
+        models: vec![pb_model],
     };
     Ok(reply)
 }

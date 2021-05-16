@@ -102,6 +102,7 @@ This operation is located under `Object` -> `Add` -> `Mesh` -> `LSystem`
 
 ![metavolume](img/lsystems.png)
 ![metavolume](img/plant.png)
+![metavolume](img/arrowhead.png)
 
 ### operation: Knife intersect
 
