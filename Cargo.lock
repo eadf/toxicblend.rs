@@ -268,7 +268,9 @@ dependencies = [
 
 [[package]]
 name = "dcc-lsystem"
-version = "0.6.2"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d216e04e41ddfd75b4b4fdd6118ab536e0f0f6eb9fbce246293e433a5919117"
 dependencies = [
  "dcc-lsystem-derive",
  "dyn-clone",

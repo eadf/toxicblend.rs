@@ -30,8 +30,7 @@ cgmath = "^0.18.0"
 itertools = "^0.10.0"
 rand = "0.8"
 building-blocks = { version="^0.6.0", default-features = false, features = ["mesh", "sdfu"]}
-# This requires https://github.com/eadf/dcc-lsystem, branch: data-renderer, to be downloaded to ../dcc-lsystem
-dcc-lsystem = { path="../dcc-lsystem/dcc-lsystem", default-features=false}
+dcc-lsystem = { version="^0.6.3", default-features=false}
 
 [[bin]]
 name = "toxicblend_server"
