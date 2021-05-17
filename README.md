@@ -111,7 +111,7 @@ If an intersection is found, the intersecting edges will be split at that point.
 
 ### operation: Select end vertices
 
-Selects all vertexes that only connects to one other vertex. Useful for identifying dangling vertices.
+Selects all vertices that only connects to one other vertex. Useful for identifying dangling vertices.
 
 ### operation: Select collinear edges
 
@@ -121,7 +121,7 @@ is smaller than the angle limit. `B` will then be used to select more edges and 
 
 ### operation: Select intersection vertices
 
-Selects all vertexes that connects to three or more other vertices. Useful for selecting intersections.
+Selects all vertices that connects to three or more other vertices. Useful for selecting intersections.
 
 ### operation: Debug object
 
