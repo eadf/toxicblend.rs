@@ -140,90 +140,100 @@ fn valid_rule(rule: &[&str]) -> bool {
 fn random_fractal_generator(
     cmd_arg_iterations: usize,
 ) -> Result<Vec<(i32, i32, i32, i32)>, TBError> {
-    // generate random axiom out of L, R, F, X, Y
-    // and random rules for X, Y
-    let mut rng = thread_rng();
-
-    // generate a random axiom
-    let axiom_length = rng.gen_range(0..=2);
-    let mut axiom = vec!["X"];
-    let choices = ["L", "R", "F", "X", "Y"];
-    let weighted_choices = [
-        ("F", rng.gen_range(1..=8)),
-        ("X", rng.gen_range(2..=4)),
-        ("Y", rng.gen_range(2..=4)),
-        ("L", rng.gen_range(2..=6)),
-        ("R", rng.gen_range(2..=6)),
-        ("+", rng.gen_range(4..=8)),
-        ("-", rng.gen_range(4..=8)),
-    ];
-
-    for _ in 0..axiom_length {
-        axiom.push(<&str>::clone(choices.choose(&mut rng).unwrap()));
-    }
-
-    // generate a random X rule
-    let mut x_rule = Vec::new();
-
-    while !valid_rule(&x_rule) {
-        x_rule.clear();
-
-        let x_rule_length = rng.gen_range(4..=10);
-
-        for _ in 0..x_rule_length {
-            x_rule.push(<&str>::clone(
-                &weighted_choices
-                    .choose_weighted(&mut rng, |item| item.1)
-                    .unwrap()
-                    .0,
-            ));
-        }
-    }
-
-    let mut y_rule = Vec::new();
-
-    while !valid_rule(&y_rule) {
-        y_rule.clear();
-        // generate a random Y rule
-        let y_rule_length = rng.gen_range(4..=10);
-
-        for _ in 0..y_rule_length {
-            y_rule.push(
-                weighted_choices
-                    .choose_weighted(&mut rng, |item| item.1)
-                    .unwrap()
-                    .0
-                    .clone(),
-            );
-        }
-    }
-
-    let mut builder = TurtleLSystemBuilder::new();
-
-    // Build our system up
-    let _ = builder
-        .token("L", TurtleAction::Rotate(25))
-        .token("R", TurtleAction::Rotate(-25))
-        .token("F", TurtleAction::Forward(100))
-        .token("+", TurtleAction::Push)
-        .token("-", TurtleAction::Pop)
-        .token("X", TurtleAction::Nothing)
-        .token("Y", TurtleAction::Nothing)
-        .axiom(&axiom.join(" "))
-        .rule(format!("X => {}", x_rule.join(" ")).as_str())
-        .rule(format!("Y => {}", y_rule.join(" ")).as_str());
-
-    // Consume the builder to construct an LSystem and the associated renderer
-    let (mut system, renderer) = builder.finish();
-    system.step_by(cmd_arg_iterations);
-
+    let mut rv = Vec::<(i32, i32, i32, i32)>::new();
     let now = time::Instant::now();
-    let options = DataRendererOptions::default();
-    let rv = renderer.render(&system, &options);
 
+    'processing: loop {
+        // generate random axiom out of L, R, F, X, Y
+        // and random rules for X, Y
+        let mut rng = thread_rng();
+
+        // generate a random axiom
+        let axiom_length = rng.gen_range(0..=2);
+        let mut axiom = vec!["X"];
+        let choices = ["L", "R", "F", "X", "Y"];
+        let weighted_choices = [
+            ("F", rng.gen_range(1..=8)),
+            ("X", rng.gen_range(2..=4)),
+            ("Y", rng.gen_range(2..=4)),
+            ("L", rng.gen_range(2..=6)),
+            ("R", rng.gen_range(2..=6)),
+            ("+", rng.gen_range(4..=8)),
+            ("-", rng.gen_range(4..=8)),
+        ];
+
+        for _ in 0..axiom_length {
+            axiom.push(<&str>::clone(choices.choose(&mut rng).unwrap()));
+        }
+
+        // generate a random X rule
+        let mut x_rule = Vec::new();
+
+        while !valid_rule(&x_rule) {
+            x_rule.clear();
+
+            let x_rule_length = rng.gen_range(4..=10);
+
+            for _ in 0..x_rule_length {
+                x_rule.push(<&str>::clone(
+                    &weighted_choices
+                        .choose_weighted(&mut rng, |item| item.1)
+                        .unwrap()
+                        .0,
+                ));
+            }
+        }
+
+        let mut y_rule = Vec::new();
+
+        while !valid_rule(&y_rule) {
+            y_rule.clear();
+            // generate a random Y rule
+            let y_rule_length = rng.gen_range(4..=10);
+
+            for _ in 0..y_rule_length {
+                y_rule.push(<&str>::clone(
+                    &weighted_choices
+                        .choose_weighted(&mut rng, |item| item.1)
+                        .unwrap()
+                        .0,
+                ));
+            }
+        }
+
+        let mut builder = TurtleLSystemBuilder::new();
+
+        // Build our system up
+        let _ = builder
+            .token("L", TurtleAction::Rotate(25))
+            .token("R", TurtleAction::Rotate(-25))
+            .token("F", TurtleAction::Forward(100))
+            .token("+", TurtleAction::Push)
+            .token("-", TurtleAction::Pop)
+            .token("X", TurtleAction::Nothing)
+            .token("Y", TurtleAction::Nothing)
+            .axiom(&axiom.join(" "))
+            .rule(format!("X => {}", x_rule.join(" ")).as_str())
+            .rule(format!("Y => {}", y_rule.join(" ")).as_str());
+
+        // Consume the builder to construct an LSystem and the associated renderer
+        let (mut system, renderer) = builder.finish();
+        system.step_by(cmd_arg_iterations);
+
+        let options = DataRendererOptions::default();
+        rv.append(&mut renderer.render(&system, &options));
+
+        // totally arbitrary value
+        if rv.len() < 500 * cmd_arg_iterations {
+            continue 'processing;
+        }
+
+        break;
+    }
     println!(
-        "random_fractal_generator render() duration: {:?}",
-        now.elapsed()
+        "random_fractal_generator render() duration: {:?} lines:{}",
+        now.elapsed(),
+        rv.len()
     );
 
     Ok(rv)
@@ -413,7 +423,7 @@ pub fn command(
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
     println!("L Systems got command: \"{}\"", a_command.command);
-    if a_command.models.len() > 0 {
+    if !a_command.models.is_empty() {
         return Err(TBError::InvalidInputData(format!(
             "This operation does not use any models as input:{}",
             a_command.models.len()
