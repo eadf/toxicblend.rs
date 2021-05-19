@@ -9,6 +9,7 @@ use dcc_lsystem::renderer::DataRendererOptions;
 use dcc_lsystem::renderer::Renderer;
 use dcc_lsystem::turtle::{TurtleAction, TurtleLSystemBuilder};
 use dcc_lsystem::LSystemBuilder;
+use logos::Logos;
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 use std::collections::HashMap;
@@ -313,6 +314,255 @@ fn fractal_binary_tree(cmd_arg_iterations: usize) -> Result<Vec<(i32, i32, i32, 
     Ok(rv)
 }
 
+/// Super messy implementation of a custom turtle builder text parser
+fn custom_turtle(
+    cmd_arg_iterations: usize,
+    cmd_custom_turtle: Option<&String>,
+) -> Result<Vec<(i32, i32, i32, i32)>, TBError> {
+    #[derive(Debug, PartialEq, Eq)]
+    enum ParseTurtleAction {
+        Forward,
+        Rotate,
+        // These 'states' does not carry any value, so they can be executed directly
+        //Push,
+        //Pop,
+        //Nothing,
+    }
+
+    #[allow(clippy::upper_case_acronyms)]
+    #[derive(Logos, Debug, PartialEq)]
+    enum ParseToken {
+        #[regex("\\.token")]
+        Token,
+
+        #[regex("\\.axiom")]
+        Axiom,
+
+        #[regex("\\.rule")]
+        Rule,
+
+        #[regex("\\.rotate")]
+        Rotate,
+
+        #[token("TurtleAction::Forward")]
+        TurtleActionForward,
+
+        #[token("TurtleAction::Rotate")]
+        TurtleActionRotate,
+
+        #[token("TurtleAction::Nothing")]
+        TurtleActionNothing,
+
+        #[token("TurtleAction::Pop")]
+        TurtleActionPop,
+
+        #[token("TurtleAction::Push")]
+        TurtleActionPush,
+
+        #[token("\n")]
+        EOL,
+
+        #[token(";")]
+        EOL2,
+
+        #[regex("-?[0-9]+(.[0-9]+)?")]
+        Integer,
+
+        #[regex("\"[=>a-zA-Z 0-9\\+\\-\\+\\]\\[]+\"")]
+        QuotedText,
+
+        #[regex(r"[ \t\f(),\?]+", logos::skip)]
+        Skip,
+
+        #[error]
+        Error,
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    enum InternalState {
+        Nothing,
+        Token(Option<String>, Option<ParseTurtleAction>),
+        Axiom,
+        Rule,
+        Rotate,
+    }
+
+    if cmd_custom_turtle.is_none() {
+        return Err(TBError::InvalidInputData(
+            "Custom turtle text is empty".to_string(),
+        ));
+    }
+    let cmd_custom_turtle = cmd_custom_turtle.unwrap();
+
+    let mut builder = TurtleLSystemBuilder::new();
+    println!("custom_turtle : {:?}", cmd_custom_turtle);
+
+    let mut lex = ParseToken::lexer(cmd_custom_turtle);
+    let mut state = InternalState::Nothing;
+    while let Some(token) = lex.next() {
+        match token {
+            ParseToken::Token => {
+                if state != InternalState::Nothing {
+                    return Err(TBError::ParseError(
+                        "Expected to be in Nothing state".to_string(),
+                    ));
+                }
+                state = InternalState::Token(None, None);
+            }
+            ParseToken::Axiom => {
+                if state != InternalState::Nothing {
+                    return Err(TBError::ParseError(
+                        "Expected to be in Nothing state".to_string(),
+                    ));
+                }
+                state = InternalState::Axiom;
+            }
+            ParseToken::Rule => {
+                if state != InternalState::Nothing {
+                    return Err(TBError::ParseError(
+                        "Expected to be in Nothing state".to_string(),
+                    ));
+                }
+                state = InternalState::Rule;
+            }
+            ParseToken::Rotate => {
+                if state != InternalState::Nothing {
+                    return Err(TBError::ParseError(
+                        "Expected to be in Nothing state".to_string(),
+                    ));
+                }
+                state = InternalState::Rotate;
+            }
+            ParseToken::QuotedText => {
+                let text = &lex.slice()[1..lex.slice().len() - 1];
+                match state {
+                    InternalState::Axiom => {
+                        println!("Got .axiom(\"{}\")", text);
+                        let _ = builder.axiom(text);
+                        state = InternalState::Nothing;
+                    }
+                    InternalState::Token(None, None) => {
+                        state = InternalState::Token(Some(text.to_string()), None);
+                    }
+                    InternalState::Rule => {
+                        println!("Got .rule(\"{}\")", text);
+                        let _ = builder.rule(text);
+                        state = InternalState::Nothing;
+                    }
+                    _ => {
+                        return Err(TBError::ParseError(
+                            "unknown state for QuotedText".to_string(),
+                        ));
+                    }
+                }
+            }
+            ParseToken::TurtleActionForward => match state {
+                InternalState::Token(Some(text), None) => {
+                    state = InternalState::Token(Some(text), Some(ParseTurtleAction::Forward));
+                }
+                _ => {
+                    return Err(TBError::ParseError(
+                        "unknown state for ParseToken::TurtleActionForward".to_string(),
+                    ));
+                }
+            },
+            ParseToken::TurtleActionRotate => match state {
+                InternalState::Token(Some(text), None) => {
+                    state = InternalState::Token(Some(text), Some(ParseTurtleAction::Rotate));
+                }
+                _ => {
+                    return Err(TBError::ParseError(
+                        "unknown state for ParseToken::TurtleActionRotate".to_string(),
+                    ));
+                }
+            },
+            ParseToken::TurtleActionNothing => match state {
+                InternalState::Token(Some(text), None) => {
+                    println!("Got .token(\"{}\", TurtleAction::Nothing)", text);
+                    let _ = builder.token(text, TurtleAction::Nothing);
+                    state = InternalState::Nothing;
+                }
+                _ => {
+                    return Err(TBError::ParseError(
+                        "unknown state for ParseToken::TurtleActionNothing".to_string(),
+                    ));
+                }
+            },
+            ParseToken::TurtleActionPop => match state {
+                InternalState::Token(Some(text), None) => {
+                    println!("Got .token(\"{}\", TurtleAction::Pop)", text);
+                    let _ = builder.token(text, TurtleAction::Pop);
+                    state = InternalState::Nothing;
+                }
+                _ => {
+                    return Err(TBError::ParseError(
+                        "unknown state for ParseToken::TurtleActionPop".to_string(),
+                    ));
+                }
+            },
+            ParseToken::TurtleActionPush => match state {
+                InternalState::Token(Some(text), None) => {
+                    println!("Got .token(\"{}\", TurtleAction::Push)", text);
+                    let _ = builder.token(text, TurtleAction::Push);
+                    state = InternalState::Nothing;
+                }
+                _ => {
+                    return Err(TBError::ParseError(
+                        "unknown state for ParseToken::TurtleActionPush".to_string(),
+                    ));
+                }
+            },
+            ParseToken::EOL | ParseToken::EOL2 => {
+                state = InternalState::Nothing;
+            }
+            ParseToken::Integer => match state {
+                InternalState::Token(Some(text), Some(turtle)) => {
+                    println!(
+                        "Got .token(\"{}\", TurtleAction::{:?}({}))",
+                        text,
+                        turtle,
+                        lex.slice()
+                    );
+                    let value = lex.slice().parse::<i32>()?;
+                    let _ = builder.token(text, match turtle {
+                        ParseTurtleAction::Rotate => TurtleAction::Rotate(value),
+                        ParseTurtleAction::Forward => TurtleAction::Forward(value),
+                    });
+                    state = InternalState::Nothing;
+                }
+                InternalState::Rotate => {
+                    println!("Got .rotate({})", lex.slice());
+                    let _ = builder.rotate(lex.slice().parse::<i32>()?);
+                    state = InternalState::Nothing;
+                }
+                _ => {
+                    return Err(TBError::ParseError(
+                        "unknown state for ParseToken::Integer".to_string(),
+                    ));
+                }
+            },
+            _ => {
+                return Err(TBError::ParseError(format!("unknown token: {:?}", token)));
+            }
+        }
+        if token != ParseToken::EOL && token != ParseToken::EOL2 {
+            //println!("{:?} : \"{}\" {:?}", token, lex.slice(), lex.span());
+        } else {
+            state = InternalState::Nothing;
+        }
+    }
+
+    let (mut system, renderer) = builder.finish();
+    system.step_by(cmd_arg_iterations);
+
+    let now = time::Instant::now();
+    let options = DataRendererOptions::default();
+    let rv = renderer.render(&system, &options);
+    println!("custom_turtle render() duration: {:?}", now.elapsed());
+
+    Ok(rv)
+}
+
 /// Code directly copy & pasted from dcc-lsystem examples
 fn fractal_plant(cmd_arg_iterations: usize) -> Result<Vec<(i32, i32, i32, i32)>, TBError> {
     let mut builder = TurtleLSystemBuilder::new();
@@ -447,6 +697,8 @@ pub fn command(
         TBError::InvalidInputData("Missing the CMD_VARIANT parameter".to_string())
     })?;
 
+    let cmd_custom_turtle = options.get("CUSTOM_TURTLE");
+
     println!(
         "Lindenmayer systems: cmd_arg_iterations:{:?} ",
         cmd_arg_iterations
@@ -465,6 +717,7 @@ pub fn command(
         "SIERPINSKI_ARROWHEAD" => sierpinski_arrowhead(cmd_arg_iterations),
         "KOCH_CURVE" => koch_curve(cmd_arg_iterations),
         "RANDOM_FRACTAL_GENERATOR" => random_fractal_generator(cmd_arg_iterations),
+        "CUSTOM_TURTLE" => custom_turtle(cmd_arg_iterations, cmd_custom_turtle),
         _ => Err(TBError::InvalidInputData(format!(
             "Invalid CMD_VARIANT parameter:{}",
             cmd_arg_variant

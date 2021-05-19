@@ -10,7 +10,8 @@ license = "AGPL-3.0"
 keywords = ["blender-addon", "centerline", "voronoi"]
 exclude = [
     "img/*",
-    "idea/*"
+    "idea/*",
+    ".github/*",
 ]
 
 [dependencies]
@@ -31,6 +32,7 @@ itertools = "^0.10.0"
 rand = "0.8"
 building-blocks = { version="^0.6.0", default-features = false, features = ["mesh", "sdfu"]}
 dcc-lsystem = { version="^0.6.3", default-features=false}
+logos = "0.12"
 
 [[bin]]
 name = "toxicblend_server"
@@ -42,3 +44,6 @@ tonic-build = "^0.4.2"
 [profile.release]
 lto = true
 
+[badges]
+maintenance = { status = "actively-developed" }
+github = { repository = "eadf/toxicblend.rs" }

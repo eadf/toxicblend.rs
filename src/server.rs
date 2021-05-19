@@ -91,6 +91,9 @@ pub enum TBError {
     #[error("Something is wrong with the internal logic: {0}")]
     InternalError(String),
 
+    #[error("Could not parse string: {0}")]
+    ParseError(String),
+
     #[error("Something is wrong with the input data")]
     CouldNotCalculateInvertMatrix,
 
@@ -114,6 +117,12 @@ pub enum TBError {
 
     #[error(transparent)]
     BoostVoronoiError(#[from] boostvoronoi::BvError),
+
+    #[error(transparent)]
+    ParseIntError(#[from] std::num::ParseIntError),
+
+    #[error(transparent)]
+    ParseFloatError(#[from] std::num::ParseFloatError),
 }
 
 #[derive(Debug, Default)]

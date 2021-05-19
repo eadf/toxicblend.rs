@@ -226,9 +226,21 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
                          ("KOCH_CURVE", "koch curve", "draw koch curve"),
                          ("RANDOM_FRACTAL_GENERATOR", "random fractal generator", "draw random fractal generator"),
                          ("SIERPINSKI_ARROWHEAD","sierpinski arrowhead", "draw sierpinski arrowhead"),
-                         ("SIERPINSKI_TRIANGLE","sierpinski triangle", "draw sierpinski triangle")
+                         ("SIERPINSKI_TRIANGLE","sierpinski triangle", "draw sierpinski triangle"),
+                         ("CUSTOM_TURTLE","Custom turtle", "draw using custom turtle")
                         )
     cmd_variant = bpy.props.EnumProperty(name="Variant", items=cmd_variant_items, default="DRAGON_CURVE")
+
+    custom_turtle0 = bpy.props.StringProperty(name="custom turtle 0", default='.token("X", TurtleAction::Nothing)?')
+    custom_turtle1 = bpy.props.StringProperty(name="custom turtle 1", default='.token("Y", TurtleAction::Nothing)?')
+    custom_turtle2 = bpy.props.StringProperty(name="custom turtle 2", default='.token("F", TurtleAction::Forward(30))?')
+    custom_turtle3 = bpy.props.StringProperty(name="custom turtle 3", default='.token("+", TurtleAction::Rotate(-90))?')
+    custom_turtle4 = bpy.props.StringProperty(name="custom turtle 4", default='.token("-", TurtleAction::Rotate(90))?')
+    custom_turtle5 = bpy.props.StringProperty(name="custom turtle 5", default='.axiom("F X")?')
+    custom_turtle6 = bpy.props.StringProperty(name="custom turtle 6", default='.rule("X => X + Y F +")?')
+    custom_turtle7 = bpy.props.StringProperty(name="custom turtle 7", default='.rule("Y => - F X - Y")?;')
+    custom_turtle8 = bpy.props.StringProperty(name="custom turtle 8", default='')
+    custom_turtle9 = bpy.props.StringProperty(name="custom turtle 9", default='')
 
     def invoke(self, context, event):
         # load custom settings
@@ -258,6 +270,20 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
                 opt = command.options.add()
                 opt.key = "CMD_VARIANT"
                 opt.value = str(self.cmd_variant)
+                if self.cmd_variant == "CUSTOM_TURTLE":
+                    opt = command.options.add()
+                    opt.key = "CUSTOM_TURTLE"
+                    opt.value = str(self.custom_turtle0) + "\n" +\
+                                str(self.custom_turtle1) + "\n" +\
+                                str(self.custom_turtle2) + "\n" +\
+                                str(self.custom_turtle3) + "\n" +\
+                                str(self.custom_turtle4) + "\n" +\
+                                str(self.custom_turtle5) + "\n" +\
+                                str(self.custom_turtle6) + "\n" +\
+                                str(self.custom_turtle7) + "\n" +\
+                                str(self.custom_turtle8) + "\n" +\
+                                str(self.custom_turtle9)
+
 
                 response = stub.execute(command)
                 handle_response(response)
