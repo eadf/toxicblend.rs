@@ -32,7 +32,10 @@ itertools = "^0.10.0"
 rand = "0.8"
 building-blocks = { version="^0.6.0", default-features = false, features = ["mesh", "sdfu"]}
 dcc-lsystem = { version="^0.6.3", default-features=false}
+dcc-lsystem-derive = "0.1"
 logos = "0.12"
+lazy_static = "1.4"
+regex = "1.5"
 
 [[bin]]
 name = "toxicblend_server"

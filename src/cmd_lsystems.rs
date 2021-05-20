@@ -365,7 +365,7 @@ fn custom_turtle(
         EOL,
 
         #[regex("-?[0-9]+(.[0-9]+)?")]
-        Integer,
+        Number,
 
         #[regex("\"[=>a-zA-Z 0-9\\+\\-\\+\\]\\[]+\"")]
         QuotedText,
@@ -527,7 +527,7 @@ fn custom_turtle(
                 line += 1;
                 state = ParseState::Start;
             }
-            ParseToken::Integer => match state {
+            ParseToken::Number => match state {
                 ParseState::Token(Some(text), Some(turtle)) => {
                     println!(
                         "Got .token(\"{}\", TurtleAction::{:?}({}))",
@@ -535,7 +535,14 @@ fn custom_turtle(
                         turtle,
                         lex.slice()
                     );
-                    let value = lex.slice().parse::<i32>()?;
+                    let value = lex.slice().parse::<i32>().map_err(|e| {
+                        TBError::ParseError(format!(
+                            "Could not parse number :{} at line {}. {:?}",
+                            lex.slice(),
+                            line,
+                            e
+                        ))
+                    })?;
                     let _ = builder.token(
                         text,
                         match turtle {
@@ -547,7 +554,14 @@ fn custom_turtle(
                 }
                 ParseState::Rotate => {
                     println!("Got .rotate({})", lex.slice());
-                    let _ = builder.rotate(lex.slice().parse::<i32>()?);
+                    let _ = builder.rotate(lex.slice().parse::<i32>().map_err(|e| {
+                        TBError::ParseError(format!(
+                            "Could not parse number :{} at line {}. {:?}",
+                            lex.slice(),
+                            line,
+                            e
+                        ))
+                    })?);
                     state = ParseState::Start;
                 }
                 _ => {

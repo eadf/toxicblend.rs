@@ -15,6 +15,7 @@ mod cmd_voronoi;
 mod cmd_voronoi_mesh;
 mod cmd_voxel;
 mod voronoi_utils;
+//mod lsystems_addon;
 
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
@@ -117,12 +118,6 @@ pub enum TBError {
 
     #[error(transparent)]
     BoostVoronoiError(#[from] boostvoronoi::BvError),
-
-    #[error(transparent)]
-    ParseIntError(#[from] std::num::ParseIntError),
-
-    #[error(transparent)]
-    ParseFloatError(#[from] std::num::ParseFloatError),
 }
 
 #[derive(Debug, Default)]
