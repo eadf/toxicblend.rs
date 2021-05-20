@@ -395,10 +395,12 @@ fn custom_turtle(
     let cmd_custom_turtle = cmd_custom_turtle.unwrap();
 
     let mut builder = TurtleLSystemBuilder::new();
-    println!("custom_turtle : {:?}", cmd_custom_turtle);
+    println!("Will try to parse custom_turtle : {:?}", cmd_custom_turtle);
 
     let mut lex = ParseToken::lexer(cmd_custom_turtle);
     let mut state = InternalState::Nothing;
+    let mut line = 0_i32;
+
     while let Some(token) = lex.next() {
         match token {
             ParseToken::Token => {
@@ -450,9 +452,10 @@ fn custom_turtle(
                         state = InternalState::Nothing;
                     }
                     _ => {
-                        return Err(TBError::ParseError(
-                            "unknown state for QuotedText".to_string(),
-                        ));
+                        return Err(TBError::ParseError(format!(
+                            "Bad state for QuotedText:{:?} at line {}",
+                            state, line
+                        )));
                     }
                 }
             }
@@ -461,9 +464,10 @@ fn custom_turtle(
                     state = InternalState::Token(Some(text), Some(ParseTurtleAction::Forward));
                 }
                 _ => {
-                    return Err(TBError::ParseError(
-                        "unknown state for ParseToken::TurtleActionForward".to_string(),
-                    ));
+                    return Err(TBError::ParseError(format!(
+                        "Bad state for TurtleActionForward:{:?} at line {}",
+                        state, line
+                    )));
                 }
             },
             ParseToken::TurtleActionRotate => match state {
@@ -471,9 +475,10 @@ fn custom_turtle(
                     state = InternalState::Token(Some(text), Some(ParseTurtleAction::Rotate));
                 }
                 _ => {
-                    return Err(TBError::ParseError(
-                        "unknown state for ParseToken::TurtleActionRotate".to_string(),
-                    ));
+                    return Err(TBError::ParseError(format!(
+                        "Bad state for TurtleActionRotate:{:?} at line {}",
+                        state, line
+                    )));
                 }
             },
             ParseToken::TurtleActionNothing => match state {
@@ -483,9 +488,10 @@ fn custom_turtle(
                     state = InternalState::Nothing;
                 }
                 _ => {
-                    return Err(TBError::ParseError(
-                        "unknown state for ParseToken::TurtleActionNothing".to_string(),
-                    ));
+                    return Err(TBError::ParseError(format!(
+                        "Bad state for TurtleActionNothing:{:?} at line {}",
+                        state, line
+                    )));
                 }
             },
             ParseToken::TurtleActionPop => match state {
@@ -495,9 +501,10 @@ fn custom_turtle(
                     state = InternalState::Nothing;
                 }
                 _ => {
-                    return Err(TBError::ParseError(
-                        "unknown state for ParseToken::TurtleActionPop".to_string(),
-                    ));
+                    return Err(TBError::ParseError(format!(
+                        "Bad state for TurtleActionPop:{:?} at line {}",
+                        state, line
+                    )));
                 }
             },
             ParseToken::TurtleActionPush => match state {
@@ -507,12 +514,17 @@ fn custom_turtle(
                     state = InternalState::Nothing;
                 }
                 _ => {
-                    return Err(TBError::ParseError(
-                        "unknown state for ParseToken::TurtleActionPush".to_string(),
-                    ));
+                    return Err(TBError::ParseError(format!(
+                        "Bad state for TurtleActionPush:{:?} at line {}",
+                        state, line
+                    )));
                 }
             },
-            ParseToken::EOL | ParseToken::EOL2 => {
+            ParseToken::EOL => {
+                line += 1;
+                state = InternalState::Nothing;
+            }
+            ParseToken::EOL2 => {
                 state = InternalState::Nothing;
             }
             ParseToken::Integer => match state {
@@ -524,10 +536,13 @@ fn custom_turtle(
                         lex.slice()
                     );
                     let value = lex.slice().parse::<i32>()?;
-                    let _ = builder.token(text, match turtle {
-                        ParseTurtleAction::Rotate => TurtleAction::Rotate(value),
-                        ParseTurtleAction::Forward => TurtleAction::Forward(value),
-                    });
+                    let _ = builder.token(
+                        text,
+                        match turtle {
+                            ParseTurtleAction::Rotate => TurtleAction::Rotate(value),
+                            ParseTurtleAction::Forward => TurtleAction::Forward(value),
+                        },
+                    );
                     state = InternalState::Nothing;
                 }
                 InternalState::Rotate => {
@@ -536,19 +551,19 @@ fn custom_turtle(
                     state = InternalState::Nothing;
                 }
                 _ => {
-                    return Err(TBError::ParseError(
-                        "unknown state for ParseToken::Integer".to_string(),
-                    ));
+                    return Err(TBError::ParseError(format!(
+                        "Bad state for Integer:{:?} at line {}",
+                        state, line
+                    )));
                 }
             },
             _ => {
-                return Err(TBError::ParseError(format!("unknown token: {:?}", token)));
+                return Err(TBError::ParseError(format!(
+                    "Bad token: {:?} at line {}",
+                    lex.slice(),
+                    line
+                )));
             }
-        }
-        if token != ParseToken::EOL && token != ParseToken::EOL2 {
-            //println!("{:?} : \"{}\" {:?}", token, lex.slice(), lex.span());
-        } else {
-            state = InternalState::Nothing;
         }
     }
 
