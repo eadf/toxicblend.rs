@@ -314,7 +314,9 @@ fn fractal_binary_tree(cmd_arg_iterations: usize) -> Result<Vec<(i32, i32, i32, 
     Ok(rv)
 }
 
-/// Super messy implementation of a custom turtle builder text parser
+/// Rather messy implementation of a text parser for a custom turtle builder.
+/// It takes a lot of shortcuts, all parenthesis are ignored, it assumes there is one command per
+/// line etc. etc.
 fn custom_turtle(
     cmd_arg_iterations: usize,
     cmd_custom_turtle: Option<&String>,
@@ -332,16 +334,16 @@ fn custom_turtle(
     #[allow(clippy::upper_case_acronyms)]
     #[derive(Logos, Debug, PartialEq)]
     enum ParseToken {
-        #[regex("\\.token")]
+        #[regex("\\.?token")]
         Token,
 
-        #[regex("\\.axiom")]
+        #[regex("\\.?axiom")]
         Axiom,
 
-        #[regex("\\.rule")]
+        #[regex("\\.?rule")]
         Rule,
 
-        #[regex("\\.rotate")]
+        #[regex("\\.?rotate")]
         Rotate,
 
         #[token("TurtleAction::Forward")]
@@ -362,16 +364,13 @@ fn custom_turtle(
         #[token("\n")]
         EOL,
 
-        #[token(";")]
-        EOL2,
-
         #[regex("-?[0-9]+(.[0-9]+)?")]
         Integer,
 
         #[regex("\"[=>a-zA-Z 0-9\\+\\-\\+\\]\\[]+\"")]
         QuotedText,
 
-        #[regex(r"[ \t\f(),\?]+", logos::skip)]
+        #[regex(r"[ \t\f(),\?;]+", logos::skip)]
         Skip,
 
         #[error]
@@ -379,8 +378,8 @@ fn custom_turtle(
     }
 
     #[derive(Debug, PartialEq, Eq)]
-    enum InternalState {
-        Nothing,
+    enum ParseState {
+        Start,
         Token(Option<String>, Option<ParseTurtleAction>),
         Axiom,
         Rule,
@@ -398,58 +397,62 @@ fn custom_turtle(
     println!("Will try to parse custom_turtle : {:?}", cmd_custom_turtle);
 
     let mut lex = ParseToken::lexer(cmd_custom_turtle);
-    let mut state = InternalState::Nothing;
+    let mut state = ParseState::Start;
     let mut line = 0_i32;
 
     while let Some(token) = lex.next() {
         match token {
             ParseToken::Token => {
-                if state != InternalState::Nothing {
-                    return Err(TBError::ParseError(
-                        "Expected to be in Nothing state".to_string(),
-                    ));
+                if state != ParseState::Start {
+                    return Err(TBError::ParseError(format!(
+                        "Expected to be in Start state, was in state:{:?} when reading:{} at line {}.",
+                        state, lex.slice(), line
+                    )));
                 }
-                state = InternalState::Token(None, None);
+                state = ParseState::Token(None, None);
             }
             ParseToken::Axiom => {
-                if state != InternalState::Nothing {
-                    return Err(TBError::ParseError(
-                        "Expected to be in Nothing state".to_string(),
-                    ));
+                if state != ParseState::Start {
+                    return Err(TBError::ParseError(format!(
+                        "Expected to be in Start state, was in state:{:?} when reading:{} at line {}.",
+                        state, lex.slice(), line
+                    )));
                 }
-                state = InternalState::Axiom;
+                state = ParseState::Axiom;
             }
             ParseToken::Rule => {
-                if state != InternalState::Nothing {
-                    return Err(TBError::ParseError(
-                        "Expected to be in Nothing state".to_string(),
-                    ));
+                if state != ParseState::Start {
+                    return Err(TBError::ParseError(format!(
+                        "Expected to be in Start state, was in state:{:?} when reading:{} at line {}.",
+                        state, lex.slice(), line
+                    )));
                 }
-                state = InternalState::Rule;
+                state = ParseState::Rule;
             }
             ParseToken::Rotate => {
-                if state != InternalState::Nothing {
-                    return Err(TBError::ParseError(
-                        "Expected to be in Nothing state".to_string(),
-                    ));
+                if state != ParseState::Start {
+                    return Err(TBError::ParseError(format!(
+                        "Expected to be in Start state, was in state:{:?} when reading:{} at line {}.",
+                        state, lex.slice(), line
+                    )));
                 }
-                state = InternalState::Rotate;
+                state = ParseState::Rotate;
             }
             ParseToken::QuotedText => {
                 let text = &lex.slice()[1..lex.slice().len() - 1];
                 match state {
-                    InternalState::Axiom => {
+                    ParseState::Axiom => {
                         println!("Got .axiom(\"{}\")", text);
                         let _ = builder.axiom(text);
-                        state = InternalState::Nothing;
+                        state = ParseState::Start;
                     }
-                    InternalState::Token(None, None) => {
-                        state = InternalState::Token(Some(text.to_string()), None);
+                    ParseState::Token(None, None) => {
+                        state = ParseState::Token(Some(text.to_string()), None);
                     }
-                    InternalState::Rule => {
+                    ParseState::Rule => {
                         println!("Got .rule(\"{}\")", text);
                         let _ = builder.rule(text);
-                        state = InternalState::Nothing;
+                        state = ParseState::Start;
                     }
                     _ => {
                         return Err(TBError::ParseError(format!(
@@ -460,8 +463,8 @@ fn custom_turtle(
                 }
             }
             ParseToken::TurtleActionForward => match state {
-                InternalState::Token(Some(text), None) => {
-                    state = InternalState::Token(Some(text), Some(ParseTurtleAction::Forward));
+                ParseState::Token(Some(text), None) => {
+                    state = ParseState::Token(Some(text), Some(ParseTurtleAction::Forward));
                 }
                 _ => {
                     return Err(TBError::ParseError(format!(
@@ -471,8 +474,8 @@ fn custom_turtle(
                 }
             },
             ParseToken::TurtleActionRotate => match state {
-                InternalState::Token(Some(text), None) => {
-                    state = InternalState::Token(Some(text), Some(ParseTurtleAction::Rotate));
+                ParseState::Token(Some(text), None) => {
+                    state = ParseState::Token(Some(text), Some(ParseTurtleAction::Rotate));
                 }
                 _ => {
                     return Err(TBError::ParseError(format!(
@@ -482,10 +485,10 @@ fn custom_turtle(
                 }
             },
             ParseToken::TurtleActionNothing => match state {
-                InternalState::Token(Some(text), None) => {
+                ParseState::Token(Some(text), None) => {
                     println!("Got .token(\"{}\", TurtleAction::Nothing)", text);
                     let _ = builder.token(text, TurtleAction::Nothing);
-                    state = InternalState::Nothing;
+                    state = ParseState::Start;
                 }
                 _ => {
                     return Err(TBError::ParseError(format!(
@@ -495,10 +498,10 @@ fn custom_turtle(
                 }
             },
             ParseToken::TurtleActionPop => match state {
-                InternalState::Token(Some(text), None) => {
+                ParseState::Token(Some(text), None) => {
                     println!("Got .token(\"{}\", TurtleAction::Pop)", text);
                     let _ = builder.token(text, TurtleAction::Pop);
-                    state = InternalState::Nothing;
+                    state = ParseState::Start;
                 }
                 _ => {
                     return Err(TBError::ParseError(format!(
@@ -508,10 +511,10 @@ fn custom_turtle(
                 }
             },
             ParseToken::TurtleActionPush => match state {
-                InternalState::Token(Some(text), None) => {
+                ParseState::Token(Some(text), None) => {
                     println!("Got .token(\"{}\", TurtleAction::Push)", text);
                     let _ = builder.token(text, TurtleAction::Push);
-                    state = InternalState::Nothing;
+                    state = ParseState::Start;
                 }
                 _ => {
                     return Err(TBError::ParseError(format!(
@@ -522,13 +525,10 @@ fn custom_turtle(
             },
             ParseToken::EOL => {
                 line += 1;
-                state = InternalState::Nothing;
-            }
-            ParseToken::EOL2 => {
-                state = InternalState::Nothing;
+                state = ParseState::Start;
             }
             ParseToken::Integer => match state {
-                InternalState::Token(Some(text), Some(turtle)) => {
+                ParseState::Token(Some(text), Some(turtle)) => {
                     println!(
                         "Got .token(\"{}\", TurtleAction::{:?}({}))",
                         text,
@@ -543,12 +543,12 @@ fn custom_turtle(
                             ParseTurtleAction::Forward => TurtleAction::Forward(value),
                         },
                     );
-                    state = InternalState::Nothing;
+                    state = ParseState::Start;
                 }
-                InternalState::Rotate => {
+                ParseState::Rotate => {
                     println!("Got .rotate({})", lex.slice());
                     let _ = builder.rotate(lex.slice().parse::<i32>()?);
-                    state = InternalState::Nothing;
+                    state = ParseState::Start;
                 }
                 _ => {
                     return Err(TBError::ParseError(format!(
