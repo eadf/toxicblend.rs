@@ -14,8 +14,8 @@ mod cmd_simplify;
 mod cmd_voronoi;
 mod cmd_voronoi_mesh;
 mod cmd_voxel;
+mod lsystems_3d;
 mod voronoi_utils;
-//mod lsystems_addon;
 
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
@@ -118,6 +118,9 @@ pub enum TBError {
 
     #[error(transparent)]
     BoostVoronoiError(#[from] boostvoronoi::BvError),
+
+    #[error("Error in LSystems {0}")]
+    LSystems3D(String),
 }
 
 #[derive(Debug, Default)]

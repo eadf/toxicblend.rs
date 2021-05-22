@@ -96,14 +96,13 @@ This operation is located under `Object` -> `Add` -> `Metaball` -> `MetaVolume`
 ![metavolume](img/metavolume.png)
 
 ### operation: LSystems (object operation)
-Generates a Lindenmayer systems graph/curve using [dcc-lsystem](https://github.com/dcchut/dcc-lsystem).
-
+Generates a Lindenmayer systems graph/curve. 
 This operation is located under `Object` -> `Add` -> `Mesh` -> `LSystem`
 
 ![metavolume](img/lsystems.png)
 ![metavolume](img/plant.png)
 ![metavolume](img/arrowhead.png)
-
+![metavolume](img/hilbert_3d.png)
 ### operation: Knife intersect
 
 Runs on a single flat mesh object made of edges (no faces) and tests for self-intersections.

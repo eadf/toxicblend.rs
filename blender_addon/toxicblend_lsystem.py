@@ -219,26 +219,25 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
         update=AddObjectHelper.align_update_callback,
     )
 
-    cmd_variant_items = (("CANTOR_SETS", "cantor sets", "draw cantor sets"),
-                         ("DRAGON_CURVE", "dragon curve", "draw dragon curve"),
+    cmd_variant_items = (("DRAGON_CURVE", "dragon curve", "draw dragon curve"),
                          ("FRACTAL_BINARY_TREE", "fractal binary tree", "draw fractal binary tree"),
                          ("FRACTAL_PLANT", "fractal plant", "draw fractal plant"),
                          ("KOCH_CURVE", "koch curve", "draw koch curve"),
-                         ("RANDOM_FRACTAL_GENERATOR", "random fractal generator", "draw random fractal generator"),
+                         ("HILBERT_CURVE_3D", "Hilbert curve 3d", "draw Hilbert curve 3d"),
                          ("SIERPINSKI_ARROWHEAD","sierpinski arrowhead", "draw sierpinski arrowhead"),
                          ("SIERPINSKI_TRIANGLE","sierpinski triangle", "draw sierpinski triangle"),
                          ("CUSTOM_TURTLE","Custom turtle", "draw using custom turtle")
                         )
     cmd_variant = bpy.props.EnumProperty(name="Variant", items=cmd_variant_items, default="DRAGON_CURVE")
 
-    custom_turtle0 = bpy.props.StringProperty(name="custom turtle 0", default='.token("X", TurtleAction::Nothing)?')
-    custom_turtle1 = bpy.props.StringProperty(name="custom turtle 1", default='.token("Y", TurtleAction::Nothing)?')
-    custom_turtle2 = bpy.props.StringProperty(name="custom turtle 2", default='.token("F", TurtleAction::Forward(30))?')
-    custom_turtle3 = bpy.props.StringProperty(name="custom turtle 3", default='.token("+", TurtleAction::Rotate(-90))?')
-    custom_turtle4 = bpy.props.StringProperty(name="custom turtle 4", default='.token("-", TurtleAction::Rotate(90))?')
-    custom_turtle5 = bpy.props.StringProperty(name="custom turtle 5", default='.axiom("F X")?')
-    custom_turtle6 = bpy.props.StringProperty(name="custom turtle 6", default='.rule("X => X + Y F +")?')
-    custom_turtle7 = bpy.props.StringProperty(name="custom turtle 7", default='.rule("Y => - F X - Y")?;')
+    custom_turtle0 = bpy.props.StringProperty(name="custom turtle 0", default='token("X", Turtle::Nothing)?')
+    custom_turtle1 = bpy.props.StringProperty(name="custom turtle 1", default='token("Y", Turtle::Nothing)?')
+    custom_turtle2 = bpy.props.StringProperty(name="custom turtle 2", default='token("F", Turtle::Forward(30))?')
+    custom_turtle3 = bpy.props.StringProperty(name="custom turtle 3", default='token("+", Turtle::Yaw(-90))?')
+    custom_turtle4 = bpy.props.StringProperty(name="custom turtle 4", default='token("-", Turtle::Yaw(90))?')
+    custom_turtle5 = bpy.props.StringProperty(name="custom turtle 5", default='axiom("F X")?')
+    custom_turtle6 = bpy.props.StringProperty(name="custom turtle 6", default='rule("X => X + Y F +")?')
+    custom_turtle7 = bpy.props.StringProperty(name="custom turtle 7", default='rule("Y => - F X - Y")?;')
     custom_turtle8 = bpy.props.StringProperty(name="custom turtle 8", default='')
     custom_turtle9 = bpy.props.StringProperty(name="custom turtle 9", default='')
 
