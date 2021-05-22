@@ -1,6 +1,6 @@
-use super::lsystems_3d::TurtleRules;
 use super::lsystems_3d::Turtle;
 use super::lsystems_3d::TurtleCommand;
+use super::lsystems_3d::TurtleRules;
 use super::TBError;
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::Face as PB_Face;
@@ -112,7 +112,7 @@ fn custom_turtle(
     cmd_arg_iterations: u8,
     cmd_custom_turtle: Option<&String>,
 ) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
-    if cmd_custom_turtle.is_none() || cmd_custom_turtle.unwrap().is_empty(){
+    if cmd_custom_turtle.is_none() || cmd_custom_turtle.unwrap().is_empty() {
         return Err(TBError::InvalidInputData(
             "Custom turtle text is empty".to_string(),
         ));
@@ -135,12 +135,14 @@ fn fractal_plant(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>
         .add_token('X', TurtleCommand::Nop)?
         .add_token('F', TurtleCommand::Forward(200.0))?
         .add_token('+', TurtleCommand::Yaw(Rad(25.0f64.to_radians())))?
+        .add_token('a', TurtleCommand::Roll(Rad(5.0f64.to_radians())))?
         .add_token('-', TurtleCommand::Yaw(Rad(-25.0f64.to_radians())))?
+        .add_token('s', TurtleCommand::Roll(Rad(-5.0f64.to_radians())))?
         .add_token('[', TurtleCommand::Push)?
         .add_token(']', TurtleCommand::Pop)?
         .add_axiom("X".to_string())?
-        .add_rule("X => F + [ [ X ] - X ] - F [ - F X ] + X".to_string())?
-        .add_rule("F => F F".to_string())?
+        .add_rule("X => F + a [ [ X ] - s X ] - F [ - s F X ] + a X".to_string())?
+        .add_rule("F => F a F".to_string())?
         .rotate(Rad(70.0f64.to_radians()), Rad(0.0), Rad(0.0))?
         .exec(cmd_arg_iterations, Turtle::default())?;
 

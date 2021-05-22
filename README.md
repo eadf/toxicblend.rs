@@ -99,8 +99,9 @@ This operation is located under `Object` -> `Add` -> `Metaball` -> `MetaVolume`
 Generates a Lindenmayer systems graph/curve. 
 This operation is located under `Object` -> `Add` -> `Mesh` -> `LSystem`
 
+![metavolume](img/dragon_3d.png)
 ![metavolume](img/lsystems.png)
-![metavolume](img/plant.png)
+![metavolume](img/plant2.png)
 ![metavolume](img/arrowhead.png)
 ![metavolume](img/hilbert_3d.png)
 ### operation: Knife intersect

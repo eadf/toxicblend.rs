@@ -1,6 +1,6 @@
 use super::TBError;
 use cgmath::Vector3;
-use cgmath::{Basis3, Rotation, Rotation3, relative_ne, InnerSpace,Rad};
+use cgmath::{relative_ne, Basis3, InnerSpace, Rad, Rotation, Rotation3};
 use logos::Logos;
 use std::f64;
 
@@ -9,8 +9,6 @@ struct Heading {
     heading: Vector3<f64>,
     up: Vector3<f64>,
 }
-
-//struct Rad(f64);
 
 impl Default for Heading {
     fn default() -> Self {
@@ -33,36 +31,38 @@ impl Heading {
     // rotate around 'forward' or longitudinal axis
     fn roll(&self, angle: Rad<f64>) -> Heading {
         let rot: Basis3<f64> = Rotation3::from_axis_angle(self.heading, angle);
-        let rv = Self {
+        //let rv =
+        Self {
             heading: self.heading,
             up: rot.rotate_vector(self.up).normalize(),
-        };
-        println!("Roll angle:{}rad heading:{:?}->{:?}  up:{:?}->{:?}", angle.0, self.heading, rv.heading, self.up, rv.up);
-        rv
+        }
+        //println!("Roll angle:{}rad heading:{:?}->{:?}  up:{:?}->{:?}", angle.0, self.heading, rv.heading, self.up, rv.up);
+        //rv
     }
 
     // rotate around 'up' or vertical axis
-    fn yaw(&self, angle:Rad<f64>) -> Heading {
+    fn yaw(&self, angle: Rad<f64>) -> Heading {
         let rot: Basis3<f64> = Rotation3::from_axis_angle(self.up, angle);
-       let rv = Self {
+        //let rv =
+        Self {
             heading: rot.rotate_vector(self.heading).normalize(),
             up: self.up,
-        };
-        println!("Yaw angle:{}rad heading:{:?}->{:?}  up:{:?}->{:?}", angle.0, self.heading, rv.heading, self.up, rv.up);
-        rv
+        }
+        //println!("Yaw angle:{}rad heading:{:?}->{:?}  up:{:?}->{:?}", angle.0, self.heading, rv.heading, self.up, rv.up);
+        //rv
     }
 
     // rotate around axis perpendicular to 'up' and 'forward' - i.e. lateral/traverse axis
     fn pitch(&self, angle: Rad<f64>) -> Heading {
-
         let pitch_v = self.heading.cross(self.up).normalize();
         let rot: Basis3<f64> = Rotation3::from_axis_angle(pitch_v, angle);
-        let rv = Self {
+        //let rv =
+        Self {
             heading: rot.rotate_vector(self.heading).normalize(),
             up: rot.rotate_vector(self.up).normalize(),
-        };
-        println!("Pitch angle:{}rad heading:{:?}->{:?}  up:{:?}->{:?}", angle.0, self.heading, rv.heading, self.up, rv.up);
-        rv
+        }
+        //println!("Pitch angle:{}rad heading:{:?}->{:?}  up:{:?}->{:?}", angle.0, self.heading, rv.heading, self.up, rv.up);
+        //rv
     }
 
     // roll, yaw and pitch in order
@@ -177,7 +177,10 @@ impl TurtleRules {
         if rule.len() < 6 {
             return Err(TBError::LSystems3D(format!("Rule too short {}", rule)));
         }
-        let id = rule[0..1].chars().next().ok_or_else(||TBError::LSystems3D(format!("Could not find rule key {}", rule)))?;
+        let id = rule[0..1]
+            .chars()
+            .next()
+            .ok_or_else(|| TBError::LSystems3D(format!("Could not find rule key {}", rule)))?;
         let assign = &rule[1..5];
         if assign != " => " {
             println!("assign = '{}'", assign);
@@ -187,24 +190,40 @@ impl TurtleRules {
 
         println!("Adding rule '{}' => '{}'", id, &rule);
         if self.rules.insert(id, rule).is_some() {
-            return Err(TBError::LSystems3D(format!("Rule {} overwriting previous rule", id)));
+            return Err(TBError::LSystems3D(format!(
+                "Rule {} overwriting previous rule",
+                id
+            )));
         }
         Ok(self)
     }
 
-    pub fn rotate(&mut self, yaw: Rad<f64>, pitch: Rad<f64>, roll: Rad<f64>) -> Result<&mut Self, TBError> {
-        if relative_ne!(yaw.0,0.0) {
+    /// Set the initial heading of the, not yet known, turtle
+    pub fn rotate(
+        &mut self,
+        yaw: Rad<f64>,
+        pitch: Rad<f64>,
+        roll: Rad<f64>,
+    ) -> Result<&mut Self, TBError> {
+        if relative_ne!(yaw.0, 0.0) {
             self.yaw = Some(yaw);
+        } else {
+            self.yaw = None;
         }
-        if relative_ne!(pitch.0,0.0) {
+        if relative_ne!(pitch.0, 0.0) {
             self.pitch = Some(pitch);
+        } else {
+            self.pitch = None;
         }
-        if relative_ne!(roll.0,0.0) {
+        if relative_ne!(roll.0, 0.0) {
             self.roll = Some(roll);
+        } else {
+            self.roll = None;
         }
         Ok(self)
     }
 
+    /// Expands the rules over the axiom 'n' times
     fn expand(&self, n: u8) -> Result<Vec<char>, TBError> {
         let mut rv: Vec<char> = self.axiom.chars().collect();
         for _ in 0..n {
@@ -218,7 +237,8 @@ impl TurtleRules {
                     tmp.append(&mut rule.chars().collect());
                 } else {
                     let _ = self.tokens.get(&v).ok_or_else(|| {
-                        println!("tokens: {:?}", self.tokens.keys() );
+                        eprintln!("tokens: {:?}", self.tokens.keys());
+                        eprintln!("rules: {:?}", self.rules.keys());
                         TBError::LSystems3D(format!("Could not find rule or token:'{}'", &v))
                     })?;
                     tmp.push(*v);
@@ -229,6 +249,7 @@ impl TurtleRules {
         Ok(rv)
     }
 
+    /// sets the axioms, rules and tokens from a text string.
     pub fn parse(&mut self, cmd_custom_turtle: &str) -> Result<&mut Self, TBError> {
         #[derive(Debug, PartialEq, Eq)]
         enum ParseTurtleAction {
@@ -369,9 +390,15 @@ impl TurtleRules {
                             state = ParseState::Start;
                         }
                         ParseState::Token(None, None) => {
-                            state = ParseState::Token(Some(text.chars().next().ok_or_else(||TBError::ParseError(format!(
-                                "Could not get token id as line {}", line
-                            )))?), None);
+                            state = ParseState::Token(
+                                Some(text.chars().next().ok_or_else(|| {
+                                    TBError::ParseError(format!(
+                                        "Could not get token id as line {}",
+                                        line
+                                    ))
+                                })?),
+                                None,
+                            );
                         }
                         ParseState::Rule => {
                             println!("Got .add_rule(\"{}\")", text);
@@ -438,7 +465,7 @@ impl TurtleRules {
                     }
                     _ => {
                         return Err(TBError::ParseError(format!(
-                            "Bad state for TurtleActionNothing:{:?} at line {}",
+                            "Bad state for TurtleActionNop:{:?} at line {}",
                             state, line
                         )));
                     }
@@ -476,77 +503,63 @@ impl TurtleRules {
                 ParseToken::Rotate => {
                     state = ParseState::Rotate(None, None, None);
                 }
-                ParseToken::Number => match state {
-                    ParseState::Token(Some(text), Some(turtle)) => {
-                        println!(
-                            "Got .add_token(\"{}\", TurtleAction::{:?}({}))",
-                            text,
-                            turtle,
-                            lex.slice()
-                        );
-                        let value = lex.slice().parse::<f64>().map_err(|e| {
-                            TBError::ParseError(format!(
-                                "Could not parse number :{} at line {}. {:?}",
-                                lex.slice(),
-                                line,
-                                e
-                            ))
-                        })?;
-                        let _ = self.add_token(
-                            text,
-                            match turtle {
-                                ParseTurtleAction::Yaw => TurtleCommand::Yaw(Rad(value.to_radians())),
-                                ParseTurtleAction::Pitch => TurtleCommand::Pitch(Rad(value.to_radians())),
-                                ParseTurtleAction::Roll => TurtleCommand::Roll(Rad(value.to_radians())),
-                                ParseTurtleAction::Forward => TurtleCommand::Forward(value),
-                            },
-                        );
-                        state = ParseState::Start;
-                    }
-                    ParseState::Rotate(None, None, None) => {
-                        let yaw = Rad(lex.slice().parse::<f64>().map_err(|e| {
-                            TBError::ParseError(format!(
-                                "Could not parse number :{} at line {}. {:?}",
-                                lex.slice(),
-                                line,
-                                e
-                            ))
-                        })?.to_radians());
+                ParseToken::Number => {
+                    let value = lex.slice().parse::<f64>().map_err(|e| {
+                        TBError::ParseError(format!(
+                            "Could not parse number :{} at line {}. {:?}",
+                            lex.slice(),
+                            line,
+                            e
+                        ))
+                    })?;
 
-                        state = ParseState::Rotate(Some(yaw), None, None);
-                    }
-                    ParseState::Rotate(Some(yaw), None, None) => {
-                        let pitch = Rad(lex.slice().parse::<f64>().map_err(|e| {
-                            TBError::ParseError(format!(
-                                "Could not parse number :{} at line {}. {:?}",
-                                lex.slice(),
-                                line,
-                                e
-                            ))
-                        })?.to_radians());
+                    match state {
+                        ParseState::Token(Some(text), Some(turtle)) => {
+                            println!(
+                                "Got .add_token(\"{}\", TurtleAction::{:?}({}))",
+                                text,
+                                turtle,
+                                lex.slice()
+                            );
 
-                        state = ParseState::Rotate(Some(yaw), Some(pitch), None);
+                            let _ = self.add_token(
+                                text,
+                                match turtle {
+                                    ParseTurtleAction::Yaw => {
+                                        TurtleCommand::Yaw(Rad(value.to_radians()))
+                                    }
+                                    ParseTurtleAction::Pitch => {
+                                        TurtleCommand::Pitch(Rad(value.to_radians()))
+                                    }
+                                    ParseTurtleAction::Roll => {
+                                        TurtleCommand::Roll(Rad(value.to_radians()))
+                                    }
+                                    ParseTurtleAction::Forward => TurtleCommand::Forward(value),
+                                },
+                            );
+                            state = ParseState::Start;
+                        }
+                        ParseState::Rotate(None, None, None) => {
+                            state = ParseState::Rotate(Some(Rad(value.to_radians())), None, None);
+                        }
+                        ParseState::Rotate(Some(yaw), None, None) => {
+                            state =
+                                ParseState::Rotate(Some(yaw), Some(Rad(value.to_radians())), None);
+                        }
+                        ParseState::Rotate(Some(yaw), Some(pitch), None) => {
+                            let roll = Rad(value.to_radians());
+                            println!("Got .rotate({}, {}, {})", yaw.0, pitch.0, roll.0);
+                            let _ = self.rotate(yaw, pitch, roll);
+                            state = ParseState::Start;
+                        }
+                        _ => {
+                            return Err(TBError::ParseError(format!(
+                                "Bad state for Integer:{:?} at line {}",
+                                state, line
+                            )));
+                        }
                     }
-                    ParseState::Rotate(Some(yaw), Some(pitch), None) => {
-                        let roll = Rad(lex.slice().parse::<f64>().map_err(|e| {
-                            TBError::ParseError(format!(
-                                "Could not parse number :{} at line {}. {:?}",
-                                lex.slice(),
-                                line,
-                                e
-                            ))
-                        })?.to_radians());
-                        println!("Got .rotate({}, {}, {})", yaw.0, pitch.0, roll.0);
-                        let _ = self.rotate(yaw, pitch, roll);
-                        state = ParseState::Start;
-                    }
-                    _ => {
-                        return Err(TBError::ParseError(format!(
-                            "Bad state for Integer:{:?} at line {}",
-                            state, line
-                        )));
-                    }
-                },
+                }
                 _ => {
                     return Err(TBError::ParseError(format!(
                         "Bad token: {:?} at line {}",
@@ -559,6 +572,7 @@ impl TurtleRules {
         Ok(self)
     }
 
+    /// expands the rules and run the turtle over the result.
     pub fn exec(
         &self,
         n: u8,
@@ -567,13 +581,13 @@ impl TurtleRules {
         let path = self.expand(n)?;
 
         // Apply initial rotations
-        if let Some(yaw) = self.yaw{
+        if let Some(yaw) = self.yaw {
             turtle.apply(&TurtleCommand::Yaw(yaw))?;
         }
-        if let Some(roll) = self.roll{
+        if let Some(roll) = self.roll {
             turtle.apply(&TurtleCommand::Roll(roll))?;
         }
-        if let Some(pitch) = self.pitch{
+        if let Some(pitch) = self.pitch {
             turtle.apply(&TurtleCommand::Pitch(pitch))?;
         }
 
@@ -582,8 +596,8 @@ impl TurtleRules {
                 continue;
             }
             let action = self.tokens.get(&step).ok_or_else(|| {
-                println!("tokens: {:?}", self.tokens.keys() );
-                println!("rules: {:?}", self.rules.keys() );
+                eprintln!("tokens: {:?}", self.tokens.keys());
+                eprintln!("rules: {:?}", self.rules.keys());
                 TBError::LSystems3D(format!("Could not find rule or token:'{}'", &step))
             })?;
             turtle.apply(action)?;
