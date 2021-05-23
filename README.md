@@ -1,7 +1,7 @@
 [![Crates.io](https://meritbadge.herokuapp.com/toxicblend)](https://crates.io/crates/toxicblend)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)
-[![dependency status](https://deps.rs/crate/toxicblend/0.0.7/status.svg)](https://deps.rs/crate/toxicblend/0.0.7)
+[![dependency status](https://deps.rs/crate/toxicblend/0.0.8/status.svg)](https://deps.rs/crate/toxicblend/0.0.8)
 
 
 ![toxicblend.rs](img/header.png)
@@ -96,7 +96,7 @@ This operation is located under `Object` -> `Add` -> `Metaball` -> `MetaVolume`
 ![metavolume](img/metavolume.png)
 
 ### operation: LSystems (object operation)
-Generates a Lindenmayer systems graph/curve. 
+Generates a Lindenmayer systems 3d graph/curve. 
 This operation is located under `Object` -> `Add` -> `Mesh` -> `LSystem`
 
 ![metavolume](img/dragon_3d.png)
