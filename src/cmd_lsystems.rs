@@ -30,8 +30,8 @@ fn build_dragon_curve(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>
         .add_token('+', TurtleCommand::Yaw(Rad(90.0f64.to_radians())))?
         .add_token('-', TurtleCommand::Yaw(Rad(-90.0f64.to_radians())))?
         .add_axiom("L".to_string())?
-        .add_rule("L => L + R +".to_string())?
-        .add_rule("R => - L - R".to_string())?
+        .add_rule('L', "L + R +".to_string())?
+        .add_rule('R', "- L - R".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
 
     println!("build_dragon_curve render() duration: {:?}", now.elapsed());
@@ -47,8 +47,8 @@ fn build_dragon_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f
         .add_token('+', TurtleCommand::Yaw(Rad(-90.0f64.to_radians())))?
         .add_token('-', TurtleCommand::Pitch(Rad(90.0f64.to_radians())))?
         .add_axiom("L".to_string())?
-        .add_rule("L => L + R +".to_string())?
-        .add_rule("R => - L - R".to_string())?
+        .add_rule('L', "L + R +".to_string())?
+        .add_rule('R', "- L - R".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
 
     println!(
@@ -67,8 +67,8 @@ fn sierpinski_triangle(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64
         .add_token('+', TurtleCommand::Yaw(Rad(120.0f64.to_radians())))?
         .add_token('-', TurtleCommand::Yaw(Rad(-120.0f64.to_radians())))?
         .add_axiom("F-G-G".to_string())?
-        .add_rule("F => F-G+F+G-F".to_string())?
-        .add_rule("G => GG".to_string())?
+        .add_rule('F', " F-G+F+G-F".to_string())?
+        .add_rule('G', " GG".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!("sierpinski_triangle render() duration: {:?}", now.elapsed());
     Ok(result)
@@ -83,8 +83,8 @@ fn sierpinski_gasket(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>;
         .add_token('+', TurtleCommand::Yaw(Rad(60.0f64.to_radians())))?
         .add_token('-', TurtleCommand::Yaw(Rad(-60.0f64.to_radians())))?
         .add_axiom("R".to_string())?
-        .add_rule("R => L - R - L".to_string())?
-        .add_rule("L => R + L + R".to_string())?
+        .add_rule('R', " L - R - L".to_string())?
+        .add_rule('L', " R + L + R".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!("sierpinski_gasket render() duration: {:?}", now.elapsed());
     Ok(result)
@@ -98,8 +98,8 @@ fn sierpinski_gasket_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f6
         .add_token('+', TurtleCommand::Yaw(Rad(60.0f64.to_radians())))?
         .add_token('-', TurtleCommand::Pitch(Rad(-60.0f64.to_radians())))?
         .add_axiom("R".to_string())?
-        .add_rule("R => L - R - L".to_string())?
-        .add_rule("L => R + L + R".to_string())?
+        .add_rule('R', " L - R - L".to_string())?
+        .add_rule('L', " R + L + R".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!("sierpinski_gasket render() duration: {:?}", now.elapsed());
     Ok(result)
@@ -114,8 +114,8 @@ fn gosper_curve(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>,
         .add_token('+', TurtleCommand::Yaw(Rad(60.0f64.to_radians())))?
         .add_token('-', TurtleCommand::Yaw(Rad(-60.0f64.to_radians())))?
         .add_axiom("L".to_string())?
-        .add_rule("L => L+R++R-L--LL-R+".to_string())?
-        .add_rule("R => -L+RR++R+L--L-R".to_string())?
+        .add_rule('L', " L+R++R-L--LL-R+".to_string())?
+        .add_rule('R', " -L+RR++R+L--L-R".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!("sierpinski_gasket render() duration: {:?}", now.elapsed());
     Ok(result)
@@ -131,8 +131,8 @@ fn gosper_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2
         .add_token('P', TurtleCommand::Roll(Rad(60.0f64.to_radians())))?
         .add_token('p', TurtleCommand::Roll(Rad(-60.0f64.to_radians())))?
         .add_axiom("L".to_string())?
-        .add_rule("L => L+R++R-L--LL-R+P".to_string())?
-        .add_rule("R => -L+RR++R+L--L-Rp".to_string())?
+        .add_rule('L', " L+R++R-L--LL-R+P".to_string())?
+        .add_rule('R', " -L+RR++R+L--L-Rp".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!("sierpinski_gasket render() duration: {:?}", now.elapsed());
     Ok(result)
@@ -146,9 +146,22 @@ fn koch_curve(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, T
         .add_token('+', TurtleCommand::Yaw(Rad(90.0f64.to_radians())))?
         .add_token('-', TurtleCommand::Yaw(Rad(-90.0f64.to_radians())))?
         .add_axiom("F".to_string())?
-        .add_rule("F => F + F - F - F + F".to_string())?
+        .add_rule('F', " F + F - F - F + F".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!("koch_curve render() duration: {:?}", now.elapsed());
+    Ok(result)
+}
+
+fn koch_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
+    let now = time::Instant::now();
+    let result = TurtleRules::default()
+        .add_token('F', TurtleCommand::Forward(30.0))?
+        .add_token('+', TurtleCommand::Yaw(Rad(90.0f64.to_radians())))?
+        .add_token('-', TurtleCommand::Roll(Rad(-90.0f64.to_radians())))?
+        .add_axiom("F".to_string())?
+        .add_rule('F', " F + F - F - F + F".to_string())?
+        .exec(cmd_arg_iterations, Turtle::default())?;
+    println!("koch_curve_3d render() duration: {:?}", now.elapsed());
     Ok(result)
 }
 
@@ -162,7 +175,7 @@ fn quadratic_koch_curve_island(
         .add_token('+', TurtleCommand::Yaw(Rad(90.0f64.to_radians())))?
         .add_token('-', TurtleCommand::Yaw(Rad(-90.0f64.to_radians())))?
         .add_axiom("F-F-F-F".to_string())?
-        .add_rule("F => F+FF-FF-F-F+F+FF-F-F+F+FF+FF-F".to_string())?
+        .add_rule('F', " F+FF-FF-F-F+F+FF-F-F+F+FF+FF-F".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!(
         "quadratic_koch_curve_island render() duration: {:?}",
@@ -182,7 +195,7 @@ fn quadratic_koch_curve_island_3d(
         .add_token('R', TurtleCommand::Roll(Rad(45.0f64.to_radians())))?
         .add_token('r', TurtleCommand::Roll(Rad(-45.0f64.to_radians())))?
         .add_axiom("F-F-F-F".to_string())?
-        .add_rule("F => F+FRFr-FRFr-F-F+F+FRFr-F-F+F+FRFr+FRFr-F".to_string())?
+        .add_rule('F', " F+FRFr-FRFr-F-F+F+FRFr-F-F+F+FRFr+FRFr-F".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!(
         "quadratic_koch_curve_island render() duration: {:?}",
@@ -202,8 +215,8 @@ fn fractal_binary_tree(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64
         .add_token('[', TurtleCommand::Push)?
         .add_token(']', TurtleCommand::Pop)?
         .add_axiom("0".to_string())?
-        .add_rule("1 => 11".to_string())?
-        .add_rule("0 => 1[L0]R0".to_string())?
+        .add_rule('1', " 11".to_string())?
+        .add_rule('0', " 1[L0]R0".to_string())?
         .rotate(Rad(90.0f64.to_radians()), Rad(0.0), Rad(0.0))?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!("fractal_binary_tree render() duration: {:?}", now.elapsed());
@@ -225,8 +238,8 @@ fn fractal_binary_tree_3d(
         .add_token('[', TurtleCommand::Push)?
         .add_token(']', TurtleCommand::Pop)?
         .add_axiom("0".to_string())?
-        .add_rule("1 => 11".to_string())?
-        .add_rule("0 => 1[L)0]R(0".to_string())?
+        .add_rule('1', " 11".to_string())?
+        .add_rule('0', " 1[L)0]R(0".to_string())?
         .rotate(Rad(90.0f64.to_radians()), Rad(0.0), Rad(0.0))?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!("fractal_binary_tree render() duration: {:?}", now.elapsed());
@@ -270,8 +283,11 @@ fn fractal_plant(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>
         .add_token('[', TurtleCommand::Push)?
         .add_token(']', TurtleCommand::Pop)?
         .add_axiom("X".to_string())?
-        .add_rule("X => F + a [ [ X ] - s X ] - F [ - s F X ] + a X".to_string())?
-        .add_rule("F => F a F".to_string())?
+        .add_rule(
+            'X',
+            " F + a [ [ X ] - s X ] - F [ - s F X ] + a X".to_string(),
+        )?
+        .add_rule('F', " F a F".to_string())?
         .rotate(Rad(70.0f64.to_radians()), Rad(0.0), Rad(0.0))?
         .exec(cmd_arg_iterations, Turtle::default())?;
 
@@ -296,10 +312,10 @@ fn hilbert_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 
         .add_token('/', TurtleCommand::Roll(Rad(-90f64.to_radians())))?
         .add_token('|', TurtleCommand::Yaw(Rad(180f64.to_radians())))?
         .add_axiom("A".to_string())?
-        .add_rule("A => B-F+CFC+F-D&F∧D-F+&&CFC+F+B//".to_string())?
-        .add_rule("B => A&F∧CFB∧F∧D∧∧-F-D∧|F∧B|FC∧F∧A//".to_string())?
-        .add_rule("C => |D∧|F∧B-F+C∧F∧A&&FA&F∧C+F+B∧F∧D//".to_string())?
-        .add_rule("D => |CFB-F+B|FA&F∧A&&FB-F+B|FC//".to_string())?
+        .add_rule('A', " B-F+CFC+F-D&F∧D-F+&&CFC+F+B//".to_string())?
+        .add_rule('B', " A&F∧CFB∧F∧D∧∧-F-D∧|F∧B|FC∧F∧A//".to_string())?
+        .add_rule('C', " |D∧|F∧B-F+C∧F∧A&&FA&F∧C+F+B∧F∧D//".to_string())?
+        .add_rule('D', " |CFB-F+B|FA&F∧A&&FB-F+B|FC//".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
 
     println!("fractal_binary_tree render() duration: {:?}", now.elapsed());
@@ -430,6 +446,7 @@ pub fn command(
         "SIERPINSKI_GASKET" => sierpinski_gasket(cmd_arg_iterations),
         "SIERPINSKI_GASKET_3D" => sierpinski_gasket_3d(cmd_arg_iterations),
         "KOCH_CURVE" => koch_curve(cmd_arg_iterations),
+        "KOCH_CURVE_3D" => koch_curve_3d(cmd_arg_iterations),
         "GOSPER_CURVE" => gosper_curve(cmd_arg_iterations),
         "GOSPER_CURVE_3D" => gosper_curve_3d(cmd_arg_iterations),
         "KOCH_CURVE_ISLAND" => quadratic_koch_curve_island(cmd_arg_iterations),

@@ -173,26 +173,16 @@ impl TurtleRules {
         Ok(self)
     }
 
-    pub fn add_rule(&mut self, rule: String) -> Result<&mut Self, TBError> {
-        if rule.len() < 6 {
-            return Err(TBError::LSystems3D(format!("Rule too short {}", rule)));
+    pub fn add_rule(&mut self, rule_id: char, rule: String) -> Result<&mut Self, TBError> {
+        if rule.is_empty() {
+            return Err(TBError::LSystems3D(format!("Rule too short {}", rule_id)));
         }
-        let id = rule[0..1]
-            .chars()
-            .next()
-            .ok_or_else(|| TBError::LSystems3D(format!("Could not find rule key {}", rule)))?;
-        let assign = &rule[1..5];
-        if assign != " => " {
-            println!("assign = '{}'", assign);
-            return Err(TBError::LSystems3D(format!("Rule not understood {}", rule)));
-        }
-        let rule = rule[4..rule.len()].to_string().replace(" ", "");
 
-        println!("Adding rule '{}' => '{}'", id, &rule);
-        if self.rules.insert(id, rule).is_some() {
+        println!("Adding rule '{}' => '{}'", rule_id, &rule);
+        if self.rules.insert(rule_id, rule).is_some() {
             return Err(TBError::LSystems3D(format!(
                 "Rule {} overwriting previous rule",
-                id
+                rule_id
             )));
         }
         Ok(self)
@@ -333,7 +323,7 @@ impl TurtleRules {
             Start,
             Token(Option<char>, Option<ParseTurtleAction>),
             Axiom,
-            Rule,
+            Rule(Option<char>, Option<String>),
             Yaw,
             Rotate(Option<Rad<f64>>, Option<Rad<f64>>, Option<Rad<f64>>),
         }
@@ -371,7 +361,7 @@ impl TurtleRules {
                             state, lex.slice(), line
                         )));
                     }
-                    state = ParseState::Rule;
+                    state = ParseState::Rule(None, None);
                 }
                 ParseToken::Yaw => {
                     if state != ParseState::Start {
@@ -383,7 +373,7 @@ impl TurtleRules {
                     state = ParseState::Yaw;
                 }
                 ParseToken::QuotedText => {
-                    let text = &lex.slice()[1..lex.slice().len() - 1];
+                    let text: &str = &lex.slice()[1..lex.slice().len() - 1];
                     match state {
                         ParseState::Axiom => {
                             println!("Got .add_axiom(\"{}\")", text);
@@ -401,9 +391,19 @@ impl TurtleRules {
                                 None,
                             );
                         }
-                        ParseState::Rule => {
-                            println!("Got .add_rule(\"{}\")", text);
-                            let _ = self.add_rule(text.to_string());
+                        ParseState::Rule(None, None) => {
+                            if text.len() != 1 {
+                                return Err(TBError::ParseError(format!(
+                                    "Rule id must be one single char, got '{}' at line {}",
+                                    text, line
+                                )));
+                            }
+                            let rule_id: char = text.chars().next().unwrap();
+                            state = ParseState::Rule(Some(rule_id), None);
+                        }
+                        ParseState::Rule(Some(rule_id), None) => {
+                            println!("Got .add_rule('{}', \"{}\")", rule_id, text);
+                            let _ = self.add_rule(rule_id, text.to_string());
                             state = ParseState::Start;
                         }
                         _ => {

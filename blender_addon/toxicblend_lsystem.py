@@ -225,6 +225,7 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
                          ("FRACTAL_BINARY_TREE_3D", "fractal binary tree 3d", "draw a 3d fractal binary tree"),
                          ("FRACTAL_PLANT", "fractal plant", "draw fractal plant"),
                          ("KOCH_CURVE", "Koch curve", "draw a Koch curve"),
+                         ("KOCH_CURVE_3D", "Koch curve 3d", "draw a 3d Koch curve"),
                          ("KOCH_CURVE_ISLAND", "Koch curve island", "draw a quadratic Koch curve island"),
                          ("KOCH_CURVE_ISLAND_3D", "Koch curve island 3d", "draw a 3d variant of quadratic Koch curve island"),
                          ("HILBERT_CURVE_3D", "Hilbert curve 3d", "draw Hilbert curve 3d"),
