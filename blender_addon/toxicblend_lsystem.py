@@ -220,12 +220,19 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
     )
 
     cmd_variant_items = (("DRAGON_CURVE", "dragon curve", "draw dragon curve"),
+                         ("DRAGON_CURVE_3D", "dragon curve 3d", "draw a 3d dragon curve"),
                          ("FRACTAL_BINARY_TREE", "fractal binary tree", "draw fractal binary tree"),
+                         ("FRACTAL_BINARY_TREE_3D", "fractal binary tree 3d", "draw a 3d fractal binary tree"),
                          ("FRACTAL_PLANT", "fractal plant", "draw fractal plant"),
-                         ("KOCH_CURVE", "koch curve", "draw koch curve"),
+                         ("KOCH_CURVE", "Koch curve", "draw a Koch curve"),
+                         ("KOCH_CURVE_ISLAND", "Koch curve island", "draw a quadratic Koch curve island"),
+                         ("KOCH_CURVE_ISLAND_3D", "Koch curve island 3d", "draw a 3d variant of quadratic Koch curve island"),
                          ("HILBERT_CURVE_3D", "Hilbert curve 3d", "draw Hilbert curve 3d"),
-                         ("SIERPINSKI_ARROWHEAD","sierpinski arrowhead", "draw sierpinski arrowhead"),
-                         ("SIERPINSKI_TRIANGLE","sierpinski triangle", "draw sierpinski triangle"),
+                         ("SIERPINSKI_GASKET","Sierpinski gasket", "draw Sierpinski gasket"),
+                         ("SIERPINSKI_GASKET_3D","Sierpinski gasket 3d", "draw a 3f Sierpinski gasket"),
+                         ("SIERPINSKI_TRIANGLE","Sierpinski triangle", "draw Sierpinski triangle"),
+                         ("GOSPER_CURVE","Gosper curve", "draw Gosper curve"),
+                         ("GOSPER_CURVE_3D","Gosper curve 3d", "draw a 3d Gosper curve"),
                          ("CUSTOM_TURTLE","Custom turtle", "draw using custom turtle")
                         )
     cmd_variant = bpy.props.EnumProperty(name="Variant", items=cmd_variant_items, default="DRAGON_CURVE")
