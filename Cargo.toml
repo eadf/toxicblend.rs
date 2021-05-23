@@ -44,4 +44,3 @@ lto = true
 
 [badges]
 maintenance = { status = "actively-developed" }
-github = { repository = "eadf/toxicblend.rs" }

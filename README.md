@@ -104,6 +104,8 @@ This operation is located under `Object` -> `Add` -> `Mesh` -> `LSystem`
 ![metavolume](img/plant2.png)
 ![metavolume](img/arrowhead.png)
 ![metavolume](img/hilbert_3d.png)
+![metavolume](img/dragon_curve_3d.gif)
+
 ### operation: Knife intersect
 
 Runs on a single flat mesh object made of edges (no faces) and tests for self-intersections.
