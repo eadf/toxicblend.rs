@@ -49,7 +49,7 @@ from bpy_extras.object_utils import AddObjectHelper
 bl_info = {
     'name': "Toxicblend - Add Lindenmayer systems",
     "author": "EADF",
-    "version": (0, 0, 8),
+    "version": (0, 0, 9),
     "blender": (2, 92, 0),
     # "location": "View3D > Sidebar > Edit Tab / Edit Mode Context Menu",
     "warning": "Communicates with a gRPC server on localhost",
@@ -244,8 +244,8 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
     custom_turtle3 = bpy.props.StringProperty(name="custom turtle 3", default='token("+", Turtle::Yaw(-90))?')
     custom_turtle4 = bpy.props.StringProperty(name="custom turtle 4", default='token("-", Turtle::Pitch(90))?')
     custom_turtle5 = bpy.props.StringProperty(name="custom turtle 5", default='axiom("F X")?')
-    custom_turtle6 = bpy.props.StringProperty(name="custom turtle 6", default='rule("X => X + Y F +")?')
-    custom_turtle7 = bpy.props.StringProperty(name="custom turtle 7", default='rule("Y => - F X - Y")?;')
+    custom_turtle6 = bpy.props.StringProperty(name="custom turtle 6", default='rule("X","X + Y F +")?')
+    custom_turtle7 = bpy.props.StringProperty(name="custom turtle 7", default='rule("Y","- F X - Y")?;')
     custom_turtle8 = bpy.props.StringProperty(name="custom turtle 8", default='')
     custom_turtle9 = bpy.props.StringProperty(name="custom turtle 9", default='')
 
@@ -258,8 +258,10 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
 
         settings_write(self)
         cursor_location = bpy.context.scene.cursor.location.copy()
+        channel_opt = [('grpc.max_send_message_length', 512 * 1024 * 1024),
+                       ('grpc.max_receive_message_length', 512 * 1024 * 1024)]
         try:
-            with grpc.insecure_channel(SERVER_URL) as channel:
+            with grpc.insecure_channel(SERVER_URL, options=channel_opt) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
                 command = toxicblend_pb2.Command(command='lsystems')
                 opt = command.options.add()
