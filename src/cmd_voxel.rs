@@ -14,6 +14,13 @@ use building_blocks::storage::prelude::*;
 use std::collections::HashMap;
 use std::time;
 
+/// converts to a private, comparable and hash-able format
+/// only use this for floats that are f32::is_finite()
+#[inline(always)]
+fn transmute_to_u32(a: &[f32; 3]) -> (u32, u32, u32) {
+    (a[0].to_bits(), a[1].to_bits(), a[2].to_bits())
+}
+
 /// unpack the input PB_Model
 #[allow(clippy::type_complexity)]
 pub fn parse_input_pb_model(
@@ -117,8 +124,7 @@ fn build_voxel(
                     from_v.y().max(to_v.y()).round() as i32,
                     from_v.z().max(to_v.z()).round() as i32,
                 ]);
-                Extent3i::from_min_and_max(extent_min, extent_max)
-                    .padded(thickness.ceil() as i32)
+                Extent3i::from_min_and_max(extent_min, extent_max).padded(thickness.ceil() as i32)
             };
             map.for_each_mut(&sample_extent, |p: Point3i, prev_dist| {
                 let pa = PointN([p.x() as f32, p.y() as f32, p.z() as f32]) - from_v;
@@ -201,34 +207,66 @@ fn build_output_bp_model(
 
     let mut pb_vertices: Vec<PB_Vertex> = Vec::with_capacity(vertex_capacity);
     let mut pb_faces: Vec<PB_Face> = Vec::with_capacity(face_capacity);
+    // translates between bit-perfect copies of vertices and indices of already know vertices.
+    let mut unique_vertex_map: ahash::AHashMap<(u32, u32, u32), u64> = ahash::AHashMap::default();
+    // translates between the index used by the chunks and the vertex index in pb_vertices
+    let mut vertex_map: ahash::AHashMap<u64, u64> = ahash::AHashMap::default();
 
+    let now = time::Instant::now();
     for mesh in meshes.into_iter() {
+        // each chunk starts counting vertices from zero
         let indices_offset = pb_vertices.len() as u64;
         if let Some(mesh) = mesh? {
-            pb_vertices.extend(mesh.positions.iter().map(|p| PB_Vertex {
-                x: p[0] as f64,
-                y: p[1] as f64,
-                z: p[2] as f64,
-            }));
+            for (pi, p) in mesh.positions.iter().enumerate() {
+                let key = transmute_to_u32(&p);
+                let _ = vertex_map.insert(
+                    pi as u64 + indices_offset,
+                    *unique_vertex_map.entry(key).or_insert_with(|| {
+                        let n = pb_vertices.len() as u64;
+                        pb_vertices.push(PB_Vertex {
+                            x: p[0] as f64,
+                            y: p[1] as f64,
+                            z: p[2] as f64,
+                        });
+                        n
+                    }),
+                );
+            }
+
+            let face_vertices: Result<Vec<u64>, TBError> = mesh
+                .indices
+                .iter()
+                .map(|a| {
+                    vertex_map
+                        .get(&(*a as u64 + indices_offset))
+                        .copied()
+                        .ok_or_else(|| {
+                            TBError::InternalError(
+                                "Vertex id not found while de-duplicating vertices".to_string(),
+                            )
+                        })
+                })
+                .collect();
             pb_faces.push(PB_Face {
-                vertices: mesh
-                    .indices
-                    .iter()
-                    .map(|a| *a as u64 + indices_offset)
-                    .collect(),
+                vertices: face_vertices?,
             })
         }
-    } /*
-      println!(
-          "pb_vertices:{}, vertex_capacity:{}",
-          pb_vertices.len(),
-          vertex_capacity
-      );
-      println!(
-          "pb_faces:{}, face_capacity:{}",
-          pb_faces.len(),
-          face_capacity
-      );*/
+    }
+    println!(
+        "Vertex de-duplication and return model packaging duration: {:?}",
+        now.elapsed()
+    );
+
+    println!(
+        "pb_vertices:{}, vertex_capacity:{}",
+        pb_vertices.len(),
+        vertex_capacity
+    );
+    println!(
+        "pb_faces:{}, face_capacity:{}",
+        pb_faces.len(),
+        face_capacity
+    );
     Ok(PB_Model {
         name: input_pb_model.name.clone(),
         world_orientation: input_pb_model.world_orientation.clone(),
