@@ -97,35 +97,29 @@ fn build_voxel(
     );
     let vertices: Vec<PointN<[f32; 3]>> = vertices.into_iter().map(|v| v * scale).collect();
 
-    let mut sdfu_vec = Vec::<(Extent3i, Point3f, Point3f)>::new();
-    if !edges.is_empty() {
-        for (from, to) in edges.into_iter() {
-            let from_v = vertices[from];
-            let to_v = vertices[to];
-
-            let extent_min = PointN([
-                from_v.x().min(to_v.x()).round() as i32,
-                from_v.y().min(to_v.y()).round() as i32,
-                from_v.z().min(to_v.z()).round() as i32,
-            ]);
-            let extent_max = PointN([
-                from_v.x().max(to_v.x()).round() as i32,
-                from_v.y().max(to_v.y()).round() as i32,
-                from_v.z().max(to_v.z()).round() as i32,
-            ]);
-            let extent =
-                Extent3i::from_min_and_max(extent_min, extent_max).padded(thickness as i32 + 2);
-            sdfu_vec.push((extent, from_v, to_v));
-        }
-    }
-
     let map = {
         let now = time::Instant::now();
 
         let builder = ChunkMapBuilder3x1::new(PointN([16; 3]), Sd16::ONE);
         let mut map = builder.build_with_hash_map_storage();
 
-        for (sample_extent, from_v, to_v) in sdfu_vec.into_iter() {
+        for (from_v, to_v) in edges
+            .into_iter()
+            .map(|(from, to)| (vertices[from], vertices[to]))
+        {
+            let sample_extent = {
+                let extent_min = PointN([
+                    from_v.x().min(to_v.x()).round() as i32,
+                    from_v.y().min(to_v.y()).round() as i32,
+                    from_v.z().min(to_v.z()).round() as i32,
+                ]);
+                let extent_max = PointN([
+                    from_v.x().max(to_v.x()).round() as i32,
+                    from_v.y().max(to_v.y()).round() as i32,
+                    from_v.z().max(to_v.z()).round() as i32,
+                ]);
+                Extent3i::from_min_and_max(extent_min, extent_max).padded(thickness as i32 + 2)
+            };
             map.for_each_mut(&sample_extent, |p: Point3i, p_dist| {
                 let pa = PointN([p.x() as f32, p.y() as f32, p.z() as f32]) - from_v;
                 let ba = to_v - from_v;
