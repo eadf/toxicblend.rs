@@ -119,6 +119,9 @@ pub enum TBError {
     #[error(transparent)]
     BoostVoronoiError(#[from] boostvoronoi::BvError),
 
+    #[error(transparent)]
+    JoinError(#[from] tokio::task::JoinError),
+
     #[error("Error in LSystems {0}")]
     LSystems3D(String),
 }

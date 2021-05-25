@@ -30,6 +30,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-scoped"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fac5db01742dd0780aa112aa107196f7cab52afc762d5d4f8acb55df1976ec0e"
+dependencies = [
+ "futures",
+ "pin-project 0.4.28",
+ "slab",
+ "tokio",
+]
+
+[[package]]
 name = "async-stream"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -477,7 +489,7 @@ dependencies = [
  "httparse",
  "httpdate",
  "itoa",
- "pin-project",
+ "pin-project 1.0.7",
  "socket2",
  "tokio",
  "tower-service",
@@ -803,11 +815,31 @@ dependencies = [
 
 [[package]]
 name = "pin-project"
+version = "0.4.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "918192b5c59119d51e0cd221f4d49dde9112824ba717369e903c97d076083d0f"
+dependencies = [
+ "pin-project-internal 0.4.28",
+]
+
+[[package]]
+name = "pin-project"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7509cc106041c40a4518d2af7a61530e1eed0e6285296a3d8c5472806ccc4a4"
 dependencies = [
- "pin-project-internal",
+ "pin-project-internal 1.0.7",
+]
+
+[[package]]
+name = "pin-project-internal"
+version = "0.4.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3be26700300be6d9d23264c73211d8190e755b6b5ca7a1b28230025511b52a5e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1201,7 +1233,7 @@ dependencies = [
  "http-body",
  "hyper",
  "percent-encoding",
- "pin-project",
+ "pin-project 1.0.7",
  "prost",
  "prost-derive",
  "tokio",
@@ -1234,7 +1266,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "indexmap",
- "pin-project",
+ "pin-project 1.0.7",
  "rand",
  "slab",
  "tokio",
@@ -1262,6 +1294,7 @@ name = "toxicblend"
 version = "0.0.8"
 dependencies = [
  "ahash",
+ "async-scoped",
  "boostvoronoi",
  "building-blocks",
  "centerline",
@@ -1319,7 +1352,7 @@ version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97d095ae15e245a057c8e8451bab9b3ee1e1f68e9ba2b4fbc18d0ac5237835f2"
 dependencies = [
- "pin-project",
+ "pin-project 1.0.7",
  "tracing",
 ]
 

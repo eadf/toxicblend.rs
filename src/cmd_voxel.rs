@@ -5,12 +5,13 @@ use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
+use async_scoped::TokioScope;
 use building_blocks::core::prelude::PointN;
 use building_blocks::core::prelude::*;
 use building_blocks::core::sdfu::{self, SDF};
 use building_blocks::mesh::*;
+use building_blocks::prelude::Sd16;
 use building_blocks::storage::prelude::*;
-//use itertools::Itertools;
 use std::collections::HashMap;
 use std::time;
 
@@ -59,13 +60,15 @@ pub fn parse_input_pb_model(
 }
 
 /// Build the voxel data from the input
+// todo: should i rebuild the return value to just Result<Vec<PosNormMesh>,TBError>?
+// the current return value does not live very long, a re-shuffle would just take time.
 fn build_voxel(
     radius_multiplier: f64,
     divisions: f64,
     vertices: Vec<PointN<[f32; 3]>>,
     edges: Vec<(usize, usize)>,
     aabb: linestring::cgmath_3d::Aabb3<f64>,
-) -> Result<PosNormMesh, TBError> {
+) -> Result<Vec<Result<Option<PosNormMesh>, tokio::task::JoinError>>, TBError> {
     let dimensions = aabb.get_high().unwrap() - aabb.get_low().unwrap();
     let max_dimension = dimensions.x.max(dimensions.y).max(dimensions.z);
     //let center = (aabb.get_high().unwrap() + aabb.get_low().unwrap())/2.0;
@@ -120,60 +123,123 @@ fn build_voxel(
         }
     }
 
-    let samples = {
-        let main_extent = {
-            let aabb_min = aabb.get_low().unwrap() * (scale as f64);
-            let aabb_max = aabb.get_high().unwrap() * (scale as f64);
-            Extent3i::from_min_and_max(
-                PointN([aabb_min.x as i32, aabb_min.y as i32, aabb_min.z as i32]),
-                PointN([aabb_max.x as i32, aabb_max.y as i32, aabb_max.z as i32]),
-            )
-            .padded(thickness as i32 + 2)
-        };
-        println!("extent:{:?}", main_extent);
+    let map = {
         let now = time::Instant::now();
 
-        let mut samples = Array3x1::fill(main_extent, thickness * 10.0_f32);
+        let builder = ChunkMapBuilder3x1::new(PointN([16; 3]), Sd16::ONE);
+        let mut map = builder.build_with_hash_map_storage();
+
+        //let mut samples = Array3x1::fill(main_extent, thickness * 10.0_f32);
         for (sample_extent, sdf_func) in sdfu_vec.into_iter() {
-            samples.for_each_mut(&sample_extent, |p: Point3i, dist| {
-                *dist = dist.min(sdf_func(Point3f::from(p)));
+            map.for_each_mut(&sample_extent, |p: Point3i, dist| {
+                *dist = *dist.min(&mut Sd16::from(sdf_func(Point3f::from(p))));
             });
         }
         println!("fill() duration: {:?}", now.elapsed());
-        samples
+        //samples;
+        map
     };
 
-    let mut mesh_buffer = SurfaceNetsBuffer::default();
+    //let mut mesh_buffer = SurfaceNetsBuffer::default();
     let voxel_size = 1.0 / scale;
+
+    // Generate the chunk meshes.
+    let map_ref = &map;
+
     let now = time::Instant::now();
-    surface_nets(&samples, samples.extent(), voxel_size, &mut mesh_buffer);
+    //surface_nets(&samples, samples.extent(), voxel_size, &mut mesh_buffer);
+    let chunk_meshes: Vec<Result<Option<PosNormMesh>, tokio::task::JoinError>> =
+        TokioScope::scope_and_block(|s| {
+            for chunk_key in map_ref.storage().keys() {
+                s.spawn(async move {
+                    let padded_chunk_extent = padded_surface_nets_chunk_extent(
+                        &map_ref.indexer.extent_for_chunk_at_key(*chunk_key),
+                    );
+                    let mut padded_chunk = Array3x1::fill(padded_chunk_extent, Sd16(0));
+                    copy_extent(&padded_chunk_extent, map_ref, &mut padded_chunk);
+
+                    let mut surface_nets_buffer = SurfaceNetsBuffer::default();
+                    //let voxel_size = 1.0;
+                    surface_nets(
+                        &padded_chunk,
+                        &padded_chunk_extent,
+                        voxel_size,
+                        &mut surface_nets_buffer,
+                    );
+
+                    if surface_nets_buffer.mesh.indices.is_empty() {
+                        None
+                    } else {
+                        Some(surface_nets_buffer.mesh)
+                    }
+                })
+            }
+        })
+        .1;
+
     println!("surface_nets() duration: {:?}", now.elapsed());
-    Ok(mesh_buffer.mesh)
+    Ok(chunk_meshes)
 }
 
 /// Build the return model
 /// lines contains a vector of (<first vertex index>,<a list of points><last vertex index>)
-fn build_output_bp_model(a_command: &PB_Command, mesh: PosNormMesh) -> Result<PB_Model, TBError> {
+fn build_output_bp_model(
+    a_command: &PB_Command,
+    meshes: Vec<Result<Option<PosNormMesh>, tokio::task::JoinError>>,
+) -> Result<PB_Model, TBError> {
     let input_pb_model = &a_command.models[0];
 
-    let pb_vertices = mesh
-        .positions
+    let vertex_capacity: usize = meshes
         .iter()
-        .map(|[x, y, z]| PB_Vertex {
-            x: *x as f64,
-            y: *y as f64,
-            z: *z as f64,
+        .filter_map(|x| {
+            if let Ok(Some(x)) = x {
+                Some(x.positions.len())
+            } else {
+                None
+            }
         })
-        .collect();
-    let pb_faces = PB_Face {
-        vertices: mesh.indices.iter().map(|a| *a as u64).collect(),
-    };
+        .sum();
+    // todo: must be an easier way to do this
+    let face_capacity: usize = meshes
+        .iter()
+        .filter_map(|x| if let Ok(Some(_)) = x { Some(1) } else { None })
+        .sum();
 
+    let mut pb_vertices: Vec<PB_Vertex> = Vec::with_capacity(vertex_capacity);
+    let mut pb_faces: Vec<PB_Face> = Vec::with_capacity(face_capacity);
+
+    for mesh in meshes.into_iter() {
+        let indices_offset = pb_vertices.len() as u64;
+        if let Some(mesh) = mesh? {
+            pb_vertices.extend(mesh.positions.iter().map(|p| PB_Vertex {
+                x: p[0] as f64,
+                y: p[1] as f64,
+                z: p[2] as f64,
+            }));
+            pb_faces.push(PB_Face {
+                vertices: mesh
+                    .indices
+                    .iter()
+                    .map(|a| *a as u64 + indices_offset)
+                    .collect(),
+            })
+        }
+    } /*
+      println!(
+          "pb_vertices:{}, vertex_capacity:{}",
+          pb_vertices.len(),
+          vertex_capacity
+      );
+      println!(
+          "pb_faces:{}, face_capacity:{}",
+          pb_faces.len(),
+          face_capacity
+      );*/
     Ok(PB_Model {
         name: input_pb_model.name.clone(),
         world_orientation: input_pb_model.world_orientation.clone(),
         vertices: pb_vertices,
-        faces: vec![pb_faces],
+        faces: pb_faces,
     })
 }
 

@@ -945,7 +945,7 @@ class Toxicblend_Voxel(Operator):
 
     divisions: FloatProperty(
         name="Voxel Divisions",
-        description="The larges scale of the AABB will be divided up into this number of voxels",
+        description="The longest axis of the model will be divided up into this number of voxels, the other axes will have proportionally number of voxels",
         default=100.0,
         min=50,
         max=400,
@@ -1209,7 +1209,7 @@ class TB_MeshToolsProps(PropertyGroup):
 
     voxel_divisions: FloatProperty(
         name="Voxel Divisions",
-        description="The larges scale of the AABB will be divided up into this number of voxels",
+        description="The longest axis of the model will be divided up into this number of voxels, the other axes will have proportionally number of voxels",
         default=100.0,
         min=50,
         max=400,

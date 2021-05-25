@@ -31,6 +31,7 @@ cgmath = "^0.18.0"
 itertools = "^0.10.0"
 building-blocks = { version="^0.6.0", default-features = false, features = ["mesh", "sdfu"]}
 logos = "0.12"
+async-scoped = { version = "0.6", features = ["use-tokio"] }
 
 [[bin]]
 name = "toxicblend_server"
