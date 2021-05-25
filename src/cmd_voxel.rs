@@ -8,7 +8,6 @@ use crate::toxicblend_pb::Vertex as PB_Vertex;
 use async_scoped::TokioScope;
 use building_blocks::core::prelude::PointN;
 use building_blocks::core::prelude::*;
-use building_blocks::core::sdfu::{self, SDF};
 use building_blocks::mesh::*;
 use building_blocks::prelude::Sd16;
 use building_blocks::storage::prelude::*;
@@ -99,14 +98,12 @@ fn build_voxel(
     );
     let vertices: Vec<PointN<[f32; 3]>> = vertices.into_iter().map(|v| v * scale).collect();
 
-    let mut sdfu_vec = Vec::<(Extent3i, Box<dyn Fn(Point3f) -> f32>)>::new();
+    let mut sdfu_vec = Vec::<(Extent3i, Point3f, Point3f)>::new();
     if !edges.is_empty() {
         for (from, to) in edges.into_iter() {
             let from_v = vertices[from];
             let to_v = vertices[to];
-            let sdfu_func = Box::new(move |p: Point3f| -> f32 {
-                sdfu::Line::new(from_v, to_v, thickness).dist(p)
-            });
+
             let extent_min = PointN([
                 from_v.x().min(to_v.x()).round() as i32,
                 from_v.y().min(to_v.y()).round() as i32,
@@ -119,7 +116,7 @@ fn build_voxel(
             ]);
             let extent =
                 Extent3i::from_min_and_max(extent_min, extent_max).padded(thickness as i32 + 2);
-            sdfu_vec.push((extent, sdfu_func));
+            sdfu_vec.push((extent, from_v, to_v));
         }
     }
 
@@ -130,9 +127,19 @@ fn build_voxel(
         let mut map = builder.build_with_hash_map_storage();
 
         //let mut samples = Array3x1::fill(main_extent, thickness * 10.0_f32);
-        for (sample_extent, sdf_func) in sdfu_vec.into_iter() {
-            map.for_each_mut(&sample_extent, |p: Point3i, dist| {
-                *dist = *dist.min(&mut Sd16::from(sdf_func(Point3f::from(p))));
+        for (sample_extent, from_v, to_v) in sdfu_vec.into_iter() {
+            map.for_each_mut(&sample_extent, |p: Point3i, p_dist| {
+
+                let pa = PointN([p.x() as f32, p.y() as f32, p.z() as f32]) - from_v;
+                let ba = to_v - from_v;
+                let t = pa.dot(ba) as f32 / ba.dot(ba) as f32;
+                let h = t.clamp(0.0, 1.0);
+                let dist = pa - (ba * h);
+                // could not find implementation of PointN::magnitude(), bha it's a one liner...
+                let dist = (dist.x()*dist.x()+dist.y()*dist.y()+dist.z()*dist.z()).sqrt();
+                let mut dist= Sd16::from(dist - thickness);
+
+                *p_dist = *p_dist.min(&mut dist);
             });
         }
         println!("fill() duration: {:?}", now.elapsed());
@@ -312,10 +319,10 @@ pub fn command(
         "packed_faces_model.faces.len() {}",
         packed_faces_model.faces.len()
     );
-    println!(
+    /*println!(
         "packed_faces_model.faces[0].vertices.len() {}",
         packed_faces_model.faces[0].vertices.len()
-    );
+    );*/
 
     let reply = PB_Reply {
         options: vec![

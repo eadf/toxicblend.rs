@@ -155,7 +155,6 @@ checksum = "28598f486c248e11ff2817ac3a576033521de4e98ed0386a18c3760536a82f11"
 dependencies = [
  "itertools 0.9.0",
  "num 0.3.1",
- "sdfu",
  "serde",
 ]
 
@@ -1070,12 +1069,6 @@ name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
-
-[[package]]
-name = "sdfu"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9d63ba6e0a1f700543f6e2a4078dc420c21715428088492ee8ec2267beb225c"
 
 [[package]]
 name = "serde"
