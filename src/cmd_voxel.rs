@@ -70,7 +70,6 @@ fn build_voxel(
 ) -> Result<Vec<Result<Option<PosNormMesh>, tokio::task::JoinError>>, TBError> {
     let dimensions = aabb.get_high().unwrap() - aabb.get_low().unwrap();
     let max_dimension = dimensions.x.max(dimensions.y).max(dimensions.z);
-    //let center = (aabb.get_high().unwrap() + aabb.get_low().unwrap())/2.0;
 
     let radius = max_dimension * radius_multiplier;
     let scale = (divisions / max_dimension) as f32;
@@ -118,9 +117,10 @@ fn build_voxel(
                     from_v.y().max(to_v.y()).round() as i32,
                     from_v.z().max(to_v.z()).round() as i32,
                 ]);
-                Extent3i::from_min_and_max(extent_min, extent_max).padded(thickness as i32 + 2)
+                Extent3i::from_min_and_max(extent_min, extent_max)
+                    .padded(thickness.ceil() as i32)
             };
-            map.for_each_mut(&sample_extent, |p: Point3i, p_dist| {
+            map.for_each_mut(&sample_extent, |p: Point3i, prev_dist| {
                 let pa = PointN([p.x() as f32, p.y() as f32, p.z() as f32]) - from_v;
                 let ba = to_v - from_v;
                 let t = pa.dot(ba) as f32 / ba.dot(ba) as f32;
@@ -130,7 +130,7 @@ fn build_voxel(
                 let dist = (dist.x() * dist.x() + dist.y() * dist.y() + dist.z() * dist.z()).sqrt();
                 let mut dist = Sd16::from(dist - thickness);
 
-                *p_dist = *p_dist.min(&mut dist);
+                *prev_dist = *prev_dist.min(&mut dist);
             });
         }
         println!("for_each_mut() duration: {:?}", now.elapsed());
@@ -177,7 +177,6 @@ fn build_voxel(
 }
 
 /// Build the return model
-/// lines contains a vector of (<first vertex index>,<a list of points><last vertex index>)
 fn build_output_bp_model(
     a_command: &PB_Command,
     meshes: Vec<Result<Option<PosNormMesh>, tokio::task::JoinError>>,
