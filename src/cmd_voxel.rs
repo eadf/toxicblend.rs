@@ -89,7 +89,6 @@ fn build_voxel(
     );
     println!();
 
-    //println!("lines:{:?}", edges);
     println!("aabb.high:{:?}", aabb.get_high().unwrap());
     println!("aabb.low:{:?}", aabb.get_low().unwrap());
     println!(
@@ -126,35 +125,30 @@ fn build_voxel(
         let builder = ChunkMapBuilder3x1::new(PointN([16; 3]), Sd16::ONE);
         let mut map = builder.build_with_hash_map_storage();
 
-        //let mut samples = Array3x1::fill(main_extent, thickness * 10.0_f32);
         for (sample_extent, from_v, to_v) in sdfu_vec.into_iter() {
             map.for_each_mut(&sample_extent, |p: Point3i, p_dist| {
-
                 let pa = PointN([p.x() as f32, p.y() as f32, p.z() as f32]) - from_v;
                 let ba = to_v - from_v;
                 let t = pa.dot(ba) as f32 / ba.dot(ba) as f32;
                 let h = t.clamp(0.0, 1.0);
                 let dist = pa - (ba * h);
                 // could not find implementation of PointN::magnitude(), bha it's a one liner...
-                let dist = (dist.x()*dist.x()+dist.y()*dist.y()+dist.z()*dist.z()).sqrt();
-                let mut dist= Sd16::from(dist - thickness);
+                let dist = (dist.x() * dist.x() + dist.y() * dist.y() + dist.z() * dist.z()).sqrt();
+                let mut dist = Sd16::from(dist - thickness);
 
                 *p_dist = *p_dist.min(&mut dist);
             });
         }
-        println!("fill() duration: {:?}", now.elapsed());
-        //samples;
+        println!("for_each_mut() duration: {:?}", now.elapsed());
         map
     };
 
-    //let mut mesh_buffer = SurfaceNetsBuffer::default();
     let voxel_size = 1.0 / scale;
 
     // Generate the chunk meshes.
     let map_ref = &map;
 
     let now = time::Instant::now();
-    //surface_nets(&samples, samples.extent(), voxel_size, &mut mesh_buffer);
     let chunk_meshes: Vec<Result<Option<PosNormMesh>, tokio::task::JoinError>> =
         TokioScope::scope_and_block(|s| {
             for chunk_key in map_ref.storage().keys() {
@@ -311,18 +305,16 @@ pub fn command(
         aabb,
     )?;
     let packed_faces_model = build_output_bp_model(&a_command, mesh)?;
+    println!("Vertices: {}", packed_faces_model.vertices.len());
+
     println!(
-        "packed_faces_model.vertices.len() {}",
-        packed_faces_model.vertices.len()
+        "Faces: {}",
+        packed_faces_model
+            .faces
+            .iter()
+            .map(|x| x.vertices.len())
+            .sum::<usize>()
     );
-    println!(
-        "packed_faces_model.faces.len() {}",
-        packed_faces_model.faces.len()
-    );
-    /*println!(
-        "packed_faces_model.faces[0].vertices.len() {}",
-        packed_faces_model.faces[0].vertices.len()
-    );*/
 
     let reply = PB_Reply {
         options: vec![
