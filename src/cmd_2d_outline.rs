@@ -160,7 +160,14 @@ pub fn command(
     a_command: &PB_Command,
     _options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    println!("2d_outline got command: \"{}\"", a_command.command);
+    println!(
+        r#"________  ________   ________          __  .__  .__               
+\_____  \ \______ \  \_____  \  __ ___/  |_|  | |__| ____   ____  
+ /  ____/  |    |  \  /   |   \|  |  \   __\  | |  |/    \_/ __ \ 
+/       \  |    `   \/    |    \  |  /|  | |  |_|  |   |  \  ___/ 
+\_______ \/_______  /\_______  /____/ |__| |____/__|___|  /\___  >
+        \/        \/         \/                         \/     \/ "#
+    );
     if a_command.models.len() > 1 {
         return Err(TBError::InvalidInputData(
             "This operation only supports one model as input".to_string(),

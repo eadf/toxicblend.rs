@@ -577,8 +577,7 @@ pub fn command(
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
     println!(
-        r#"
-                                              __
+        r#"                                              __
     ___  __ ____ _______  ____   ____   ____ |__|
     \  \/ // __ \\_  __ \/ __ \ /    \ / __ \|  |
      \   /(  \_\ )|  | \/  \_\ )   |  \  \_\ )  |

@@ -85,7 +85,7 @@ Runs the Voronoi sweepline algorithm on 2D points and lines (geometry must be on
 Takes an edge-only 3D mesh, like the output of the Voronoi operation, and puts voxelized tubes along the edges.
 This operation does *not* require flat input.
 
-This operation uses [building-blocks](https://crates.io/crates/building-blocks) and [sdfu](https://crates.io/crates/sdfu) for the voxel generation.
+This operation uses [building-blocks](https://crates.io/crates/building-blocks) for voxel generation.
 
 ### operation: Metavolume (object operation)
 Takes an edge-only mesh, like the output of the Voronoi operation, and puts metaballs along the edges.
@@ -99,12 +99,12 @@ This operation is located under `Object` -> `Add` -> `Metaball` -> `MetaVolume`
 Generates a Lindenmayer systems 3d graph/curve. 
 This operation is located under `Object` -> `Add` -> `Mesh` -> `LSystem`
 
-![metavolume](img/dragon_3d.png)
-![metavolume](img/lsystems.png)
-![metavolume](img/plant2.png)
-![metavolume](img/arrowhead.png)
-![metavolume](img/hilbert_3d.png)
-![metavolume](img/dragon_curve_3d.gif)
+![dragon_3d](img/dragon_3d.png)
+![dragon_curve](img/lsystems.png)
+![plant](img/plant2.png)
+![arrowhead](img/arrowhead.png)
+![hilbert](img/hilbert_3d.png)
+![dragon_curve_3d](img/dragon_curve_3d.gif)
 
 ### operation: Knife intersect
 

@@ -293,6 +293,14 @@ pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
+    println!(
+        r#"_________                __               .__  .__
+\_   ___ \  ____   _____/  |_  ___________|  | |__| ____   ____
+/    \  \/_/ __ \ /    \   __\/ __ \_  __ \  | |  |/    \_/ __ \
+\     \___\  ___/|   |  \  | \  ___/|  | \/  |_|  |   |  \  ___/
+ \______  /\___  >___|  /__|  \___  >__|  |____/__|___|  /\___  >
+        \/     \/     \/          \/                   \/     \/ "#
+    );
     // angle is supposed to be in degrees
     let cmd_arg_angle = {
         let value = options

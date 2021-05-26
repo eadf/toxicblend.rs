@@ -212,7 +212,14 @@ pub fn command(
     a_command: &PB_Command,
     _options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    println!("knife_intersect got command: \"{}\"", a_command.command);
+    println!(
+        r#" ____  __.      .__  _____      .___        __                                     __
+|    |/ _| ____ |__|/ ____\____ |   | _____/  |_  ___________  ______ ____   _____/  |_
+|      <  /    \|  \   __\/ __ \|   |/    \   __\/ __ \_  __ \/  ___// __ \_/ ___\   __\
+|    |  \|   |  \  ||  | \  ___/|   |   |  \  | \  ___/|  | \/\___ \\  ___/\  \___|  |
+|____|__ \___|  /__||__|  \___  >___|___|  /__|  \___  >__|  /____  >\___  >\___  >__|
+        \/    \/              \/         \/          \/           \/     \/     \/      "#
+    );
     if a_command.models.len() > 1 {
         return Err(TBError::InvalidInputData(
             "This operation only supports one model as input".to_string(),

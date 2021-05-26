@@ -415,7 +415,14 @@ pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    println!("simplify got command: \"{}\"", a_command.command);
+    println!(
+        r#"  _________.__               .__  .__  _____
+ /   _____/|__| _____ ______ |  | |__|/ ____\__.__.
+ \_____  \ |  |/     \\____ \|  | |  \   __<   |  |
+ /        \|  |  Y Y  \  |_> >  |_|  ||  |  \___  |
+/_______  /|__|__|_|  /   __/|____/__||__|  / ____|
+        \/          \/|__|                  \/     "#
+    );
     if a_command.models.len() > 1 {
         return Err(TBError::InvalidInputData(format!(
             "This operation only supports one model as input:{}",

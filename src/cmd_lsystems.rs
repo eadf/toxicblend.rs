@@ -400,7 +400,14 @@ pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    println!("L Systems got command: \"{}\"", a_command.command);
+    println!(
+        r#".____       _________               __
+|    |     /   _____/__.__. _______/  |_  ____   _____   ______
+|    |     \_____  <   |  |/  ___/\   __\/ __ \ /     \ /  ___/
+|    |___  /        \___  |\___ \  |  | \  ___/|  Y Y  \\___ \
+|_______ \/_______  / ____/____  > |__|  \___  >__|_|  /____  >
+        \/        \/\/         \/            \/      \/     \/ "#
+    );
     if !a_command.models.is_empty() {
         return Err(TBError::InvalidInputData(format!(
             "This operation does not use any models as input:{}",

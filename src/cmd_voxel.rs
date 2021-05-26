@@ -209,7 +209,7 @@ fn build_output_bp_model(
     let mut pb_faces: Vec<PB_Face> = Vec::with_capacity(face_capacity);
     // translates between bit-perfect copies of vertices and indices of already know vertices.
     let mut unique_vertex_map: ahash::AHashMap<(u32, u32, u32), u64> = ahash::AHashMap::default();
-    // translates between the index used by the chunks and the vertex index in pb_vertices
+    // translates between the index used by the chunks + indices_offset and the vertex index in pb_vertices
     let mut vertex_map: ahash::AHashMap<u64, u64> = ahash::AHashMap::default();
 
     let now = time::Instant::now();
@@ -279,7 +279,15 @@ pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
-    println!("Voxel got command: \"{}\"", a_command.command);
+    println!(
+        r#"____   ____                 .__
+\   \ /   /______  ___ ____ |  |
+ \   Y   /  _ \  \/  // __ \|  |
+  \     (  <_> >    <\  ___/|  |__
+   \___/ \____/__/\_ \\___  >____/
+                    \/    \/      "#
+    );
+
     if a_command.models.len() > 1 {
         return Err(TBError::InvalidInputData(format!(
             "This operation only supports one model as input:{}",
