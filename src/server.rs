@@ -19,7 +19,6 @@ mod voronoi_utils;
 
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
 use cgmath::Zero;
@@ -63,7 +62,7 @@ impl PB_Vertex {
     }
 }
 
-/// converts a Point2 to Point3 using the XY coordinates
+/// converts a Point2 to Point3 using the XY coordinates, sets Z to zero.
 #[inline(always)]
 pub fn xy_to_3d(point: &cgmath::Point2<f64>) -> cgmath::Point3<f64> {
     cgmath::Point3 {
@@ -146,9 +145,6 @@ impl ToxicBlendService for TheToxicBlendService {
     ) -> Result<PB_Response<PB_Reply>, PB_Status> {
         let a_command = request.get_ref();
         let map = options_to_map(&a_command.options);
-        println!("########################################");
-        println!("# Received command:{}", a_command.command.as_str());
-        println!("########################################");
 
         let rv = match a_command.command.as_str() {
             "2d_outline" => cmd_2d_outline::command(a_command, map),
@@ -169,9 +165,11 @@ impl ToxicBlendService for TheToxicBlendService {
                     key: "ERROR".to_string(),
                     value: format!("{:?}", err),
                 }],
-                models: Vec::<PB_Model>::with_capacity(0),
+                models: Vec::with_capacity(0),
+                models32: Vec::with_capacity(0),
             }))
         } else {
+            // unwrap is safe now
             Ok(PB_Response::new(rv.unwrap()))
         }
     }

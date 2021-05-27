@@ -139,4 +139,4 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 - [ ] completely replace fnv
 - [ ] make the gRPC protocol much more efficient, support f32 and packed triangles 
 - [ ] voronoi mesh generates some faulty faces 
-
+- [ ] After the 3d modification, the LSystems op. generates duplicated edges and vertices

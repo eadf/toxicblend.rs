@@ -14,8 +14,18 @@ message Vertex {
   double z = 4;
 }
 
+message Vertex32 {
+  float x = 2;
+  float y = 3;
+  float z = 4;
+}
+
 message Face {
    repeated uint64 vertices = 1;
+}
+
+message Face32 {
+  repeated uint32 vertices = 1;
 }
 
 message Matrix4x4 {
@@ -40,11 +50,40 @@ message Matrix4x4 {
    double m33 = 16;
 }
 
+message Matrix4x4_32 {
+  float m00 = 1;
+  float m01 = 2;
+  float m02 = 3;
+  float m03 = 4;
+
+  float m10 = 5;
+  float m11 = 6;
+  float m12 = 7;
+  float m13 = 8;
+
+  float m20 = 9;
+  float m21 = 10;
+  float m22 = 11;
+  float m23 = 12;
+
+  float m30 = 13;
+  float m31 = 14;
+  float m32 = 15;
+  float m33 = 16;
+}
+
 message Model {
   string name = 1;
   Matrix4x4 worldOrientation = 2;
   repeated Vertex vertices = 3;
   repeated Face faces = 4;
+}
+
+message Model32 {
+  string name = 1;
+  Matrix4x4_32 worldOrientation = 2;
+  repeated Vertex32 vertices = 3;
+  repeated Face32 faces = 4;
 }
 
 message KeyValuePair {
@@ -56,10 +95,12 @@ message Command {
   string command = 1;
   repeated KeyValuePair options = 2;
   repeated Model models = 3;
+  repeated Model32 models32 = 4;
 }
 
 message Reply {
   repeated KeyValuePair options = 2;
   repeated Model models = 3;
+  repeated Model32 models32 = 4;
 }
 

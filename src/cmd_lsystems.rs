@@ -328,7 +328,12 @@ fn build_output_bp_model(
     _a_command: &PB_Command,
     lines: Vec<[cgmath::Point3<f64>; 2]>,
 ) -> Result<PB_Model, TBError> {
+    // vertex de-duplication mechanism
+    // todo: this is broken since each vertex isn't rounded to int anymore
     let mut vertices_map = ahash::AHashMap::<(u64, u64, u64), usize>::new();
+    // make sure to not add the same edge twice, set key is sorted (lower,higher)
+    let mut dup_edges = ahash::AHashSet::<(usize, usize)>::new();
+
     // Default capacity is probably a little bit too low
     let mut pb_vertices = Vec::<PB_Vertex>::with_capacity(lines.len());
     let mut pb_faces = Vec::<PB_Face>::with_capacity(lines.len());
@@ -361,9 +366,14 @@ fn build_output_bp_model(
             n
         });
 
-        pb_faces.push(PB_Face {
-            vertices: vec![i0 as u64, i1 as u64],
-        });
+        let key = { if i0 < i1 {(i0,i1)} else {(i1,i0)}};
+        if !dup_edges.contains(&key) {
+            pb_faces.push(PB_Face {
+                vertices: vec![i0 as u64, i1 as u64],
+            });
+        } else {
+            let _ = dup_edges.insert(key);
+        }
     }
     if !pb_vertices.is_empty() {
         let to_center =
@@ -389,7 +399,7 @@ fn build_output_bp_model(
     }
 
     Ok(PB_Model {
-        name: "Dragon Curve".to_string(),
+        name: "LSystems".to_string(),
         world_orientation: None,
         vertices: pb_vertices,
         faces: pb_faces,
@@ -476,6 +486,7 @@ pub fn command(
             value: "True".to_string(),
         }],
         models: vec![pb_model],
+        models32: Vec::with_capacity(0),
     };
     Ok(reply)
 }

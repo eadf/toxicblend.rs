@@ -462,7 +462,8 @@ pub fn command(
             key: "ONLY_EDGES".to_string(),
             value: "True".to_string(),
         }],
-        models: Vec::<PB_Model>::new(),
+        models: Vec::with_capacity(1),
+        models32: Vec::with_capacity(0),
     };
 
     reply.models.push(model);
