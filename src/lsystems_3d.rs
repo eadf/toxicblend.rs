@@ -77,6 +77,7 @@ pub struct Turtle {
     stack: Vec<(Heading, cgmath::Point3<f64>)>,
     result: Vec<[cgmath::Point3<f64>; 2]>,
     pen_up: bool,
+    round: bool,
 }
 
 impl Default for Turtle {
@@ -87,6 +88,7 @@ impl Default for Turtle {
             result: Vec::new(),
             stack: Vec::new(),
             pen_up: false,
+            round: false,
         }
     }
 }
@@ -104,6 +106,12 @@ impl Turtle {
             TurtleCommand::Forward(distance) => {
                 let l1 = self.position;
                 self.position += self.heading.heading * *distance;
+                if self.round {
+                    self.position.x = self.position.x.round();
+                    self.position.y = self.position.y.round();
+                    self.position.z = self.position.z.round();
+                }
+
                 //println!("Self.heading: {:?}, Self.heading*distance={:?}", self.heading.heading, self.heading.heading * *distance);
                 if !self.pen_up {
                     self.result.push([l1, self.position]);
@@ -148,6 +156,7 @@ pub struct TurtleRules {
     yaw: Option<Rad<f64>>,
     pitch: Option<Rad<f64>>,
     roll: Option<Rad<f64>>,
+    round: bool,
 }
 
 impl TurtleRules {
@@ -210,6 +219,12 @@ impl TurtleRules {
         } else {
             self.roll = None;
         }
+        Ok(self)
+    }
+
+    /// Make sure that the turtle round()s the coordinate after each move.
+    pub fn round(&mut self) -> Result<&mut Self, TBError> {
+        self.round = true;
         Ok(self)
     }
 
@@ -277,6 +292,9 @@ impl TurtleRules {
 
             #[regex("\\.?roll")]
             Roll,
+
+            #[regex("\\.?round")]
+            Round,
 
             #[token("Turtle::Forward")]
             TurtleActionForward,
@@ -497,6 +515,11 @@ impl TurtleRules {
                         )));
                     }
                 },
+                ParseToken::Round => {
+                    println!("Got .round()");
+                    self.round = true;
+                    state = ParseState::Start;
+                }
                 ParseToken::EOL => {
                     line += 1;
                     state = ParseState::Start;
@@ -581,6 +604,9 @@ impl TurtleRules {
     ) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
         let path = self.expand(n)?;
 
+        if self.round {
+            turtle.round = true;
+        }
         // Apply initial rotations
         if let Some(yaw) = self.yaw {
             turtle.apply(&TurtleCommand::Yaw(yaw))?;

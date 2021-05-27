@@ -13,11 +13,24 @@ use cgmath::{EuclideanSpace, Rad};
 use std::collections::HashMap;
 use std::time;
 
-/// converts to a private, comparable and hash-able format
-/// only use this for floats that are f64::is_finite()
+/// converts to a private, comparable and hash-able format.
+/// Only use this for bit perfect float copies that are f64::is_finite()
 #[inline(always)]
-fn transmute_to_u64(a: &cgmath::Point3<f64>) -> (u64, u64, u64) {
-    (a.x.to_bits(), a.y.to_bits(), a.z.to_bits())
+fn transmute_to_u64(p: &cgmath::Point3<f64>) -> (u64, u64, u64) {
+    let mut x = p.x;
+    let mut y = p.y;
+    let mut z = p.z;
+
+    if x == -0.0 {
+        x = 0.0;
+    }
+    if y == -0.0 {
+        y = 0.0;
+    }
+    if z == -0.0 {
+        z = 0.0;
+    }
+    (x.to_bits(), y.to_bits(), z.to_bits())
 }
 
 /// Algorithmic_botany, page 11 (http://algorithmicbotany.org/papers/#abop)
@@ -32,6 +45,7 @@ fn build_dragon_curve(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>
         .add_axiom("L".to_string())?
         .add_rule('L', "L + R +".to_string())?
         .add_rule('R', "- L - R".to_string())?
+        .round()?
         .exec(cmd_arg_iterations, Turtle::default())?;
 
     println!("build_dragon_curve render() duration: {:?}", now.elapsed());
@@ -49,6 +63,7 @@ fn build_dragon_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f
         .add_axiom("L".to_string())?
         .add_rule('L', "L + R +".to_string())?
         .add_rule('R', "- L - R".to_string())?
+        .round()?
         .exec(cmd_arg_iterations, Turtle::default())?;
 
     println!(
@@ -365,6 +380,9 @@ fn build_output_bp_model(
             });
             n
         });
+
+        println!("p0: {:?} is {}", p0, i0);
+        println!("p1: {:?} is {}", p1, i1);
 
         let key = {
             if i0 < i1 {

@@ -240,13 +240,13 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
 
     custom_turtle0 = bpy.props.StringProperty(name="custom turtle 0", default='token("X", Turtle::Nop)?')
     custom_turtle1 = bpy.props.StringProperty(name="custom turtle 1", default='token("Y", Turtle::Nop)?')
-    custom_turtle2 = bpy.props.StringProperty(name="custom turtle 2", default='token("F", Turtle::Forward(30))?')
+    custom_turtle2 = bpy.props.StringProperty(name="custom turtle 2", default='token("F", Turtle::Forward(1))?')
     custom_turtle3 = bpy.props.StringProperty(name="custom turtle 3", default='token("+", Turtle::Yaw(-90))?')
     custom_turtle4 = bpy.props.StringProperty(name="custom turtle 4", default='token("-", Turtle::Pitch(90))?')
     custom_turtle5 = bpy.props.StringProperty(name="custom turtle 5", default='axiom("F X")?')
     custom_turtle6 = bpy.props.StringProperty(name="custom turtle 6", default='rule("X","X + Y F +")?')
     custom_turtle7 = bpy.props.StringProperty(name="custom turtle 7", default='rule("Y","- F X - Y")?;')
-    custom_turtle8 = bpy.props.StringProperty(name="custom turtle 8", default='')
+    custom_turtle8 = bpy.props.StringProperty(name="custom turtle 8", default='round()')
     custom_turtle9 = bpy.props.StringProperty(name="custom turtle 9", default='')
 
     def invoke(self, context, event):
