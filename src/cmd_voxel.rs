@@ -81,7 +81,7 @@ fn build_voxel(
     aabb: linestring::cgmath_3d::Aabb3<f64>,
 ) -> Result<
     (
-        f32,
+        f32, // <-voxel_size
         Vec<Result<Option<(PosNormMesh, Extent3i)>, tokio::task::JoinError>>,
     ),
     TBError,
@@ -190,25 +190,22 @@ fn build_output_bp_model(
 ) -> Result<PB_Model, TBError> {
     let input_pb_model = &a_command.models[0];
 
-    let vertex_capacity: usize = meshes
+    // calculate the maximum required v&f capacity
+    let (vertex_capacity, face_capacity) = meshes
         .iter()
         .filter_map(|x| {
-            if let Ok(Some(x)) = x {
-                Some(x.0.positions.len())
+            if let Ok(Some((chunk, _))) = x {
+                Some((chunk.positions.len(), chunk.indices.len()))
             } else {
                 None
             }
         })
-        .sum();
-    // this is actually counting the number of chunks with any vertex in them.
-    let face_capacity: usize = meshes
-        .iter()
-        .filter(|x| matches!(x, Ok(Some(_))))
-        .count();
+        .fold((0_usize, 0_usize), |(v, f), chunk| {
+            (v + chunk.0, f + chunk.1)
+        });
 
     let mut pb_vertices: Vec<PB_Vertex> = Vec::with_capacity(vertex_capacity);
-    // todo: can the the faces of all chunks be packaged together?
-    let mut pb_faces: Vec<PB_Face> = Vec::with_capacity(face_capacity);
+    let mut pb_faces: Vec<u64> = Vec::with_capacity(face_capacity);
     // translates between bit-perfect copies of vertices and indices of already know vertices.
     let mut unique_vertex_map: ahash::AHashMap<(u32, u32, u32), u64> = ahash::AHashMap::default();
     // translates between the index used by the chunks + indices_offset and the vertex index in pb_vertices
@@ -257,23 +254,16 @@ fn build_output_bp_model(
                 }
             }
 
-            let face_vertices: Result<Vec<u64>, TBError> = mesh
-                .indices
-                .iter()
-                .map(|a| {
-                    vertex_map
-                        .get(&(*a as u64 + indices_offset))
-                        .copied()
-                        .ok_or_else(|| {
-                            TBError::InternalError(
-                                "Vertex id not found while de-duplicating vertices".to_string(),
-                            )
-                        })
-                })
-                .collect();
-            pb_faces.push(PB_Face {
-                vertices: face_vertices?,
-            })
+            for vertex_id in mesh.indices.iter() {
+                if let Some(vertex_id) = vertex_map.get(&(*vertex_id as u64 + indices_offset)) {
+                    pb_faces.push(*vertex_id);
+                } else {
+                    return Err(TBError::InternalError(format!(
+                        "Vertex id {} not found while de-duplicating vertices",
+                        vertex_id
+                    )));
+                }
+            }
         }
     }
 
@@ -292,14 +282,14 @@ fn build_output_bp_model(
     );*/
     /*println!(
         "pb_faces:{}, face_capacity:{}",
-        pb_faces.len(),
+        pb_face.len(),
         face_capacity
     );*/
     Ok(PB_Model {
         name: input_pb_model.name.clone(),
         world_orientation: input_pb_model.world_orientation.clone(),
         vertices: pb_vertices,
-        faces: pb_faces,
+        faces: vec![PB_Face { vertices: pb_faces }],
     })
 }
 
@@ -372,7 +362,10 @@ pub fn command(
         aabb,
     )?;
     let packed_faces_model = build_output_bp_model(&a_command, voxel_size, mesh)?;
-    println!("Total number of vertices: {}", packed_faces_model.vertices.len());
+    println!(
+        "Total number of vertices: {}",
+        packed_faces_model.vertices.len()
+    );
 
     println!(
         "Total number of faces: {}",
