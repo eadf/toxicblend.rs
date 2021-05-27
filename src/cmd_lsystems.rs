@@ -366,7 +366,13 @@ fn build_output_bp_model(
             n
         });
 
-        let key = { if i0 < i1 {(i0,i1)} else {(i1,i0)}};
+        let key = {
+            if i0 < i1 {
+                (i0, i1)
+            } else {
+                (i1, i0)
+            }
+        };
         if !dup_edges.contains(&key) {
             pb_faces.push(PB_Face {
                 vertices: vec![i0 as u64, i1 as u64],

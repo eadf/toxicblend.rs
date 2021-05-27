@@ -15,9 +15,11 @@ use std::collections::HashMap;
 use std::time;
 
 type Point3f = PointN<[f32; 3]>;
+type Extent3f = ExtentN<[f32; 3]>;
 
 /// converts to a private, comparable and hash-able format
-/// only use this for floats that are f32::is_finite()
+/// only use this for floats that are f32::is_finite().
+/// This will only match on bit-perfect copies of f32
 #[inline(always)]
 fn transmute_to_u32(a: &[f32; 3]) -> (u32, u32, u32) {
     (a[0].to_bits(), a[1].to_bits(), a[2].to_bits())
@@ -67,6 +69,7 @@ pub fn parse_input_pb_model(
     Ok((vertices, edges, aabb))
 }
 
+#[allow(clippy::type_complexity)]
 /// Build the voxel data from the input
 // todo: should i rebuild the return value to just Result<Vec<PosNormMesh>,TBError>?
 // the current return value does not live very long, a re-shuffle would just take time.
@@ -76,7 +79,13 @@ fn build_voxel(
     vertices: Vec<PointN<[f32; 3]>>,
     edges: Vec<(usize, usize)>,
     aabb: linestring::cgmath_3d::Aabb3<f64>,
-) -> Result<Vec<Result<Option<PosNormMesh>, tokio::task::JoinError>>, TBError> {
+) -> Result<
+    (
+        f32,
+        Vec<Result<Option<(PosNormMesh, Extent3i)>, tokio::task::JoinError>>,
+    ),
+    TBError,
+> {
     let dimensions = aabb.get_high().unwrap() - aabb.get_low().unwrap();
     let max_dimension = dimensions.x.max(dimensions.y).max(dimensions.z);
 
@@ -140,7 +149,7 @@ fn build_voxel(
     let map_ref = &map;
 
     let now = time::Instant::now();
-    let chunk_meshes: Vec<Result<Option<PosNormMesh>, tokio::task::JoinError>> =
+    let chunk_meshes: Vec<Result<Option<(PosNormMesh, Extent3i)>, tokio::task::JoinError>> =
         TokioScope::scope_and_block(|s| {
             for chunk_key in map_ref.storage().keys() {
                 s.spawn(async move {
@@ -151,18 +160,18 @@ fn build_voxel(
                     copy_extent(&padded_chunk_extent, map_ref, &mut padded_chunk);
 
                     let mut surface_nets_buffer = SurfaceNetsBuffer::default();
-                    //let voxel_size = 1.0;
+                    // do the voxel_size multiplication later, vertices pos. needs to match extent.
                     surface_nets(
                         &padded_chunk,
                         &padded_chunk_extent,
-                        voxel_size,
+                        1.0,
                         &mut surface_nets_buffer,
                     );
 
                     if surface_nets_buffer.mesh.indices.is_empty() {
                         None
                     } else {
-                        Some(surface_nets_buffer.mesh)
+                        Some((surface_nets_buffer.mesh, padded_chunk_extent))
                     }
                 })
             }
@@ -170,13 +179,14 @@ fn build_voxel(
         .1;
 
     println!("surface_nets() duration: {:?}", now.elapsed());
-    Ok(chunk_meshes)
+    Ok((voxel_size, chunk_meshes))
 }
 
 /// Build the return model
 fn build_output_bp_model(
     a_command: &PB_Command,
-    meshes: Vec<Result<Option<PosNormMesh>, tokio::task::JoinError>>,
+    voxel_size: f32,
+    meshes: Vec<Result<Option<(PosNormMesh, Extent3i)>, tokio::task::JoinError>>,
 ) -> Result<PB_Model, TBError> {
     let input_pb_model = &a_command.models[0];
 
@@ -184,19 +194,20 @@ fn build_output_bp_model(
         .iter()
         .filter_map(|x| {
             if let Ok(Some(x)) = x {
-                Some(x.positions.len())
+                Some(x.0.positions.len())
             } else {
                 None
             }
         })
         .sum();
-    // todo: must be an easier way to do this
+    // this is actually counting the number of chunks with any vertex in them.
     let face_capacity: usize = meshes
         .iter()
-        .filter_map(|x| if let Ok(Some(_)) = x { Some(1) } else { None })
-        .sum();
+        .filter(|x| matches!(x, Ok(Some(_))))
+        .count();
 
     let mut pb_vertices: Vec<PB_Vertex> = Vec::with_capacity(vertex_capacity);
+    // todo: can the the faces of all chunks be packaged together?
     let mut pb_faces: Vec<PB_Face> = Vec::with_capacity(face_capacity);
     // translates between bit-perfect copies of vertices and indices of already know vertices.
     let mut unique_vertex_map: ahash::AHashMap<(u32, u32, u32), u64> = ahash::AHashMap::default();
@@ -205,23 +216,45 @@ fn build_output_bp_model(
 
     let now = time::Instant::now();
     for mesh in meshes.into_iter() {
-        // each chunk starts counting vertices from zero
-        let indices_offset = pb_vertices.len() as u64;
-        if let Some(mesh) = mesh? {
+        if let Some((mesh, extent)) = mesh? {
+            // each chunk starts counting vertices from zero
+            let indices_offset = pb_vertices.len() as u64;
+            // vertices this far inside a chunk should (probably?) not be used outside this chunk.
+            let deep_inside_extent = Extent3f::from_min_and_shape(
+                Point3f::from(extent.minimum),
+                Point3f::from(extent.shape),
+            )
+            .padded(-1.5);
             for (pi, p) in mesh.positions.iter().enumerate() {
-                let key = transmute_to_u32(&p);
-                let _ = vertex_map.insert(
-                    pi as u64 + indices_offset,
-                    *unique_vertex_map.entry(key).or_insert_with(|| {
+                let pv = PointN::<[f32; 3]>(*p);
+                if !deep_inside_extent.contains(pv) {
+                    // only use vertex de-duplication if the vertex was close to the edges
+                    // of the extent
+                    let key = transmute_to_u32(&p);
+                    let _ = vertex_map.insert(
+                        pi as u64 + indices_offset,
+                        *unique_vertex_map.entry(key).or_insert_with(|| {
+                            let n = pb_vertices.len() as u64;
+                            pb_vertices.push(PB_Vertex {
+                                x: (voxel_size * p[0]) as f64,
+                                y: (voxel_size * p[1]) as f64,
+                                z: (voxel_size * p[2]) as f64,
+                            });
+                            n
+                        }),
+                    );
+                } else {
+                    // vertex found deep inside chunk, skip vertex de-duplication.
+                    let _ = vertex_map.insert(pi as u64 + indices_offset, {
                         let n = pb_vertices.len() as u64;
                         pb_vertices.push(PB_Vertex {
-                            x: p[0] as f64,
-                            y: p[1] as f64,
-                            z: p[2] as f64,
+                            x: (voxel_size * p[0]) as f64,
+                            y: (voxel_size * p[1]) as f64,
+                            z: (voxel_size * p[2]) as f64,
                         });
                         n
-                    }),
-                );
+                    });
+                }
             }
 
             let face_vertices: Result<Vec<u64>, TBError> = mesh
@@ -243,21 +276,25 @@ fn build_output_bp_model(
             })
         }
     }
+
     println!(
         "Vertex de-duplication and return model packaging duration: {:?}",
         now.elapsed()
     );
 
-    println!(
+    //println!("unique_vertex_map.len(): {}", unique_vertex_map.len());
+    //println!("vertex_map.len(): {}", vertex_map.len());
+
+    /*println!(
         "pb_vertices:{}, vertex_capacity:{}",
         pb_vertices.len(),
         vertex_capacity
-    );
-    println!(
+    );*/
+    /*println!(
         "pb_faces:{}, face_capacity:{}",
         pb_faces.len(),
         face_capacity
-    );
+    );*/
     Ok(PB_Model {
         name: input_pb_model.name.clone(),
         world_orientation: input_pb_model.world_orientation.clone(),
@@ -327,18 +364,18 @@ pub fn command(
     }
 
     let (vertices, edges, aabb) = parse_input_pb_model(&a_command.models[0])?;
-    let mesh = build_voxel(
+    let (voxel_size, mesh) = build_voxel(
         cmd_arg_radius_multiplier,
         cmd_arg_divisions,
         vertices,
         edges,
         aabb,
     )?;
-    let packed_faces_model = build_output_bp_model(&a_command, mesh)?;
-    println!("Vertices: {}", packed_faces_model.vertices.len());
+    let packed_faces_model = build_output_bp_model(&a_command, voxel_size, mesh)?;
+    println!("Total number of vertices: {}", packed_faces_model.vertices.len());
 
     println!(
-        "Faces: {}",
+        "Total number of faces: {}",
         packed_faces_model
             .faces
             .iter()
