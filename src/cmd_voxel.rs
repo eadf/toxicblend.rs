@@ -358,6 +358,7 @@ pub fn command(
             },
         ],
         models: vec![packed_faces_model],
+        models32: Vec::with_capacity(0),
     };
     Ok(reply)
 }
