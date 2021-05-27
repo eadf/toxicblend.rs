@@ -14,6 +14,8 @@ use building_blocks::storage::prelude::*;
 use std::collections::HashMap;
 use std::time;
 
+type Point3f = PointN<[f32; 3]>;
+
 /// converts to a private, comparable and hash-able format
 /// only use this for floats that are f32::is_finite()
 #[inline(always)]
@@ -114,28 +116,17 @@ fn build_voxel(
             .map(|(from, to)| (vertices[from], vertices[to]))
         {
             let sample_extent = {
-                let extent_min = PointN([
-                    from_v.x().min(to_v.x()).round() as i32,
-                    from_v.y().min(to_v.y()).round() as i32,
-                    from_v.z().min(to_v.z()).round() as i32,
-                ]);
-                let extent_max = PointN([
-                    from_v.x().max(to_v.x()).round() as i32,
-                    from_v.y().max(to_v.y()).round() as i32,
-                    from_v.z().max(to_v.z()).round() as i32,
-                ]);
+                let extent_min = from_v.meet(to_v).round().into_int();
+                let extent_max = from_v.join(to_v).round().into_int();
                 Extent3i::from_min_and_max(extent_min, extent_max).padded(thickness.ceil() as i32)
             };
             map.for_each_mut(&sample_extent, |p: Point3i, prev_dist| {
-                let pa = PointN([p.x() as f32, p.y() as f32, p.z() as f32]) - from_v;
+                let pa = Point3f::from(p) - from_v;
                 let ba = to_v - from_v;
                 let t = pa.dot(ba) as f32 / ba.dot(ba) as f32;
                 let h = t.clamp(0.0, 1.0);
                 let dist = pa - (ba * h);
-                // could not find implementation of PointN::magnitude(), bha it's a one liner...
-                let dist = (dist.x() * dist.x() + dist.y() * dist.y() + dist.z() * dist.z()).sqrt();
-                let mut dist = Sd16::from(dist - thickness);
-
+                let mut dist = Sd16::from(dist.norm() - thickness);
                 *prev_dist = *prev_dist.min(&mut dist);
             });
         }
