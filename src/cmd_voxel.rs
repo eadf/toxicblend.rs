@@ -1,10 +1,10 @@
 use super::TBError;
 use crate::toxicblend_pb::Command as PB_Command;
-use crate::toxicblend_pb::Face as PB_Face;
+use crate::toxicblend_pb::Face32 as PB_Face;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend_pb::Model as PB_Model;
+use crate::toxicblend_pb::Model32 as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
-use crate::toxicblend_pb::Vertex as PB_Vertex;
+use crate::toxicblend_pb::Vertex32 as PB_Vertex;
 use async_scoped::TokioScope;
 use building_blocks::core::prelude::PointN;
 use building_blocks::core::prelude::*;
@@ -33,11 +33,11 @@ pub fn parse_input_pb_model(
     (
         Vec<PointN<[f32; 3]>>,
         Vec<(usize, usize)>,
-        linestring::cgmath_3d::Aabb3<f64>,
+        linestring::cgmath_3d::Aabb3<f32>,
     ),
     TBError,
 > {
-    let mut aabb = linestring::cgmath_3d::Aabb3::<f64>::default();
+    let mut aabb = linestring::cgmath_3d::Aabb3::<f32>::default();
     let vertices: Vec<PointN<[f32; 3]>> = obj
         .vertices
         .iter()
@@ -74,11 +74,11 @@ pub fn parse_input_pb_model(
 // todo: should i rebuild the return value to just Result<Vec<PosNormMesh>,TBError>?
 // the current return value does not live very long, a re-shuffle would just take time.
 fn build_voxel(
-    radius_multiplier: f64,
-    divisions: f64,
+    radius_multiplier: f32,
+    divisions: f32,
     vertices: Vec<PointN<[f32; 3]>>,
     edges: Vec<(usize, usize)>,
-    aabb: linestring::cgmath_3d::Aabb3<f64>,
+    aabb: linestring::cgmath_3d::Aabb3<f32>,
 ) -> Result<
     (
         f32, // <-voxel_size
@@ -188,7 +188,7 @@ fn build_output_bp_model(
     voxel_size: f32,
     meshes: Vec<Result<Option<(PosNormMesh, Extent3i)>, tokio::task::JoinError>>,
 ) -> Result<PB_Model, TBError> {
-    let input_pb_model = &a_command.models[0];
+    let input_pb_model = &a_command.models32[0];
 
     // calculate the maximum required v&f capacity
     let (vertex_capacity, face_capacity) = meshes
@@ -203,19 +203,26 @@ fn build_output_bp_model(
         .fold((0_usize, 0_usize), |(v, f), chunk| {
             (v + chunk.0, f + chunk.1)
         });
+    if vertex_capacity >= u32::MAX as usize {
+        return Err(TBError::Overflow(format!("Generated mesh contains too many vertices to be referenced by u32: {}. Reduce resolution.",vertex_capacity )));
+    }
+
+    if face_capacity >= u32::MAX as usize {
+        return Err(TBError::Overflow(format!("Generated mesh contains too many faces to be referenced by u32: {}. Reduce resolution.",vertex_capacity )));
+    }
 
     let mut pb_vertices: Vec<PB_Vertex> = Vec::with_capacity(vertex_capacity);
-    let mut pb_faces: Vec<u64> = Vec::with_capacity(face_capacity);
+    let mut pb_faces: Vec<u32> = Vec::with_capacity(face_capacity);
     // translates between bit-perfect copies of vertices and indices of already know vertices.
-    let mut unique_vertex_map: ahash::AHashMap<(u32, u32, u32), u64> = ahash::AHashMap::default();
+    let mut unique_vertex_map: ahash::AHashMap<(u32, u32, u32), u32> = ahash::AHashMap::default();
     // translates between the index used by the chunks + indices_offset and the vertex index in pb_vertices
-    let mut vertex_map: ahash::AHashMap<u64, u64> = ahash::AHashMap::default();
+    let mut vertex_map: ahash::AHashMap<u32, u32> = ahash::AHashMap::default();
 
     let now = time::Instant::now();
     for mesh in meshes.into_iter() {
         if let Some((mesh, extent)) = mesh? {
             // each chunk starts counting vertices from zero
-            let indices_offset = pb_vertices.len() as u64;
+            let indices_offset = pb_vertices.len() as u32;
             // vertices this far inside a chunk should (probably?) not be used outside this chunk.
             let deep_inside_extent = Extent3f::from_min_and_shape(
                 Point3f::from(extent.minimum),
@@ -229,25 +236,25 @@ fn build_output_bp_model(
                     // of the extent
                     let key = transmute_to_u32(&p);
                     let _ = vertex_map.insert(
-                        pi as u64 + indices_offset,
+                        pi as u32 + indices_offset,
                         *unique_vertex_map.entry(key).or_insert_with(|| {
-                            let n = pb_vertices.len() as u64;
+                            let n = pb_vertices.len() as u32;
                             pb_vertices.push(PB_Vertex {
-                                x: (voxel_size * p[0]) as f64,
-                                y: (voxel_size * p[1]) as f64,
-                                z: (voxel_size * p[2]) as f64,
+                                x: (voxel_size * p[0]),
+                                y: (voxel_size * p[1]),
+                                z: (voxel_size * p[2]),
                             });
                             n
                         }),
                     );
                 } else {
                     // vertex found deep inside chunk, skip vertex de-duplication.
-                    let _ = vertex_map.insert(pi as u64 + indices_offset, {
-                        let n = pb_vertices.len() as u64;
+                    let _ = vertex_map.insert(pi as u32 + indices_offset, {
+                        let n = pb_vertices.len() as u32;
                         pb_vertices.push(PB_Vertex {
-                            x: (voxel_size * p[0]) as f64,
-                            y: (voxel_size * p[1]) as f64,
-                            z: (voxel_size * p[2]) as f64,
+                            x: (voxel_size * p[0]),
+                            y: (voxel_size * p[1]),
+                            z: (voxel_size * p[2]),
                         });
                         n
                     });
@@ -255,7 +262,7 @@ fn build_output_bp_model(
             }
 
             for vertex_id in mesh.indices.iter() {
-                if let Some(vertex_id) = vertex_map.get(&(*vertex_id as u64 + indices_offset)) {
+                if let Some(vertex_id) = vertex_map.get(&(*vertex_id as u32 + indices_offset)) {
                     pb_faces.push(*vertex_id);
                 } else {
                     return Err(TBError::InternalError(format!(
@@ -306,21 +313,21 @@ pub fn command(
                     \/    \/      "#
     );
 
-    if a_command.models.len() > 1 {
+    if a_command.models32.len() > 1 {
         return Err(TBError::InvalidInputData(format!(
             "This operation only supports one model as input:{}",
-            a_command.models.len()
+            a_command.models32.len()
         )));
     }
-    if a_command.models.is_empty() {
+    if a_command.models32.is_empty() {
         return Err(TBError::InvalidInputData(
-            "Model did not contain any data".to_string(),
+            "Model did not contain any data (using model32)".to_string(),
         ));
     }
     let cmd_arg_radius_multiplier = options
         .get("RADIUS")
         .ok_or_else(|| TBError::InvalidInputData("Missing the RADIUS parameter".to_string()))?
-        .parse::<f64>()
+        .parse::<f32>()
         .map_err(|_| {
             TBError::InvalidInputData("Could not parse the RADIUS parameter".to_string())
         })?
@@ -329,7 +336,7 @@ pub fn command(
     let cmd_arg_divisions = options
         .get("DIVISIONS")
         .ok_or_else(|| TBError::InvalidInputData("Missing the DIVISIONS parameter".to_string()))?
-        .parse::<f64>()
+        .parse::<f32>()
         .map_err(|_| {
             TBError::InvalidInputData("Could not parse the DIVISIONS parameter".to_string())
         })?;
@@ -340,7 +347,7 @@ pub fn command(
         )));
     }
 
-    for model in a_command.models.iter() {
+    for model in a_command.models32.iter() {
         println!("model.name:{:?}, ", model.name);
         println!("model.vertices:{:?}, ", model.vertices.len());
         println!("model.faces:{:?}, ", model.faces.len());
@@ -353,7 +360,7 @@ pub fn command(
         println!();
     }
 
-    let (vertices, edges, aabb) = parse_input_pb_model(&a_command.models[0])?;
+    let (vertices, edges, aabb) = parse_input_pb_model(&a_command.models32[0])?;
     let (voxel_size, mesh) = build_voxel(
         cmd_arg_radius_multiplier,
         cmd_arg_divisions,
@@ -387,8 +394,8 @@ pub fn command(
                 value: "True".to_string(),
             },
         ],
-        models: vec![packed_faces_model],
-        models32: Vec::with_capacity(0),
+        models: Vec::with_capacity(0),
+        models32: vec![packed_faces_model],
     };
     Ok(reply)
 }

@@ -20,6 +20,9 @@ subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
 
 # install the pip package toxicblend + the dependencies protobuf and grpcio
 subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "toxicblend"])
+
+# check that the installed toxicblend version is 0.2.0 
+subprocess.call([sys.executable, "-m", "pip", "list"])
 ```
 If you run into permission problems, you will have to run the pip commands on the blender python executable with raised privileges (e.g. sudo)
 ```

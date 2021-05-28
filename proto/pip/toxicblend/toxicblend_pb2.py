@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=b'\n\027org.toxicblend.protobufB\020ToxicBlendProtos',
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x10toxicblend.proto\x12\ntoxicblend\")\n\x06Vertex\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\"\x18\n\x04\x46\x61\x63\x65\x12\x10\n\x08vertices\x18\x01 \x03(\x04\"\xdb\x01\n\tMatrix4x4\x12\x0b\n\x03m00\x18\x01 \x01(\x01\x12\x0b\n\x03m01\x18\x02 \x01(\x01\x12\x0b\n\x03m02\x18\x03 \x01(\x01\x12\x0b\n\x03m03\x18\x04 \x01(\x01\x12\x0b\n\x03m10\x18\x05 \x01(\x01\x12\x0b\n\x03m11\x18\x06 \x01(\x01\x12\x0b\n\x03m12\x18\x07 \x01(\x01\x12\x0b\n\x03m13\x18\x08 \x01(\x01\x12\x0b\n\x03m20\x18\t \x01(\x01\x12\x0b\n\x03m21\x18\n \x01(\x01\x12\x0b\n\x03m22\x18\x0b \x01(\x01\x12\x0b\n\x03m23\x18\x0c \x01(\x01\x12\x0b\n\x03m30\x18\r \x01(\x01\x12\x0b\n\x03m31\x18\x0e \x01(\x01\x12\x0b\n\x03m32\x18\x0f \x01(\x01\x12\x0b\n\x03m33\x18\x10 \x01(\x01\"\x8d\x01\n\x05Model\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\x10worldOrientation\x18\x02 \x01(\x0b\x32\x15.toxicblend.Matrix4x4\x12$\n\x08vertices\x18\x03 \x03(\x0b\x32\x12.toxicblend.Vertex\x12\x1f\n\x05\x66\x61\x63\x65s\x18\x04 \x03(\x0b\x32\x10.toxicblend.Face\"*\n\x0cKeyValuePair\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"h\n\x07\x43ommand\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\x12)\n\x07options\x18\x02 \x03(\x0b\x32\x18.toxicblend.KeyValuePair\x12!\n\x06models\x18\x03 \x03(\x0b\x32\x11.toxicblend.Model\"U\n\x05Reply\x12)\n\x07options\x18\x02 \x03(\x0b\x32\x18.toxicblend.KeyValuePair\x12!\n\x06models\x18\x03 \x03(\x0b\x32\x11.toxicblend.Model2F\n\x11ToxicBlendService\x12\x31\n\x07\x65xecute\x12\x13.toxicblend.Command\x1a\x11.toxicblend.ReplyB+\n\x17org.toxicblend.protobufB\x10ToxicBlendProtosb\x06proto3'
+  serialized_pb=b'\n\x10toxicblend.proto\x12\ntoxicblend\")\n\x06Vertex\x12\t\n\x01x\x18\x02 \x01(\x01\x12\t\n\x01y\x18\x03 \x01(\x01\x12\t\n\x01z\x18\x04 \x01(\x01\"+\n\x08Vertex32\x12\t\n\x01x\x18\x02 \x01(\x02\x12\t\n\x01y\x18\x03 \x01(\x02\x12\t\n\x01z\x18\x04 \x01(\x02\"\x18\n\x04\x46\x61\x63\x65\x12\x10\n\x08vertices\x18\x01 \x03(\x04\"\x1a\n\x06\x46\x61\x63\x65\x33\x32\x12\x10\n\x08vertices\x18\x01 \x03(\r\"\xdb\x01\n\tMatrix4x4\x12\x0b\n\x03m00\x18\x01 \x01(\x01\x12\x0b\n\x03m01\x18\x02 \x01(\x01\x12\x0b\n\x03m02\x18\x03 \x01(\x01\x12\x0b\n\x03m03\x18\x04 \x01(\x01\x12\x0b\n\x03m10\x18\x05 \x01(\x01\x12\x0b\n\x03m11\x18\x06 \x01(\x01\x12\x0b\n\x03m12\x18\x07 \x01(\x01\x12\x0b\n\x03m13\x18\x08 \x01(\x01\x12\x0b\n\x03m20\x18\t \x01(\x01\x12\x0b\n\x03m21\x18\n \x01(\x01\x12\x0b\n\x03m22\x18\x0b \x01(\x01\x12\x0b\n\x03m23\x18\x0c \x01(\x01\x12\x0b\n\x03m30\x18\r \x01(\x01\x12\x0b\n\x03m31\x18\x0e \x01(\x01\x12\x0b\n\x03m32\x18\x0f \x01(\x01\x12\x0b\n\x03m33\x18\x10 \x01(\x01\"\xde\x01\n\x0cMatrix4x4_32\x12\x0b\n\x03m00\x18\x01 \x01(\x02\x12\x0b\n\x03m01\x18\x02 \x01(\x02\x12\x0b\n\x03m02\x18\x03 \x01(\x02\x12\x0b\n\x03m03\x18\x04 \x01(\x02\x12\x0b\n\x03m10\x18\x05 \x01(\x02\x12\x0b\n\x03m11\x18\x06 \x01(\x02\x12\x0b\n\x03m12\x18\x07 \x01(\x02\x12\x0b\n\x03m13\x18\x08 \x01(\x02\x12\x0b\n\x03m20\x18\t \x01(\x02\x12\x0b\n\x03m21\x18\n \x01(\x02\x12\x0b\n\x03m22\x18\x0b \x01(\x02\x12\x0b\n\x03m23\x18\x0c \x01(\x02\x12\x0b\n\x03m30\x18\r \x01(\x02\x12\x0b\n\x03m31\x18\x0e \x01(\x02\x12\x0b\n\x03m32\x18\x0f \x01(\x02\x12\x0b\n\x03m33\x18\x10 \x01(\x02\"\x8d\x01\n\x05Model\x12\x0c\n\x04name\x18\x01 \x01(\t\x12/\n\x10worldOrientation\x18\x02 \x01(\x0b\x32\x15.toxicblend.Matrix4x4\x12$\n\x08vertices\x18\x03 \x03(\x0b\x32\x12.toxicblend.Vertex\x12\x1f\n\x05\x66\x61\x63\x65s\x18\x04 \x03(\x0b\x32\x10.toxicblend.Face\"\x96\x01\n\x07Model32\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x32\n\x10worldOrientation\x18\x02 \x01(\x0b\x32\x18.toxicblend.Matrix4x4_32\x12&\n\x08vertices\x18\x03 \x03(\x0b\x32\x14.toxicblend.Vertex32\x12!\n\x05\x66\x61\x63\x65s\x18\x04 \x03(\x0b\x32\x12.toxicblend.Face32\"*\n\x0cKeyValuePair\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"\x8f\x01\n\x07\x43ommand\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\x12)\n\x07options\x18\x02 \x03(\x0b\x32\x18.toxicblend.KeyValuePair\x12!\n\x06models\x18\x03 \x03(\x0b\x32\x11.toxicblend.Model\x12%\n\x08models32\x18\x04 \x03(\x0b\x32\x13.toxicblend.Model32\"|\n\x05Reply\x12)\n\x07options\x18\x02 \x03(\x0b\x32\x18.toxicblend.KeyValuePair\x12!\n\x06models\x18\x03 \x03(\x0b\x32\x11.toxicblend.Model\x12%\n\x08models32\x18\x04 \x03(\x0b\x32\x13.toxicblend.Model322F\n\x11ToxicBlendService\x12\x31\n\x07\x65xecute\x12\x13.toxicblend.Command\x1a\x11.toxicblend.ReplyB+\n\x17org.toxicblend.protobufB\x10ToxicBlendProtosb\x06proto3'
 )
 
 
@@ -71,6 +71,52 @@ _VERTEX = _descriptor.Descriptor(
 )
 
 
+_VERTEX32 = _descriptor.Descriptor(
+  name='Vertex32',
+  full_name='toxicblend.Vertex32',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='x', full_name='toxicblend.Vertex32.x', index=0,
+      number=2, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='y', full_name='toxicblend.Vertex32.y', index=1,
+      number=3, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='z', full_name='toxicblend.Vertex32.z', index=2,
+      number=4, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=75,
+  serialized_end=118,
+)
+
+
 _FACE = _descriptor.Descriptor(
   name='Face',
   full_name='toxicblend.Face',
@@ -98,8 +144,40 @@ _FACE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=75,
-  serialized_end=99,
+  serialized_start=120,
+  serialized_end=144,
+)
+
+
+_FACE32 = _descriptor.Descriptor(
+  name='Face32',
+  full_name='toxicblend.Face32',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='vertices', full_name='toxicblend.Face32.vertices', index=0,
+      number=1, type=13, cpp_type=3, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=146,
+  serialized_end=172,
 )
 
 
@@ -235,8 +313,145 @@ _MATRIX4X4 = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=102,
-  serialized_end=321,
+  serialized_start=175,
+  serialized_end=394,
+)
+
+
+_MATRIX4X4_32 = _descriptor.Descriptor(
+  name='Matrix4x4_32',
+  full_name='toxicblend.Matrix4x4_32',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='m00', full_name='toxicblend.Matrix4x4_32.m00', index=0,
+      number=1, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m01', full_name='toxicblend.Matrix4x4_32.m01', index=1,
+      number=2, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m02', full_name='toxicblend.Matrix4x4_32.m02', index=2,
+      number=3, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m03', full_name='toxicblend.Matrix4x4_32.m03', index=3,
+      number=4, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m10', full_name='toxicblend.Matrix4x4_32.m10', index=4,
+      number=5, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m11', full_name='toxicblend.Matrix4x4_32.m11', index=5,
+      number=6, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m12', full_name='toxicblend.Matrix4x4_32.m12', index=6,
+      number=7, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m13', full_name='toxicblend.Matrix4x4_32.m13', index=7,
+      number=8, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m20', full_name='toxicblend.Matrix4x4_32.m20', index=8,
+      number=9, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m21', full_name='toxicblend.Matrix4x4_32.m21', index=9,
+      number=10, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m22', full_name='toxicblend.Matrix4x4_32.m22', index=10,
+      number=11, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m23', full_name='toxicblend.Matrix4x4_32.m23', index=11,
+      number=12, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m30', full_name='toxicblend.Matrix4x4_32.m30', index=12,
+      number=13, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m31', full_name='toxicblend.Matrix4x4_32.m31', index=13,
+      number=14, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m32', full_name='toxicblend.Matrix4x4_32.m32', index=14,
+      number=15, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='m33', full_name='toxicblend.Matrix4x4_32.m33', index=15,
+      number=16, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=397,
+  serialized_end=619,
 )
 
 
@@ -288,8 +503,61 @@ _MODEL = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=324,
-  serialized_end=465,
+  serialized_start=622,
+  serialized_end=763,
+)
+
+
+_MODEL32 = _descriptor.Descriptor(
+  name='Model32',
+  full_name='toxicblend.Model32',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='name', full_name='toxicblend.Model32.name', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='worldOrientation', full_name='toxicblend.Model32.worldOrientation', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='vertices', full_name='toxicblend.Model32.vertices', index=2,
+      number=3, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='faces', full_name='toxicblend.Model32.faces', index=3,
+      number=4, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=766,
+  serialized_end=916,
 )
 
 
@@ -327,8 +595,8 @@ _KEYVALUEPAIR = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=467,
-  serialized_end=509,
+  serialized_start=918,
+  serialized_end=960,
 )
 
 
@@ -361,6 +629,13 @@ _COMMAND = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='models32', full_name='toxicblend.Command.models32', index=3,
+      number=4, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -373,8 +648,8 @@ _COMMAND = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=511,
-  serialized_end=615,
+  serialized_start=963,
+  serialized_end=1106,
 )
 
 
@@ -400,6 +675,13 @@ _REPLY = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='models32', full_name='toxicblend.Reply.models32', index=2,
+      number=4, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -412,21 +694,30 @@ _REPLY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=617,
-  serialized_end=702,
+  serialized_start=1108,
+  serialized_end=1232,
 )
 
 _MODEL.fields_by_name['worldOrientation'].message_type = _MATRIX4X4
 _MODEL.fields_by_name['vertices'].message_type = _VERTEX
 _MODEL.fields_by_name['faces'].message_type = _FACE
+_MODEL32.fields_by_name['worldOrientation'].message_type = _MATRIX4X4_32
+_MODEL32.fields_by_name['vertices'].message_type = _VERTEX32
+_MODEL32.fields_by_name['faces'].message_type = _FACE32
 _COMMAND.fields_by_name['options'].message_type = _KEYVALUEPAIR
 _COMMAND.fields_by_name['models'].message_type = _MODEL
+_COMMAND.fields_by_name['models32'].message_type = _MODEL32
 _REPLY.fields_by_name['options'].message_type = _KEYVALUEPAIR
 _REPLY.fields_by_name['models'].message_type = _MODEL
+_REPLY.fields_by_name['models32'].message_type = _MODEL32
 DESCRIPTOR.message_types_by_name['Vertex'] = _VERTEX
+DESCRIPTOR.message_types_by_name['Vertex32'] = _VERTEX32
 DESCRIPTOR.message_types_by_name['Face'] = _FACE
+DESCRIPTOR.message_types_by_name['Face32'] = _FACE32
 DESCRIPTOR.message_types_by_name['Matrix4x4'] = _MATRIX4X4
+DESCRIPTOR.message_types_by_name['Matrix4x4_32'] = _MATRIX4X4_32
 DESCRIPTOR.message_types_by_name['Model'] = _MODEL
+DESCRIPTOR.message_types_by_name['Model32'] = _MODEL32
 DESCRIPTOR.message_types_by_name['KeyValuePair'] = _KEYVALUEPAIR
 DESCRIPTOR.message_types_by_name['Command'] = _COMMAND
 DESCRIPTOR.message_types_by_name['Reply'] = _REPLY
@@ -439,12 +730,26 @@ Vertex = _reflection.GeneratedProtocolMessageType('Vertex', (_message.Message,),
   })
 _sym_db.RegisterMessage(Vertex)
 
+Vertex32 = _reflection.GeneratedProtocolMessageType('Vertex32', (_message.Message,), {
+  'DESCRIPTOR' : _VERTEX32,
+  '__module__' : 'toxicblend_pb2'
+  # @@protoc_insertion_point(class_scope:toxicblend.Vertex32)
+  })
+_sym_db.RegisterMessage(Vertex32)
+
 Face = _reflection.GeneratedProtocolMessageType('Face', (_message.Message,), {
   'DESCRIPTOR' : _FACE,
   '__module__' : 'toxicblend_pb2'
   # @@protoc_insertion_point(class_scope:toxicblend.Face)
   })
 _sym_db.RegisterMessage(Face)
+
+Face32 = _reflection.GeneratedProtocolMessageType('Face32', (_message.Message,), {
+  'DESCRIPTOR' : _FACE32,
+  '__module__' : 'toxicblend_pb2'
+  # @@protoc_insertion_point(class_scope:toxicblend.Face32)
+  })
+_sym_db.RegisterMessage(Face32)
 
 Matrix4x4 = _reflection.GeneratedProtocolMessageType('Matrix4x4', (_message.Message,), {
   'DESCRIPTOR' : _MATRIX4X4,
@@ -453,12 +758,26 @@ Matrix4x4 = _reflection.GeneratedProtocolMessageType('Matrix4x4', (_message.Mess
   })
 _sym_db.RegisterMessage(Matrix4x4)
 
+Matrix4x4_32 = _reflection.GeneratedProtocolMessageType('Matrix4x4_32', (_message.Message,), {
+  'DESCRIPTOR' : _MATRIX4X4_32,
+  '__module__' : 'toxicblend_pb2'
+  # @@protoc_insertion_point(class_scope:toxicblend.Matrix4x4_32)
+  })
+_sym_db.RegisterMessage(Matrix4x4_32)
+
 Model = _reflection.GeneratedProtocolMessageType('Model', (_message.Message,), {
   'DESCRIPTOR' : _MODEL,
   '__module__' : 'toxicblend_pb2'
   # @@protoc_insertion_point(class_scope:toxicblend.Model)
   })
 _sym_db.RegisterMessage(Model)
+
+Model32 = _reflection.GeneratedProtocolMessageType('Model32', (_message.Message,), {
+  'DESCRIPTOR' : _MODEL32,
+  '__module__' : 'toxicblend_pb2'
+  # @@protoc_insertion_point(class_scope:toxicblend.Model32)
+  })
+_sym_db.RegisterMessage(Model32)
 
 KeyValuePair = _reflection.GeneratedProtocolMessageType('KeyValuePair', (_message.Message,), {
   'DESCRIPTOR' : _KEYVALUEPAIR,
@@ -491,8 +810,8 @@ _TOXICBLENDSERVICE = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=704,
-  serialized_end=774,
+  serialized_start=1234,
+  serialized_end=1304,
   methods=[
   _descriptor.MethodDescriptor(
     name='execute',

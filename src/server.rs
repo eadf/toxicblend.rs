@@ -82,6 +82,9 @@ fn xy_to_2d(point: &cgmath::Point3<f64>) -> cgmath::Point2<f64> {
 
 #[derive(thiserror::Error, Debug)]
 pub enum TBError {
+    #[error("Overflow error: {0}")]
+    Overflow(String),
+
     #[error("Unknown command received: {0}")]
     UnknownCommand(String),
 

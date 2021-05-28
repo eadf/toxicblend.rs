@@ -4,30 +4,43 @@ package toxicblend;
 option java_package = "org.toxicblend.protobuf";
 option java_outer_classname = "ToxicBlendProtos";
 
+// A gRPC service protocol used by ToxicBlend - a Blender addon written in Rust.
+// https://github.com/eadf/toxicblend.rs
 service ToxicBlendService {
+  // Executes a over-the-net gRPC call. Usually used by the blender addon to send a few vertices to
+  // be processed by the toxicblend server.
   rpc execute (Command) returns (Reply);
 }
 
+// A single 3d vertex f64
 message Vertex {
   double x = 2;
   double y = 3;
   double z = 4;
 }
 
+// A single 3d vertex f32
 message Vertex32 {
   float x = 2;
   float y = 3;
   float z = 4;
 }
 
+// A vector of u64 vertices
+// These can be interpreted as packed faces, single edges or any other way,
+// depending on the options.
 message Face {
    repeated uint64 vertices = 1;
 }
 
+// A vector of u32 vertices
+// These can be interpreted as packed faces, single edges or any other way,
+// depending on the options.
 message Face32 {
   repeated uint32 vertices = 1;
 }
 
+// A 4x4 matrix defined by f64
 message Matrix4x4 {
    double m00 = 1;
    double m01 = 2;
@@ -50,6 +63,7 @@ message Matrix4x4 {
    double m33 = 16;
 }
 
+// A 4x4 matrix defined by f32
 message Matrix4x4_32 {
   float m00 = 1;
   float m01 = 2;
@@ -72,6 +86,7 @@ message Matrix4x4_32 {
   float m33 = 16;
 }
 
+// A model only using f64 and u64 datatypes
 message Model {
   string name = 1;
   Matrix4x4 worldOrientation = 2;
@@ -79,6 +94,7 @@ message Model {
   repeated Face faces = 4;
 }
 
+// A model only using f32 and u32 datatypes
 message Model32 {
   string name = 1;
   Matrix4x4_32 worldOrientation = 2;
@@ -86,18 +102,25 @@ message Model32 {
   repeated Face32 faces = 4;
 }
 
+// A struct of key value pairs of strings,
+// used for specifying command options.
 message KeyValuePair {
   string key = 1;
   string value = 2;
 }
 
+// Defines the operation to be executed.
+// Typically only one of models or models32 is used.
 message Command {
+  // a single line string defining the command to execute
   string command = 1;
   repeated KeyValuePair options = 2;
   repeated Model models = 3;
   repeated Model32 models32 = 4;
 }
 
+// Defines the return value of the command execution
+// Typically only one of models or models32 is used.
 message Reply {
   repeated KeyValuePair options = 2;
   repeated Model models = 3;

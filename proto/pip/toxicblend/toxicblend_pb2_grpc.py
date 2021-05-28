@@ -6,7 +6,9 @@ import toxicblend.toxicblend_pb2 as toxicblend__pb2
 
 
 class ToxicBlendServiceStub(object):
-    """Missing associated documentation comment in .proto file."""
+    """A gRPC service protocol used by ToxicBlend - a Blender addon written in Rust.
+    https://github.com/eadf/toxicblend.rs
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -22,10 +24,14 @@ class ToxicBlendServiceStub(object):
 
 
 class ToxicBlendServiceServicer(object):
-    """Missing associated documentation comment in .proto file."""
+    """A gRPC service protocol used by ToxicBlend - a Blender addon written in Rust.
+    https://github.com/eadf/toxicblend.rs
+    """
 
     def execute(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """Executes a over-the-net gRPC call. Usually used by the blender addon to send a few vertices to
+        be processed by the toxicblend server.
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -46,7 +52,9 @@ def add_ToxicBlendServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class ToxicBlendService(object):
-    """Missing associated documentation comment in .proto file."""
+    """A gRPC service protocol used by ToxicBlend - a Blender addon written in Rust.
+    https://github.com/eadf/toxicblend.rs
+    """
 
     @staticmethod
     def execute(request,

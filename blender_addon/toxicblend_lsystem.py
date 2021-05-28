@@ -20,6 +20,7 @@ from bpy.props import (
 
 # import gRPC
 import grpc
+import toxicblend
 import toxicblend.toxicblend_pb2_grpc as toxicblend_pb2_grpc
 import toxicblend.toxicblend_pb2 as toxicblend_pb2
 from bpy_extras.object_utils import AddObjectHelper
@@ -59,6 +60,9 @@ bl_info = {
 }
 SERVER_URL = 'localhost:50069'
 
+def check_toxicblend_version():
+    if toxicblend.__version__ != '0.2.0':
+        raise ToxicblendException("pip package toxicblend version 0.2.0 is required")
 
 class ToxicblendException(Exception):
     def __init__(self, message):
@@ -161,8 +165,14 @@ def handle_received_object(dest_mesh, pb_message, remove_doubles_threshold=None,
         if option.key == "PACKED_FACES" and option.value == "True":
             packed_faces = True
 
-    if len(pb_message.models) == 1:
-        pb_model = pb_message.models[0]
+    if len(pb_message.models) > 0:
+       pb_model = pb_message.models[0]
+    elif len(pb_message.models32) > 0:
+       pb_model = pb_message.models32[0]
+    else:
+       raise ToxicblendException("No return models found")
+
+    if not pb_model is None:
         (vertices, edges, faces, matrix) = get_pydata(pb_model, only_edges, packed_faces)
         if len(faces) > 0 or len(edges) > 0:
             #new_mesh = bpy.data.meshes.new(pb_model.name)
@@ -193,14 +203,14 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
     bl_label = "Toxicblend:Add Lindenmayer systems"
     bl_options = {'REGISTER', 'UNDO'}  # enable undo for the operator.
 
-    iterations = bpy.props.IntProperty(name="Iterations", default=4, min=1, max=15)
+    iterations : bpy.props.IntProperty(name="Iterations", default=4, min=1, max=15)
 
-    location = bpy.props.FloatVectorProperty(
+    location : bpy.props.FloatVectorProperty(
         name="Location",
         subtype='TRANSLATION',
     )
 
-    rotation = bpy.props.FloatVectorProperty(
+    rotation : bpy.props.FloatVectorProperty(
         name="Rotation",
         subtype='EULER',
     )
@@ -212,7 +222,7 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
         ('CURSOR', "3D Cursor", "Use the 3D cursor orientation for the new object")
     )
 
-    align = bpy.props.EnumProperty(
+    align : bpy.props.EnumProperty(
         name="Align",
         items=align_items,
         default='WORLD',
@@ -236,27 +246,28 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
                          ("GOSPER_CURVE_3D","Gosper curve 3d", "draw a 3d Gosper curve"),
                          ("CUSTOM_TURTLE","Custom turtle", "draw using custom turtle")
                         )
-    cmd_variant = bpy.props.EnumProperty(name="Variant", items=cmd_variant_items, default="DRAGON_CURVE")
+    cmd_variant : bpy.props.EnumProperty(name="Variant", items=cmd_variant_items, default="DRAGON_CURVE")
 
-    custom_turtle0 = bpy.props.StringProperty(name="custom turtle 0", default='token("X", Turtle::Nop)?')
-    custom_turtle1 = bpy.props.StringProperty(name="custom turtle 1", default='token("Y", Turtle::Nop)?')
-    custom_turtle2 = bpy.props.StringProperty(name="custom turtle 2", default='token("F", Turtle::Forward(1))?')
-    custom_turtle3 = bpy.props.StringProperty(name="custom turtle 3", default='token("+", Turtle::Yaw(-90))?')
-    custom_turtle4 = bpy.props.StringProperty(name="custom turtle 4", default='token("-", Turtle::Pitch(90))?')
-    custom_turtle5 = bpy.props.StringProperty(name="custom turtle 5", default='axiom("F X")?')
-    custom_turtle6 = bpy.props.StringProperty(name="custom turtle 6", default='rule("X","X + Y F +")?')
-    custom_turtle7 = bpy.props.StringProperty(name="custom turtle 7", default='rule("Y","- F X - Y")?;')
-    custom_turtle8 = bpy.props.StringProperty(name="custom turtle 8", default='round()')
-    custom_turtle9 = bpy.props.StringProperty(name="custom turtle 9", default='')
+    custom_turtle0 : bpy.props.StringProperty(name="custom turtle 0", default='token("X", Turtle::Nop)?')
+    custom_turtle1 : bpy.props.StringProperty(name="custom turtle 1", default='token("Y", Turtle::Nop)?')
+    custom_turtle2 : bpy.props.StringProperty(name="custom turtle 2", default='token("F", Turtle::Forward(1))?')
+    custom_turtle3 : bpy.props.StringProperty(name="custom turtle 3", default='token("+", Turtle::Yaw(-90))?')
+    custom_turtle4 : bpy.props.StringProperty(name="custom turtle 4", default='token("-", Turtle::Pitch(90))?')
+    custom_turtle5 : bpy.props.StringProperty(name="custom turtle 5", default='axiom("F X")?')
+    custom_turtle6 : bpy.props.StringProperty(name="custom turtle 6", default='rule("X","X + Y F +")?')
+    custom_turtle7 : bpy.props.StringProperty(name="custom turtle 7", default='rule("Y","- F X - Y")?;')
+    custom_turtle8 : bpy.props.StringProperty(name="custom turtle 8", default='round()')
+    custom_turtle9 : bpy.props.StringProperty(name="custom turtle 9", default='')
 
     def invoke(self, context, event):
         # load custom settings
-        settings_load(self)
+        #settings_load(self)
         return self.execute(context)
 
     def execute(self, context):
 
-        settings_write(self)
+        check_toxicblend_version()
+        #settings_write(self)
         cursor_location = bpy.context.scene.cursor.location.copy()
         channel_opt = [('grpc.max_send_message_length', 512 * 1024 * 1024),
                        ('grpc.max_receive_message_length', 512 * 1024 * 1024)]
@@ -302,7 +313,7 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
                     #bm = bmesh.new()
                     #bm.verts.ensure_lookup_table()
 
-                    print("client received options: ", len(response.options), " models:", len(response.models))
+                    print("client received options: ", len(response.options), " models64:", len(response.models), " models32:", len(response.models32))
                     handle_received_object(mesh, response)
 
                     #bm.to_mesh(mesh)

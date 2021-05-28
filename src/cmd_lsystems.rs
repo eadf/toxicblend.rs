@@ -381,8 +381,8 @@ fn build_output_bp_model(
             n
         });
 
-        println!("p0: {:?} is {}", p0, i0);
-        println!("p1: {:?} is {}", p1, i1);
+        //println!("p0: {:?} is {}", p0, i0);
+        //println!("p1: {:?} is {}", p1, i1);
 
         let key = {
             if i0 < i1 {
@@ -453,7 +453,10 @@ pub fn command(
         .ok_or_else(|| TBError::InvalidInputData("Missing the ITERATIONS parameter".to_string()))?
         .parse::<u8>()
         .map_err(|_| {
-            TBError::InvalidInputData("Could not parse the ITERATIONS parameter".to_string())
+            TBError::InvalidInputData(format!(
+                "Could not parse the ITERATIONS parameter: '{}'",
+                options.get("ITERATIONS").unwrap()
+            ))
         })?;
 
     if !(1..21).contains(&cmd_arg_iterations) {
