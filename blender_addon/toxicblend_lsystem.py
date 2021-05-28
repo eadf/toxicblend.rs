@@ -98,7 +98,7 @@ def settings_write(self):
 def terminate():
     # update editmesh cached data
     obj = bpy.context.active_object
-    if obj.mode == 'EDIT':
+    if (not obj is None ) and obj.mode == 'EDIT':
         bmesh.update_edit_mesh(obj.data, loop_triangles=True, destructive=True)
 
 
@@ -166,12 +166,11 @@ def handle_received_object(dest_mesh, pb_message, remove_doubles_threshold=None,
             packed_faces = True
 
     if len(pb_message.models) > 0:
-       pb_model = pb_message.models[0]
+         pb_model = pb_message.models[0]
     elif len(pb_message.models32) > 0:
-       pb_model = pb_message.models32[0]
+        pb_model = pb_message.models32[0]
     else:
-       raise ToxicblendException("No return models found")
-
+        raise ToxicblendException("No return models found")
     if not pb_model is None:
         (vertices, edges, faces, matrix) = get_pydata(pb_model, only_edges, packed_faces)
         if len(faces) > 0 or len(edges) > 0:
@@ -305,16 +304,152 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
                                 str(self.custom_turtle9)
 
 
-                response = stub.execute(command)
-                handle_response(response)
+                pb_response = stub.execute(command)
+                handle_response(pb_response)
 
-                if len(response.models) > 0:
+                if len(pb_response.models) == 0 and len(pb_response.models32) == 0:
+                    raise ToxicblendException("No return models found")
+                else:
                     mesh = bpy.data.meshes.new("lsystems")
                     #bm = bmesh.new()
                     #bm.verts.ensure_lookup_table()
 
-                    print("client received options: ", len(response.options), " models64:", len(response.models), " models32:", len(response.models32))
-                    handle_received_object(mesh, response)
+                    print("client received options: ", len(pb_response.options), " models64:", len(pb_response.models), " models32:", len(pb_response.models32))
+                    handle_received_object(mesh, pb_response)
+
+                    #bm.to_mesh(mesh)
+                    mesh.update()
+
+                    # add the mesh as an object into the scene with this utility module
+                    from bpy_extras import object_utils
+                    object_utils.object_data_add(context, mesh, operator=self)
+
+            # cleaning up
+            terminate()
+
+            return {'FINISHED'}
+        except ToxicblendException as e:
+            self.report({'ERROR'}, e.message)
+            return {'CANCELLED'}
+        except grpc._channel._InactiveRpcError as e:
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
+
+class TbAddVoxelGyroid(bpy.types.Operator):
+    """Adds Lindenmayer systems edges/curves from local toxicblend server"""
+    bl_idname = "mesh.toxicblend_add_voxel_gyroid"
+    bl_label = "Toxicblend:Add Voxel Gyroid systems"
+    bl_options = {'REGISTER', 'UNDO'}  # enable undo for the operator.
+
+    location : bpy.props.FloatVectorProperty(
+        name="Location",
+        subtype='TRANSLATION',
+    )
+
+    rotation : bpy.props.FloatVectorProperty(
+        name="Rotation",
+        subtype='EULER',
+    )
+
+    # generic transform props
+    align_items = (
+        ('WORLD', "World", "Align the new object to the world"),
+        ('VIEW', "View", "Align the new object to the view"),
+        ('CURSOR', "3D Cursor", "Use the 3D cursor orientation for the new object")
+    )
+
+    align : bpy.props.EnumProperty(
+        name="Align",
+        items=align_items,
+        default='WORLD',
+        update=AddObjectHelper.align_update_callback,
+    )
+
+    t_param: FloatProperty(
+            name="t parameter",
+            description="Thinkness?",
+            default=1.0,
+            min=0.0001,
+            max=4.9999,
+            precision=6,
+            subtype='FACTOR'
+    )
+
+    s_param: FloatProperty(
+            name="s parameter",
+            description="Scale",
+            default=1.0,
+            min=0.0001,
+            max=4.9999,
+            precision=6,
+            subtype='FACTOR'
+    )
+
+    b_param: FloatProperty(
+            name="b parameter",
+            description="B",
+            default=1.0,
+            min=-5.000,
+            max=5.000,
+            precision=6,
+            subtype='FACTOR'
+    )
+
+    divisions: FloatProperty(
+        name="Voxel Divisions",
+        description="The longest axis of the model will be divided up into this number of voxels, the other axes will have proportionally number of voxels",
+        default=100.0,
+        min=50,
+        max=400,
+        precision=1,
+        subtype='FACTOR'
+    )
+
+    def invoke(self, context, event):
+        # load custom settings
+        #settings_load(self)
+        return self.execute(context)
+
+    def execute(self, context):
+
+        check_toxicblend_version()
+        #settings_write(self)
+        cursor_location = bpy.context.scene.cursor.location.copy()
+        channel_opt = [('grpc.max_send_message_length', 512 * 1024 * 1024),
+                       ('grpc.max_receive_message_length', 512 * 1024 * 1024)]
+        try:
+            with grpc.insecure_channel(SERVER_URL, options=channel_opt) as channel:
+                stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
+                command = toxicblend_pb2.Command(command='gyroid')
+
+                opt = command.options.add()
+                opt.key = "T"
+                opt.value = str(self.t_param)
+
+                opt = command.options.add()
+                opt.key = "B"
+                opt.value = str(self.b_param)
+
+                opt = command.options.add()
+                opt.key = "S"
+                opt.value = str(self.s_param)
+
+                opt = command.options.add()
+                opt.key = "DIVISIONS"
+                opt.value = str(self.divisions)
+
+                pb_response = stub.execute(command)
+                handle_response(pb_response)
+
+                if len(pb_response.models) == 0 and len(pb_response.models32) == 0:
+                    raise ToxicblendException("No return models found")
+                else:
+                    mesh = bpy.data.meshes.new("gyroid")
+                    #bm = bmesh.new()
+                    #bm.verts.ensure_lookup_table()
+
+                    print("client received options: ", len(pb_response.options), " models64:", len(pb_response.models), " models32:", len(pb_response.models32))
+                    handle_received_object(mesh, pb_response)
 
                     #bm.to_mesh(mesh)
                     mesh.update()
@@ -337,13 +472,16 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
 
 def menu_func(self, context):
     self.layout.operator(TbAddLindenmayerSystems.bl_idname, icon='MESH_DATA')
+    self.layout.operator(TbAddVoxelGyroid.bl_idname, icon='MESH_DATA')
 
 
 def register():
     bpy.utils.register_class(TbAddLindenmayerSystems)
+    bpy.utils.register_class(TbAddVoxelGyroid)
     bpy.types.VIEW3D_MT_mesh_add.append(menu_func)
 
 
 def unregister():
     bpy.utils.unregister_class(TbAddLindenmayerSystems)
+    bpy.utils.unregister_class(TbAddVoxelGyroid)
     bpy.types.VIEW3D_MT_mesh_add.remove(menu_func)

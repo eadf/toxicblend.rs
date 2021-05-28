@@ -8,6 +8,7 @@
 
 mod cmd_2d_outline;
 mod cmd_centerline;
+mod cmd_gyroid;
 mod cmd_knife_intersect;
 mod cmd_lsystems;
 mod cmd_simplify;
@@ -147,17 +148,18 @@ impl ToxicBlendService for TheToxicBlendService {
         request: PB_Request<PB_Command>,
     ) -> Result<PB_Response<PB_Reply>, PB_Status> {
         let a_command = request.get_ref();
-        let map = options_to_map(&a_command.options);
+        let options_map = options_to_map(&a_command.options);
 
         let rv = match a_command.command.as_str() {
-            "2d_outline" => cmd_2d_outline::command(a_command, map),
-            "simplify" => cmd_simplify::command(a_command, map),
-            "knife_intersect" => cmd_knife_intersect::command(a_command, map),
-            "centerline" => cmd_centerline::command(a_command, map),
-            "voronoi_mesh" => cmd_voronoi_mesh::command(a_command, map),
-            "voronoi" => cmd_voronoi::command(a_command, map),
-            "voxel" => cmd_voxel::command(a_command, map),
-            "lsystems" => cmd_lsystems::command(a_command, map),
+            "2d_outline" => cmd_2d_outline::command(a_command, options_map),
+            "simplify" => cmd_simplify::command(a_command, options_map),
+            "knife_intersect" => cmd_knife_intersect::command(a_command, options_map),
+            "centerline" => cmd_centerline::command(a_command, options_map),
+            "voronoi_mesh" => cmd_voronoi_mesh::command(a_command, options_map),
+            "voronoi" => cmd_voronoi::command(a_command, options_map),
+            "voxel" => cmd_voxel::command(a_command, options_map),
+            "lsystems" => cmd_lsystems::command(a_command, options_map),
+            "gyroid" => cmd_gyroid::command(a_command, options_map),
             _ => Err(TBError::UnknownCommand(a_command.command.clone())),
         };
         // convert TBError to a valid Error message

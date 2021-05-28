@@ -96,15 +96,25 @@ This operation is located under `Object` -> `Add` -> `Metaball` -> `MetaVolume`
 ![metavolume](img/metavolume.png)
 
 ### operation: LSystems (object operation)
-Generates a Lindenmayer systems 3d graph/curve. 
+Generates parametric Lindenmayer systems 3d graph/curves. 
 This operation is located under `Object` -> `Add` -> `Mesh` -> `LSystem`
 
 ![dragon_3d](img/dragon_3d.png)
+
 ![dragon_curve](img/lsystems.png)
+
 ![plant](img/plant2.png)
+
 ![arrowhead](img/arrowhead.png)
+
 ![hilbert](img/hilbert_3d.png)
+
 ![dragon_curve_3d](img/dragon_curve_3d.gif)
+
+### operation: Gyroid (object operation)
+Generates a parametric Gyroid
+
+![hilbert](img/gyroid.png)
 
 ### operation: Knife intersect
 
@@ -137,6 +147,6 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 - [ ] Port the rest of the operations.
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
 - [ ] completely replace fnv
-- [ ] make the gRPC protocol much more efficient, support f32 and packed triangles 
+- [x] make the gRPC protocol much more efficient, support f32 and packed triangles 
 - [ ] voronoi mesh generates some faulty faces 
-- [ ] After the 3d modification, the LSystems op. generates duplicated edges and vertices
+- [x] After the 3d modification, the LSystems op. generates duplicated edges and vertices
