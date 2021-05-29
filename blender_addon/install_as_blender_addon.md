@@ -6,6 +6,8 @@ This is an example of how this can be done.
 
 Run blender from the console so that you can see the console output. Then open the script tab in blender and run this:
 
+Blender 2.93.0 Beta does not seem to work as it does not (yet) contain Python.h, so grpcio can't be installed.
+
 ```
 import subprocess
 import sys
@@ -15,14 +17,15 @@ import site
 print("this is the path to the python executable: ", sys.executable)
 
 # upgrade pip
-subprocess.call([sys.executable, "-m", "ensurepip"])
-subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+assert(subprocess.call([sys.executable, "-m", "ensurepip"]) == 0)
+assert(subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"]) == 0)
 
-# install the pip package toxicblend + the dependencies protobuf and grpcio
-subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "toxicblend"])
+# install the pip package toxicblend + the dependencies wheel, protobuf and grpcio
+assert( subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "wheel"]) == 0)
+assert( subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "toxicblend"]) == 0)
 
 # check that the installed toxicblend version is 0.2.0 
-subprocess.call([sys.executable, "-m", "pip", "list"])
+assert(subprocess.call([sys.executable, "-m", "pip", "list"]) == 0)
 ```
 If you run into permission problems, you will have to run the pip commands on the blender python executable with raised privileges (e.g. sudo)
 ```
@@ -41,9 +44,9 @@ import subprocess
 import sys
 
 # uninstall the pip package toxicblend 
-subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "toxicblend"])
+assert(subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "toxicblend"])==0)
 # uninstall the dependencies protobuf and grpcio if not required by other addons
-subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "protobuf", "grpcio"])
+assert(subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "protobuf", "grpcio"])==0)
 ```
 
 or from a terminal (try without sudo first):
