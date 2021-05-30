@@ -2,6 +2,7 @@ use super::TBError;
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::Face32 as PB_Face;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
+use crate::toxicblend_pb::Matrix4x432 as PB_Matrix4x432;
 use crate::toxicblend_pb::Model32 as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex32 as PB_Vertex;
@@ -11,6 +12,9 @@ use building_blocks::core::prelude::*;
 use building_blocks::mesh::*;
 use building_blocks::prelude::Sd16;
 use building_blocks::storage::prelude::*;
+use building_blocks::storage::Channel;
+use building_blocks::storage::ChunkHashMap;
+use building_blocks::storage::ChunkMapBuilderNxM;
 use std::collections::HashMap;
 use std::time;
 
@@ -145,9 +149,20 @@ fn build_voxel(
 
     let voxel_size = 1.0 / scale;
 
-    // Generate the chunk meshes.
-    let map_ref = &map;
+    generate_mesh(voxel_size, &map)
+}
 
+#[allow(clippy::type_complexity)]
+pub(crate) fn generate_mesh(
+    voxel_size: f32,
+    map_ref: &ChunkHashMap<[i32; 3], Sd16, ChunkMapBuilderNxM<[i32; 3], Sd16, Channel<Sd16>>>,
+) -> Result<
+    (
+        f32, // <-voxel_size
+        Vec<Result<Option<(PosNormMesh, Extent3i)>, tokio::task::JoinError>>,
+    ),
+    TBError,
+> {
     let now = time::Instant::now();
     let chunk_meshes: Vec<Result<Option<(PosNormMesh, Extent3i)>, tokio::task::JoinError>> =
         TokioScope::scope_and_block(|s| {
@@ -177,19 +192,17 @@ fn build_voxel(
             }
         })
         .1;
-
     println!("surface_nets() duration: {:?}", now.elapsed());
     Ok((voxel_size, chunk_meshes))
 }
 
 /// Build the return model
-fn build_output_bp_model(
-    a_command: &PB_Command,
+pub(crate) fn build_output_bp_model(
+    pb_model_name: String,
+    pb_world: Option<PB_Matrix4x432>,
     voxel_size: f32,
     meshes: Vec<Result<Option<(PosNormMesh, Extent3i)>, tokio::task::JoinError>>,
 ) -> Result<PB_Model, TBError> {
-    let input_pb_model = &a_command.models32[0];
-
     // calculate the maximum required v&f capacity
     let (vertex_capacity, face_capacity) = meshes
         .iter()
@@ -293,8 +306,8 @@ fn build_output_bp_model(
         face_capacity
     );*/
     Ok(PB_Model {
-        name: input_pb_model.name.clone(),
-        world_orientation: input_pb_model.world_orientation.clone(),
+        name: pb_model_name,
+        world_orientation: pb_world,
         vertices: pb_vertices,
         faces: vec![PB_Face { vertices: pb_faces }],
     })
@@ -368,7 +381,12 @@ pub fn command(
         edges,
         aabb,
     )?;
-    let packed_faces_model = build_output_bp_model(&a_command, voxel_size, mesh)?;
+    let packed_faces_model = build_output_bp_model(
+        a_command.command.clone(),
+        a_command.models32[0].world_orientation.clone(),
+        voxel_size,
+        mesh,
+    )?;
     println!(
         "Total number of vertices: {}",
         packed_faces_model.vertices.len()

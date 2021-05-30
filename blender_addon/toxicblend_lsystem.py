@@ -367,7 +367,7 @@ class TbAddVoxelGyroid(bpy.types.Operator):
 
     t_param: FloatProperty(
             name="t parameter",
-            description="Thinkness?",
+            description="Thickness: abs(dot(sin(point), cos(point.zxy)) - b) - t",
             default=1.0,
             min=0.0001,
             max=4.9999,
@@ -387,14 +387,40 @@ class TbAddVoxelGyroid(bpy.types.Operator):
 
     b_param: FloatProperty(
             name="b parameter",
-            description="B",
+            description="Tube thickness: abs(dot(sin(point), cos(point.zxy)) - b) - t",
             default=1.0,
             min=-5.000,
             max=5.000,
             precision=6,
             subtype='FACTOR'
     )
-
+    x_param: FloatProperty(
+             name="x parameter",
+             description="cos(x) and sin(x) multiplier",
+             default=1.0,
+             min=-5.000,
+             max=5.000,
+             precision=6,
+             subtype='FACTOR'
+    )
+    y_param: FloatProperty(
+             name="y parameter",
+             description="cos(y) and sin(y) multiplier",
+             default=1.0,
+             min=-5.000,
+             max=5.000,
+             precision=6,
+             subtype='FACTOR'
+     )
+    z_param: FloatProperty(
+             name="z parameter",
+             description="cos(z) and sin(z) multiplier",
+             default=1.0,
+             min=-5.000,
+             max=5.000,
+             precision=6,
+             subtype='FACTOR'
+     )
     divisions: FloatProperty(
         name="Voxel Divisions",
         description="The longest axis of the model will be divided up into this number of voxels, the other axes will have proportionally number of voxels",
@@ -404,6 +430,11 @@ class TbAddVoxelGyroid(bpy.types.Operator):
         precision=1,
         subtype='FACTOR'
     )
+    #plug_ends: BoolProperty(
+    #    name="Plug ends",
+    #    description="Wall off outer edges with mesh",
+    #    default=True
+    #)
 
     def invoke(self, context, event):
         # load custom settings
@@ -435,8 +466,24 @@ class TbAddVoxelGyroid(bpy.types.Operator):
                 opt.value = str(self.s_param)
 
                 opt = command.options.add()
+                opt.key = "X"
+                opt.value = str(self.x_param)
+
+                opt = command.options.add()
+                opt.key = "Y"
+                opt.value = str(self.y_param)
+
+                opt = command.options.add()
+                opt.key = "Z"
+                opt.value = str(self.z_param)
+
+                opt = command.options.add()
                 opt.key = "DIVISIONS"
                 opt.value = str(self.divisions)
+
+                #opt = command.options.add()
+                #opt.key = "PLUG_ENDS"
+                #opt.value = str(self.plug_ends)
 
                 pb_response = stub.execute(command)
                 handle_response(pb_response)

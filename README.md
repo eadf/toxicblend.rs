@@ -114,7 +114,11 @@ This operation is located under `Object` -> `Add` -> `Mesh` -> `LSystem`
 ### operation: Gyroid (object operation)
 Generates a parametric Gyroid
 
-![hilbert](img/gyroid.png)
+![gyroid](img/gyroid.png)
+
+Gyroid intersected with an egg-shape:
+
+![egg](img/egg.png)
 
 ### operation: Knife intersect
 
