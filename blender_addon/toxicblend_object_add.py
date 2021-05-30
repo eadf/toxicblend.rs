@@ -335,10 +335,10 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
 
-class TbAddVoxelGyroid(bpy.types.Operator):
+class TbAddVoxelSdf(bpy.types.Operator):
     """Adds Lindenmayer systems edges/curves from local toxicblend server"""
-    bl_idname = "mesh.toxicblend_add_voxel_gyroid"
-    bl_label = "Toxicblend:Add Voxel Gyroid systems"
+    bl_idname = "mesh.toxicblend_add_voxel_sdf"
+    bl_label = "Toxicblend:Add Voxel Sdf systems"
     bl_options = {'REGISTER', 'UNDO'}  # enable undo for the operator.
 
     location : bpy.props.FloatVectorProperty(
@@ -451,7 +451,7 @@ class TbAddVoxelGyroid(bpy.types.Operator):
         try:
             with grpc.insecure_channel(SERVER_URL, options=channel_opt) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
-                command = toxicblend_pb2.Command(command='gyroid')
+                command = toxicblend_pb2.Command(command='sdf')
 
                 opt = command.options.add()
                 opt.key = "T"
@@ -491,7 +491,7 @@ class TbAddVoxelGyroid(bpy.types.Operator):
                 if len(pb_response.models) == 0 and len(pb_response.models32) == 0:
                     raise ToxicblendException("No return models found")
                 else:
-                    mesh = bpy.data.meshes.new("gyroid")
+                    mesh = bpy.data.meshes.new("sdf")
                     #bm = bmesh.new()
                     #bm.verts.ensure_lookup_table()
 
@@ -519,16 +519,16 @@ class TbAddVoxelGyroid(bpy.types.Operator):
 
 def menu_func(self, context):
     self.layout.operator(TbAddLindenmayerSystems.bl_idname, icon='MESH_DATA')
-    self.layout.operator(TbAddVoxelGyroid.bl_idname, icon='MESH_DATA')
+    self.layout.operator(TbAddVoxelSdf.bl_idname, icon='MESH_DATA')
 
 
 def register():
     bpy.utils.register_class(TbAddLindenmayerSystems)
-    bpy.utils.register_class(TbAddVoxelGyroid)
+    bpy.utils.register_class(TbAddVoxelSdf)
     bpy.types.VIEW3D_MT_mesh_add.append(menu_func)
 
 
 def unregister():
     bpy.utils.unregister_class(TbAddLindenmayerSystems)
-    bpy.utils.unregister_class(TbAddVoxelGyroid)
+    bpy.utils.unregister_class(TbAddVoxelSdf)
     bpy.types.VIEW3D_MT_mesh_add.remove(menu_func)

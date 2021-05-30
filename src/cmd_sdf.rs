@@ -91,12 +91,12 @@ pub fn command(
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
     println!(
-        r#"  ________                     .__    .___
- /  _____/___.__._______  ____ |__| __| _/
-/   \  __<   |  |\_  __ \/  _ \|  |/ __ |
-\    \_\  \___  | |  | \(  <_> )  / /_/ |
- \______  / ____| |__|   \____/|__\____ |
-        \/\/                           \/ "#
+        r#"  _________    .___ _____
+ /   _____/  __| _// ____\
+ \_____  \  / __ |\   __\
+ /        \/ /_/ | |  |
+/_______  /\____ | |__|
+        \/      \/"#
     );
 
     if !a_command.models32.is_empty() {
@@ -142,16 +142,16 @@ pub fn command(
         .map_err(|_| {
             TBError::InvalidInputData("Could not parse the DIVISIONS parameter".to_string())
         })?;
-    let cmd_arg_plug_ends = options
+    let _cmd_arg_plug_ends = options
         .get("PLUG_ENDS")
         .cloned()
         .unwrap_or_else(|| "false".to_string())
         //.ok_or_else(|| TBError::InvalidInputData("Missing the PLUG_ENDS parameter".to_string()))?;
         .to_lowercase();
-    let cmd_arg_plug_ends = cmd_arg_plug_ends.parse::<bool>().map_err(|_| {
+    let _cmd_arg_plug_ends = _cmd_arg_plug_ends.parse::<bool>().map_err(|_| {
         TBError::InvalidInputData(format!(
             "Could not parse the PLUG_ENDS parameter: '{}'",
-            cmd_arg_plug_ends
+            _cmd_arg_plug_ends
         ))
     })?;
     if !(9.9..400.1).contains(&cmd_arg_divisions) {

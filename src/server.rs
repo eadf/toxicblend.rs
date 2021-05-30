@@ -8,7 +8,7 @@
 
 mod cmd_2d_outline;
 mod cmd_centerline;
-mod cmd_gyroid;
+mod cmd_sdf;
 mod cmd_knife_intersect;
 mod cmd_lsystems;
 mod cmd_simplify;
@@ -159,7 +159,7 @@ impl ToxicBlendService for TheToxicBlendService {
             "voronoi" => cmd_voronoi::command(a_command, options_map),
             "voxel" => cmd_voxel::command(a_command, options_map),
             "lsystems" => cmd_lsystems::command(a_command, options_map),
-            "gyroid" => cmd_gyroid::command(a_command, options_map),
+            "sdf" => cmd_sdf::command(a_command, options_map),
             _ => Err(TBError::UnknownCommand(a_command.command.clone())),
         };
         // convert TBError to a valid Error message

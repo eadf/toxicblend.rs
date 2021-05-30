@@ -33,7 +33,7 @@ sudo <path to the blender built in python>/python3.7m -m pip install --upgrade t
 ```
 
 Then you need to install the addons themselves. `Blender->Preferences->Addons->Install..` select the `blender_addon/toxicblend_meshtools.py` file
-and click 'Install Add-on'. Same thing for the `blender_addon/toxicblend_metavolume.py` and `blender_addon/toxicblend_lsystem.py` files.
+and click 'Install Add-on'. Same thing for the `blender_addon/toxicblend_metavolume.py` and `blender_addon/toxicblend_object_add.py` files.
 
 Don't forget to enable the addons in the Blender addon list.
 
