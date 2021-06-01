@@ -191,6 +191,7 @@ fn quadratic_koch_curve_island(
         .add_token('-', TurtleCommand::Yaw(Rad(-90.0f64.to_radians())))?
         .add_axiom("F-F-F-F".to_string())?
         .add_rule('F', " F+FF-FF-F-F+F+FF-F-F+F+FF+FF-F".to_string())?
+        .round()?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!(
         "quadratic_koch_curve_island render() duration: {:?}",

@@ -150,10 +150,13 @@ impl DiagramHelper {
             assert_eq!(cell_c.get().get_id(), cell_id_n);
             let mut kill_pill = 100;
 
-            let mut edge_id = cell_c
-                .get()
-                .get_incident_edge()
-                .ok_or_else(|| TBError::InternalError("Could not unwrap edge".to_string()))?;
+            let mut edge_id = cell_c.get().get_incident_edge().ok_or_else(|| {
+                TBError::InternalError(format!(
+                    "Could not unwrap edge of get_incident_edge(), at {}:{}",
+                    file!(),
+                    line!()
+                ))
+            })?;
             let start_edge: VD::VoronoiEdgeIndex = edge_id;
 
             let cell_id = self.diagram.edge_get_cell(Some(edge_id)).ok_or_else(|| {

@@ -39,7 +39,7 @@ pub fn parse_input(
     input_pb_model: &PB_Model,
 ) -> Result<
     (
-        fnv::FnvHashSet<(usize, usize)>,
+        ahash::AHashSet<(usize, usize)>,
         Vec<cgmath::Point3<f64>>,
         cgmath_3d::Aabb3<f64>,
     ),
@@ -61,7 +61,7 @@ pub fn parse_input(
         })?;
     println!("centerline: data was in plane:{:?} aabb:{:?}", plane, aabb);
 
-    let mut edge_set = fnv::FnvHashSet::<(usize, usize)>::default();
+    let mut edge_set = ahash::AHashSet::<(usize, usize)>::default();
 
     for face in input_pb_model.faces.iter() {
         if face.vertices.len() > 2 {
