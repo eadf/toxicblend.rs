@@ -15,20 +15,20 @@ exclude = [
 ]
 
 [dependencies]
-tonic = "^0.4.2"
-prost = "^0.7.0"
-ahash = "^0.7.2"
-tokio = { version = "^1.6.0", features = ["macros", "rt-multi-thread"] }
-thiserror = "^1.0.24"
+tonic = "0.4"
+prost = "0.7"
+ahash = "0.7"
+tokio = { version = "1.6", features = ["macros", "rt-multi-thread"] }
+thiserror = "1.0"
 linestring = {version="0.4",default-features=false,features=["impl-cgmath", "impl-rayon"]}
 centerline = "0.4"
-yabf = {version="^0.1.1",default-features=false}
+yabf = {version="0.1",default-features=false}
 boostvoronoi = "^0.8.1"
-rayon = "^1.5.0"
-smallvec = "^1.6.1"
-cgmath = "^0.18.0"
-itertools = "^0.10.0"
-building-blocks = { version="^0.6.0", default-features = false, features = ["mesh"]}
+rayon = "1.5"
+smallvec = "1.6"
+cgmath = "0.18"
+itertools = "0.10"
+building-blocks = { version="0.6", default-features = false, features = ["mesh"]}
 logos = "0.12"
 async-scoped = { version = "0.6", features = ["use-tokio"] }
 
@@ -37,7 +37,7 @@ name = "toxicblend_server"
 path = "src/server.rs"
 
 [build-dependencies]
-tonic-build = "^0.4.2"
+tonic-build = "0.4"
 
 [profile.release]
 lto = true
