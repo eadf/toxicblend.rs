@@ -34,7 +34,7 @@ use toxicblend_pb::toxic_blend_service_server::{ToxicBlendService, ToxicBlendSer
 const EPSILON: f64 = 0.0001;
 
 /// The largest dimension of the voronoi input, totally arbitrarily selected.
-const MAX_VORONOI_DIMENSION: f64 = 256.0 * 800.0;
+const MAX_VORONOI_DIMENSION: f64 = 200000.0;
 
 /// The length of one 'step' for curved edges discretization
 const VORONOI_DISCRETE_DISTANCE: f64 = 0.0001;
