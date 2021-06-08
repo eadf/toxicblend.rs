@@ -675,7 +675,7 @@ class Toxicblend_Voronoi(Operator):
 
     distance: FloatProperty(
         name="Discretization Distance",
-        description="Discretization distance as a percentage of the larges axis, used in the discretization process of curved edges",
+        description="Discrete distance as a percentage of the AABB. This value is used when sampling parabolic arc edges.",
         default=0.001,
         min=0.000101,
         max=0.999999,
@@ -819,7 +819,7 @@ class Toxicblend_Centerline(Operator):
 
     distance: FloatProperty(
         name="Distance",
-        description="Discrete distance as a percentage of the AABB",
+        description="Discrete distance as a percentage of the AABB. This value is used when sampling parabolic arc edges. It is also used for simplification.",
         default=0.005,
         min=0.0001,
         max=4.9999,
@@ -897,7 +897,7 @@ class Toxicblend_Voronoi_Mesh(Operator):
 
     distance: FloatProperty(
         name="Distance",
-        description="Discrete distance as a percentage of the AABB",
+        description="Discrete distance as a percentage of the AABB. This value is used when sampling parabolic arc edges.",
         default=0.005,
         min=0.0001,
         max=4.9999,
@@ -1035,7 +1035,7 @@ class Toxicblend_Simplify(Operator):
 
     distance: FloatProperty(
         name="Distance",
-        description="Simplification distance",
+        description="Discrete distance as a percentage of the AABB. This value is used as a parameter to the Ramer–Douglas-Peucker line simplification algorithm.",
         default=0.01,
         min=0.00000001,
         max=4.99999999,
@@ -1134,7 +1134,7 @@ class TB_MeshToolsProps(PropertyGroup):
     # general display properties
     simplify_distance: FloatProperty(
         name="Distance",
-        description="Simplification distance",
+        description="Discrete distance as a percentage of the AABB. This value is used as a parameter to the Ramer–Douglas-Peucker line simplification algorithm.",
         default=0.01,
         min=0.0,
         max=5.0,
@@ -1162,7 +1162,7 @@ class TB_MeshToolsProps(PropertyGroup):
 
     centerline_distance: FloatProperty(
         name="Distance",
-        description="Discrete distance as a percentage of the AABB",
+        description="Discrete distance as a percentage of the AABB. This value is used when sampling parabolic arc edges. It is also used for simplification.",
         default=0.01,
         min=0.005,
         max=99.0,
@@ -1184,7 +1184,7 @@ class TB_MeshToolsProps(PropertyGroup):
 
     voronoi_mesh_distance: FloatProperty(
         name="Distance",
-        description="Discrete distance as a percentage of the AABB",
+        description="Discrete distance as a percentage of the AABB. This value is used when sampling parabolic arc edges.",
         default=0.005,
         min=0.0001,
         max=4.9999,
@@ -1200,7 +1200,7 @@ class TB_MeshToolsProps(PropertyGroup):
 
     voronoi_distance: FloatProperty(
         name="Discretization Distance",
-        description="Discretization distance as a percentage of the larges axis, used in the discretization process of curved edges",
+        description="Discrete distance as a percentage of the AABB. This value is used when sampling parabolic arc edges.",
         default=0.001,
         min=0.000101,
         max=0.999999,
