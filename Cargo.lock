@@ -120,12 +120,11 @@ checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
 name = "boostvoronoi"
-version = "0.8.1"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bcd303120edcc628ef34162e82e803072341a3262348280f9fe1e0490c69936"
+checksum = "26c7399e86f7583f1765507a1416d5fbb6b9af6743c5d47a798ab185938bfd30"
 dependencies = [
  "bitflags",
- "fnv",
  "libm",
  "num 0.4.0",
  "num-traits",
@@ -194,9 +193,9 @@ checksum = "b700ce4376041dcd0a327fd0097c41095743c4c8af8887265942faf1100bd040"
 
 [[package]]
 name = "centerline"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47a5e2d5d4545ad9f1905359f8715edb38d46307226c763cdd04fc0c92f95636"
+checksum = "3f98ccca211746c897b588103c9121c729be1b45fc05b9231be8952e2eb1295a"
 dependencies = [
  "ahash",
  "approx",

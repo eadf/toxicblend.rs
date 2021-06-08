@@ -21,9 +21,9 @@ ahash = "0.7"
 tokio = { version = "1.6", features = ["macros", "rt-multi-thread"] }
 thiserror = "1.0"
 linestring = {version="0.4",default-features=false,features=["impl-cgmath", "impl-rayon"]}
-centerline = "0.4"
+centerline = "^0.4.1"
 yabf = {version="0.1",default-features=false}
-boostvoronoi = "^0.8.1"
+boostvoronoi = "^0.8.4"
 rayon = "1.5"
 smallvec = "1.6"
 cgmath = "0.18"
