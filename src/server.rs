@@ -36,7 +36,8 @@ const EPSILON: f64 = 0.0001;
 /// The largest dimension of the voronoi input, totally arbitrarily selected.
 const MAX_VORONOI_DIMENSION: f64 = 200000.0;
 
-/// The length of one 'step' for curved edges discretization
+/// The length of one 'step' for curved edges discretization as a percentage of the longest
+/// AABB axis of the object.
 const VORONOI_DISCRETE_DISTANCE: f64 = 0.0001;
 
 pub mod toxicblend_pb {

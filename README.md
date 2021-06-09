@@ -34,7 +34,7 @@ This can easily be fixed if you run blender from the console. A `ctrl` - `C` wil
 
 These operations all operate in blender edit mode:
 
-### operation: 2d outline
+### Operation: 2d outline
 
 Will convert a flat mesh object into a 2D outline. Right now the data must be in a plane crossing origin (one axis need to be zero)
 
@@ -42,7 +42,7 @@ Will convert a flat mesh object into a 2D outline. Right now the data must be in
 
 ![from](img/2d_outline_to.png)
 
-### operation: Simplify
+### Operation: Simplify
 
 Works similarly to the built-in simplify command, but instead of a distance it takes a percentage.
 This percentage is applied to the largest dimension of the AABB and that value is used as the Ramer–Douglas–Peucker distance.
@@ -52,16 +52,16 @@ Works on 3D linestrings/polylines (no faces).
 
 This percentage change makes it possible to simplify tiny objects without having to scale them up, simplify and then scale them down again.
 
-### operation: Voronoi mesh
-Runs the Voronoi sweepline algorithm on loops of 2D lines and builds a 2½D mesh (input geometry must be on a plane crossing origin).
+### Operation: Voronoi mesh
+Runs the Voronoi sweep-line algorithm on loops of 2D lines and builds a 2½D mesh (input geometry must be on a plane crossing origin).
 
-Encircle the input lines in an outer, closed, perimeter for better results.
+Important: You must encircle the input lines in one of more closed perimeters.
 
-Do *not* input single points or faces, only edge loops.
+Even more important: Edges may *only* intersect at their end points, use the `Knife intersect` operation to make it so.
 
 ![from](img/voronoi_mesh.png)
 
-### operation: Centerline
+### Operation: Centerline
 
 Takes the output of the 2d_outline command and calculates the 3D centerline.
 
@@ -73,12 +73,12 @@ Keyboard command: `s` `z` `0` for setting Z to zero.
 
 ![from](img/centerline.png)
 
-### operation: Voronoi
-Runs the Voronoi sweepline algorithm on 2D points and lines (geometry must be on a plane crossing origin).
+### Operation: Voronoi
+Runs the Voronoi sweep-line algorithm on 2D points and lines (geometry must be on a plane crossing origin).
 
 ![from](img/voronoi.png)
 
-### operation: Voxel
+### Operation: Voxel
 
 ![from](img/voxel.png)
 
@@ -87,7 +87,7 @@ This operation does *not* require flat input.
 
 This operation uses [building-blocks](https://crates.io/crates/building-blocks) for voxel generation.
 
-### operation: Metavolume (object operation)
+### Operation: Metavolume (object operation)
 Takes an edge-only mesh, like the output of the Voronoi operation, and puts metaballs along the edges.
 This operation does *not* require flat input.
 
@@ -95,7 +95,7 @@ This operation is located under `Object` -> `Add` -> `Metaball` -> `MetaVolume`
 
 ![metavolume](img/metavolume.png)
 
-### operation: LSystems (object operation)
+### Operation: LSystems (object operation)
 Generates parametric Lindenmayer systems 3d graph/curves. 
 This operation is located under `Object` -> `Add` -> `Mesh` -> `LSystem`
 
@@ -111,7 +111,7 @@ This operation is located under `Object` -> `Add` -> `Mesh` -> `LSystem`
 
 ![dragon_curve_3d](img/dragon_curve_3d.gif)
 
-### operation: Gyroid (object operation)
+### Operation: Gyroid (object operation)
 Generates a parametric Gyroid
 
 ![gyroid](img/gyroid.png)
@@ -120,26 +120,26 @@ Gyroid intersected with an egg-shape:
 
 ![egg](img/egg.png)
 
-### operation: Knife intersect
+### Operation: Knife intersect
 
 Runs on a single flat mesh object made of edges (no faces) and tests for self-intersections.
 If an intersection is found, the intersecting edges will be split at that point.
 
-### operation: Select end vertices
+### Operation: Select end vertices
 
 Selects all vertices that only connects to one other vertex. Useful for identifying dangling vertices.
 
-### operation: Select collinear edges
+### Operation: Select collinear edges
 
 Select edges that are connected to the selected edges, but limit by an angle constraint.
 If edge `A` is selected and edge `B` is directly connected to it, `B` will be selected if the angle between `A` and `B` 
 is smaller than the angle limit. `B` will then be used to select more edges and so on.
 
-### operation: Select intersection vertices
+### Operation: Select intersection vertices
 
 Selects all vertices that connects to three or more other vertices. Useful for selecting intersections.
 
-### operation: Debug object
+### Operation: Debug object
 
 Checks a mesh for anomalies, double edges etc. Will print results to the console/terminal.
 
@@ -150,7 +150,7 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 - [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
 - [ ] Port the rest of the operations.
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
-- [ ] completely replace fnv
+- [x] completely replace fnv
 - [x] make the gRPC protocol much more efficient, support f32 and packed triangles 
-- [ ] voronoi mesh generates some faulty faces 
+- [x] voronoi mesh generates some faulty faces 
 - [x] After the 3d modification, the LSystems op. generates duplicated edges and vertices

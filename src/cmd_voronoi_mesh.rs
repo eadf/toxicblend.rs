@@ -174,11 +174,12 @@ impl DiagramHelperRo {
     /// [maybe start, one mid, maybe end point]
     /// Secondary edges are a bit tricky because they lack the mid-point vertex where they
     /// intersect with the segment that created the edge. So we need to re-create it.
+    /// Secondary edges can also be half internal and half external i.e. the two vertices may
+    /// be on opposite sides of the inside/outside boundary.
     fn convert_secondary_edge(
-            &self,
-            edge: &VD::VoronoiEdge<i64, f64>,
-        hrw: &mut DiagramHelperRw,
-    ) -> Result<Vec<usize>, TBError> {
+        &self,
+        edge: &VD::VoronoiEdge<i64, f64>,
+    ) -> Result<Vec<[f64; 3]>, TBError> {
         let edge_id = edge.get_id();
         let edge_twin_id = self.diagram.edge_get_twin(Some(edge_id)).ok_or_else(|| {
             TBError::InternalError(format!("Could not get twin. {}:{}", file!(), line!()))
@@ -193,6 +194,7 @@ impl DiagramHelperRo {
         })?;
         let cell = self.diagram.get_cell(cell_id).get();
         let twin_cell_id = self.diagram.get_edge(edge_twin_id).get().cell().unwrap();
+
         let segment = if cell.contains_point() {
             self.retrieve_segment(twin_cell_id)
         } else {
@@ -202,10 +204,11 @@ impl DiagramHelperRo {
         let vertex1 = self.diagram.edge_get_vertex1(Some(edge_id));
         let vertex1 = self.diagram.vertex_get(vertex1);
 
-        let (start_point, startpoint_is_internal) = if let Some(vertex0) = vertex0 {
+        let start_point = if let Some(vertex0) = vertex0 {
             let vertex0 = vertex0.get();
-
-            let start_point = if vertex0.is_site_point() {
+            if !self.internal_vertices.bit(vertex0.get_id().0) {
+                None
+            } else if vertex0.is_site_point() {
                 Some(cgmath::Point3 {
                     x: vertex0.x(),
                     y: vertex0.y(),
@@ -217,16 +220,16 @@ impl DiagramHelperRo {
                     y: vertex0.y(),
                     z: f64::NAN,
                 })
-            };
-            (start_point, self.internal_vertices.bit(vertex0.get_id().0))
+            }
         } else {
-            (None, false)
+            None
         };
 
-        let (end_point, end_point_is_internal) = if let Some(vertex1) = vertex1 {
+        let end_point = if let Some(vertex1) = vertex1 {
             let vertex1 = vertex1.get();
-
-            let end_point = if vertex1.is_site_point() {
+            if !self.internal_vertices.bit(vertex1.get_id().0) {
+                None
+            } else if vertex1.is_site_point() {
                 Some(cgmath::Point3 {
                     x: vertex1.x(),
                     y: vertex1.y(),
@@ -238,20 +241,21 @@ impl DiagramHelperRo {
                     y: vertex1.y(),
                     z: f64::NAN,
                 })
-            };
-            (end_point, self.internal_vertices.bit(vertex1.get_id().0))
+            }
         } else {
-            (None, false)
+            None
         };
 
-        let cell_point = if cell.contains_point() {
-            self.retrieve_point(cell_id)
-        } else {
-            self.retrieve_point(twin_cell_id)
-        };
-        let cell_point = cgmath::Point2 {
-            x: cell_point.x as f64,
-            y: cell_point.y as f64,
+        let cell_point = {
+            let cell_point = if cell.contains_point() {
+                self.retrieve_point(cell_id)
+            } else {
+                self.retrieve_point(twin_cell_id)
+            };
+            cgmath::Point2 {
+                x: cell_point.x as f64,
+                y: cell_point.y as f64,
+            }
         };
 
         let segment = linestring::cgmath_2d::Line2::from([
@@ -264,9 +268,7 @@ impl DiagramHelperRo {
         let mut samples = Vec::<[f64; 3]>::new();
 
         if let Some(start_point) = start_point {
-            if !startpoint_is_internal {
-                // ignore
-            } else if start_point.z.is_finite() {
+            if start_point.z.is_finite() {
                 samples.push([start_point.x, start_point.y, start_point.z]);
             } else {
                 let z_comp = if cell.contains_point() {
@@ -277,7 +279,7 @@ impl DiagramHelperRo {
                             y: start_point.y,
                         },
                     )
-                        .sqrt()
+                    .sqrt()
                 } else {
                     -linestring::cgmath_2d::distance_to_line_squared_safe(
                         &segment.start,
@@ -287,21 +289,16 @@ impl DiagramHelperRo {
                             y: start_point.y,
                         },
                     )
-                        .sqrt()
+                    .sqrt()
                 };
                 samples.push([start_point.x, start_point.y, z_comp]);
             }
         }
 
-        // always true:
-        if edge.is_secondary() {
-            // how to pick segment.start or segment.end?
-            samples.push([cell_point.x, cell_point.y, 0.0]);
-        }
+        samples.push([cell_point.x, cell_point.y, 0.0]);
+
         if let Some(end_point) = end_point {
-            if !end_point_is_internal {
-                // ignore
-            } else if end_point.z.is_finite() {
+            if end_point.z.is_finite() {
                 samples.push([end_point.x, end_point.y, end_point.z]);
             } else {
                 let z_comp = if cell.contains_point() {
@@ -312,7 +309,7 @@ impl DiagramHelperRo {
                             y: end_point.y,
                         },
                     )
-                        .sqrt()
+                    .sqrt()
                 } else {
                     -linestring::cgmath_2d::distance_to_line_squared_safe(
                         &segment.start,
@@ -322,7 +319,7 @@ impl DiagramHelperRo {
                             y: end_point.y,
                         },
                     )
-                        .sqrt()
+                    .sqrt()
                 };
                 samples.push([end_point.x, end_point.y, z_comp]);
             }
@@ -344,28 +341,20 @@ impl DiagramHelperRo {
                 secondary, edge_id.0, external, curved, samples
             );
         }*/
-        let mut rv: Vec<usize> = Vec::new();
-        for v in samples
-            .into_iter()
-            .map(|coord| hrw.place_new_pb_vertex_dup_check(&coord, &self.inverted_transform))
-        {
-            if !rv.contains(&v) {
-                rv.push(v);
-            }
-        }
+
         //println!(" : {:?}", rv);
-        Ok(rv)
+        Ok(samples)
     }
 
     /// Convert an edge into a set of vertices
     /// primary edges: [start, end point]
     /// curved edges, [start, multiple mid, end point]
+    /// todo: try to consolidate code with convert_secondary_edge()
     fn convert_edge(
         &self,
         edge: &VD::VoronoiEdge<i64, f64>,
-        max_dist: f64,
-        hrw: &mut DiagramHelperRw,
-    ) -> Result<Vec<usize>, TBError> {
+        discretization_dist: f64,
+    ) -> Result<Vec<[f64; 3]>, TBError> {
         let edge_id = edge.get_id();
         let edge_twin_id = self.diagram.edge_get_twin(Some(edge_id)).ok_or_else(|| {
             TBError::InternalError(format!("Could not get twin. {}:{}", file!(), line!()))
@@ -478,67 +467,64 @@ impl DiagramHelperRo {
             );
             //println!("made new arc");
 
-            for p in arc.discretise_3d(max_dist).points().iter() {
+            for p in arc.discretise_3d(discretization_dist).points().iter() {
                 samples.push([p.x, p.y, p.z]);
             }
         } else {
-            if !startpoint_is_internal {
-                // ignore
-            } else if start_point.z.is_finite() {
-                samples.push([start_point.x, start_point.y, start_point.z]);
-            } else {
-                let z_comp = if cell.contains_point() {
-                    -linestring::cgmath_2d::distance_to_point_squared(
-                        &cell_point,
-                        &cgmath::Point2 {
-                            x: start_point.x,
-                            y: start_point.y,
-                        },
-                    )
-                    .sqrt()
+            if startpoint_is_internal {
+                if start_point.z.is_finite() {
+                    samples.push([start_point.x, start_point.y, start_point.z]);
                 } else {
-                    -linestring::cgmath_2d::distance_to_line_squared_safe(
-                        &segment.start,
-                        &segment.end,
-                        &cgmath::Point2 {
-                            x: start_point.x,
-                            y: start_point.y,
-                        },
-                    )
-                    .sqrt()
-                };
-                samples.push([start_point.x, start_point.y, z_comp]);
+                    let z_comp = if cell.contains_point() {
+                        -linestring::cgmath_2d::distance_to_point_squared(
+                            &cell_point,
+                            &cgmath::Point2 {
+                                x: start_point.x,
+                                y: start_point.y,
+                            },
+                        )
+                        .sqrt()
+                    } else {
+                        -linestring::cgmath_2d::distance_to_line_squared_safe(
+                            &segment.start,
+                            &segment.end,
+                            &cgmath::Point2 {
+                                x: start_point.x,
+                                y: start_point.y,
+                            },
+                        )
+                        .sqrt()
+                    };
+                    samples.push([start_point.x, start_point.y, z_comp]);
+                }
             }
-            if edge.is_secondary() {
-                // how to pick segment.start or segment.end?
-                samples.push([segment.start.x, segment.start.y, 0.0]);
-            }
-            if !end_point_is_internal {
-                // ignore
-            } else if end_point.z.is_finite() {
-                samples.push([end_point.x, end_point.y, end_point.z]);
-            } else {
-                let z_comp = if cell.contains_point() {
-                    -linestring::cgmath_2d::distance_to_point_squared(
-                        &cell_point,
-                        &cgmath::Point2 {
-                            x: end_point.x,
-                            y: end_point.y,
-                        },
-                    )
-                    .sqrt()
+
+            if end_point_is_internal {
+                if end_point.z.is_finite() {
+                    samples.push([end_point.x, end_point.y, end_point.z]);
                 } else {
-                    -linestring::cgmath_2d::distance_to_line_squared_safe(
-                        &segment.start,
-                        &segment.end,
-                        &cgmath::Point2 {
-                            x: end_point.x,
-                            y: end_point.y,
-                        },
-                    )
-                    .sqrt()
-                };
-                samples.push([end_point.x, end_point.y, z_comp]);
+                    let z_comp = if cell.contains_point() {
+                        -linestring::cgmath_2d::distance_to_point_squared(
+                            &cell_point,
+                            &cgmath::Point2 {
+                                x: end_point.x,
+                                y: end_point.y,
+                            },
+                        )
+                        .sqrt()
+                    } else {
+                        -linestring::cgmath_2d::distance_to_line_squared_safe(
+                            &segment.start,
+                            &segment.end,
+                            &cgmath::Point2 {
+                                x: end_point.x,
+                                y: end_point.y,
+                            },
+                        )
+                        .sqrt()
+                    };
+                    samples.push([end_point.x, end_point.y, z_comp]);
+                }
             }
         }
         /*{
@@ -558,23 +544,15 @@ impl DiagramHelperRo {
                 secondary, edge_id.0, external, curved, samples
             );
         }*/
-        let mut rv: Vec<usize> = Vec::new();
-        for v in samples
-            .into_iter()
-            .map(|coord| hrw.place_new_pb_vertex_dup_check(&coord, &self.inverted_transform))
-        {
-            if !rv.contains(&v) {
-                rv.push(v);
-            }
-        }
+
         //println!(" : {:?}", rv);
-        Ok(rv)
+        Ok(samples)
     }
 
     /// convert the edges of the diagram into a list of vertices
     fn convert_edges(
         &self,
-        max_dist: f64,
+        discretization_dist: f64,
     ) -> Result<(DiagramHelperRw, ahash::AHashMap<usize, Vec<usize>>), TBError> {
         let mut hrw = DiagramHelperRw::default();
         let mut rv = ahash::AHashMap::<usize, Vec<usize>>::new();
@@ -614,11 +592,20 @@ impl DiagramHelperRo {
 
             //println!("edge:{:?}", edge_id.0);
             if !rv.contains_key(&twin_id.0) {
-                let pb_edge = if edge.is_secondary() {
-                    self.convert_secondary_edge(&edge, &mut hrw)?
+                let samples = if edge.is_secondary() {
+                    self.convert_secondary_edge(&edge)?
                 } else {
-                    self.convert_edge(&edge, max_dist, &mut hrw)?
+                    self.convert_edge(&edge, discretization_dist)?
                 };
+                let mut pb_edge: Vec<usize> = Vec::with_capacity(samples.len());
+                for v in samples.into_iter().map(|coord| {
+                    hrw.place_new_pb_vertex_dup_check(&coord, &self.inverted_transform)
+                }) {
+                    if !pb_edge.contains(&v) {
+                        pb_edge.push(v);
+                    }
+                }
+
                 let _ = rv.insert(edge_id.0, pb_edge);
             } else {
                 // ignore edge because the twin is already processed
@@ -811,11 +798,16 @@ impl DiagramHelperRo {
                 if let Some((split_a, split_b)) =
                     self.split_pb_face_by_segment(v0n as u64, v1n as u64, &new_face)?
                 {
-                    pb_faces.push(split_a);
-                    pb_faces.push(split_b);
-                } else {
+                    if split_a.vertices.len() > 2 {
+                        pb_faces.push(split_a);
+                    }
+                    if split_b.vertices.len() > 2 {
+                        pb_faces.push(split_b);
+                    }
+                } else if new_face.vertices.len() > 2 {
                     pb_faces.push(new_face);
                 }
+
                 //println!();
             }
         }
@@ -951,7 +943,7 @@ fn find_internal_vertices(
 fn voronoi_mesh(
     input_pb_model: &PB_Model,
     cmd_arg_max_voronoi_dimension: f64,
-    cmd_discrete_distance: f64,
+    cmd_discretization_distance: f64,
 ) -> Result<PB_Model, TBError> {
     let (vor_vertices, vor_lines, vor_aabb2, inverted_transform) =
         parse_input(input_pb_model, cmd_arg_max_voronoi_dimension)?;
@@ -961,10 +953,10 @@ fn voronoi_mesh(
     let vor_diagram = vb.construct()?;
     //println!("diagram:{:?}", vor_diagram);
     //println!("aabb2:{:?}", vor_aabb2);
-    let max_dist = {
+    let discretization_dist = {
         let max_dist = vor_aabb2.get_high().unwrap() - vor_aabb2.get_low().unwrap();
         let max_dist = max_dist.x.max(max_dist.y);
-        cmd_discrete_distance * max_dist / 100.0
+        cmd_discretization_distance * max_dist / 100.0
     };
 
     let reject_edges = super::voronoi_utils::reject_external_edges(&vor_diagram)?;
@@ -980,7 +972,7 @@ fn voronoi_mesh(
         inverted_transform,
     };
 
-    let (dhrw, mod_edges) = diagram_helper.convert_edges(max_dist)?;
+    let (dhrw, mod_edges) = diagram_helper.convert_edges(discretization_dist)?;
     let (pb_faces, pb_vertices) = diagram_helper.iterate_cells(dhrw, mod_edges)?;
 
     //build_output(false, input_pb_model, diagram_helper, inverted_transform)
@@ -1033,7 +1025,7 @@ pub fn command(
             cmd_arg_max_voronoi_dimension
         )));
     }
-    let cmd_arg_discrete_distance = {
+    let cmd_arg_discretization_distance = {
         let tmp_value = super::VORONOI_DISCRETE_DISTANCE.to_string();
         let value = options.get("DISTANCE").unwrap_or(&tmp_value);
         value.parse::<f64>().map_err(|_| {
@@ -1043,19 +1035,17 @@ pub fn command(
             ))
         })?
     };
-    if !(super::VORONOI_DISCRETE_DISTANCE..5.0).contains(&cmd_arg_discrete_distance) {
+    if !(super::VORONOI_DISCRETE_DISTANCE..5.0).contains(&cmd_arg_discretization_distance) {
         return Err(TBError::InvalidInputData(format!(
             "The valid range of DISTANCE is [{}..5.0[% :({})",
             super::VORONOI_DISCRETE_DISTANCE,
-            cmd_arg_discrete_distance
+            cmd_arg_discretization_distance
         )));
     }
     // used for simplification and discretization distance
-    let max_distance = cmd_arg_max_voronoi_dimension * cmd_arg_discrete_distance / 100.0;
+    let max_distance = cmd_arg_max_voronoi_dimension * cmd_arg_discretization_distance / 100.0;
 
-    //let cmd_arg_remove_externals = true;
-
-    // we already tested that there are only one model
+    // we already tested that there is only one model
     for model in a_command.models.iter().take(1) {
         println!("model.name:{:?}, ", model.name);
         println!("model.vertices:{:?}, ", model.vertices.len());
@@ -1065,7 +1055,10 @@ pub fn command(
             model.world_orientation.as_ref().map_or(0, |_| 16)
         );
         println!("MAX_VORONOI_DIMENSION:{:?}", cmd_arg_max_voronoi_dimension);
-        println!("VORONOI_DISCRETE_DISTANCE:{:?}%", cmd_arg_discrete_distance);
+        println!(
+            "VORONOI_DISCRETE_DISTANCE:{:?}%",
+            cmd_arg_discretization_distance
+        );
         println!("max_distance:{:?}", max_distance);
         println!();
     }
@@ -1075,7 +1068,7 @@ pub fn command(
     let output_model = voronoi_mesh(
         &input_model,
         cmd_arg_max_voronoi_dimension,
-        cmd_arg_discrete_distance,
+        cmd_arg_discretization_distance,
     )?;
     let mut reply = PB_Reply {
         options: vec![PB_KeyValuePair {
@@ -1085,7 +1078,8 @@ pub fn command(
         models: Vec::with_capacity(1),
         models32: Vec::with_capacity(0),
     };
-
+    println!("Total number of vertices: {}", output_model.vertices.len());
+    println!("Total number of faces: {}", output_model.faces.len());
     reply.models.push(output_model);
     Ok(reply)
 }
