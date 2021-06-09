@@ -1,7 +1,7 @@
 [![Crates.io](https://meritbadge.herokuapp.com/toxicblend)](https://crates.io/crates/toxicblend)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)
-[![dependency status](https://deps.rs/crate/toxicblend/0.0.8/status.svg)](https://deps.rs/crate/toxicblend/0.0.8)
+[![dependency status](https://deps.rs/crate/toxicblend/0.0.9/status.svg)](https://deps.rs/crate/toxicblend/0.0.9)
 
 
 ![toxicblend.rs](img/header.png)
@@ -55,7 +55,7 @@ This percentage change makes it possible to simplify tiny objects without having
 ### Operation: Voronoi mesh
 Runs the Voronoi sweep-line algorithm on loops of 2D lines and builds a 2½D mesh (input geometry must be on a plane crossing origin).
 
-Important: You must encircle the input lines in one of more closed perimeters.
+Important: You must encircle the input lines in one or more closed perimeters.
 
 Even more important: Edges may *only* intersect at their end points, use the `Knife intersect` operation to make it so.
 
