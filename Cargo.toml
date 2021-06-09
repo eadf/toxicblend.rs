@@ -1,6 +1,6 @@
 [package]
 name = "toxicblend"
-version = "0.0.9"
+version = "0.0.10"
 authors = ["eadf"]
 edition = "2018"
 description = "gRPC based Blender-addons. WIP"
@@ -25,7 +25,7 @@ centerline = "^0.4.1"
 yabf = {version="0.1",default-features=false}
 boostvoronoi = "^0.8.4"
 rayon = "1.5"
-smallvec = "1.6"
+smallvec = "^1.6.1"
 cgmath = "0.18"
 itertools = "0.10"
 building-blocks = { version="0.6", default-features = false, features = ["mesh"]}
