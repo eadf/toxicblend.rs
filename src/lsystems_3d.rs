@@ -65,9 +65,9 @@ impl Heading {
         //rv
     }
 
-    // roll, yaw and pitch in order
-    fn rotate(&self, roll: Rad<f64>, yaw: Rad<f64>, pitch: Rad<f64>) -> Heading {
-        self.roll(roll).yaw(yaw).pitch(pitch)
+    /// Perform yaw, pitch and roll in that order
+    fn rotate(&self, yaw: Rad<f64>, pitch: Rad<f64>, roll: Rad<f64>) -> Heading {
+        self.yaw(yaw).pitch(pitch).roll(roll)
     }
 }
 

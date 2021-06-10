@@ -8,9 +8,9 @@
 
 mod cmd_2d_outline;
 mod cmd_centerline;
-mod cmd_sdf;
 mod cmd_knife_intersect;
 mod cmd_lsystems;
+mod cmd_sdf;
 mod cmd_simplify;
 mod cmd_voronoi;
 mod cmd_voronoi_mesh;

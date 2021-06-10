@@ -228,21 +228,23 @@ class TbAddLindenmayerSystems(bpy.types.Operator):
         update=AddObjectHelper.align_update_callback,
     )
 
-    cmd_variant_items = (("DRAGON_CURVE", "dragon curve", "draw dragon curve"),
-                         ("DRAGON_CURVE_3D", "dragon curve 3d", "draw a 3d dragon curve"),
-                         ("FRACTAL_BINARY_TREE", "fractal binary tree", "draw fractal binary tree"),
-                         ("FRACTAL_BINARY_TREE_3D", "fractal binary tree 3d", "draw a 3d fractal binary tree"),
-                         ("FRACTAL_PLANT", "fractal plant", "draw fractal plant"),
-                         ("KOCH_CURVE", "Koch curve", "draw a Koch curve"),
-                         ("KOCH_CURVE_3D", "Koch curve 3d", "draw a 3d Koch curve"),
+    cmd_variant_items = (("DRAGON_CURVE", "Dragon curve", "draw dragon curve"),
+                         ("DRAGON_CURVE_3D", "Dragon curve 3d", "draw a 3d dragon curve"),
+                         ("LEVY_C_CURVE", "Lévy C curve", "draw Lévy C curve"),
+                         ("LEVY_C_CURVE_3D", "Lévy C curve 3d", "draw Lévy C curve, just an experiment"),
+                         ("FRACTAL_BINARY_TREE", "Fractal binary tree", "draw fractal binary tree"),
+                         ("FRACTAL_BINARY_TREE_3D", "Fractal binary tree 3d", "draw a 3d fractal binary tree"),
+                         ("FRACTAL_PLANT", "Fractal plant", "draw fractal plant"),
+                         ("KOCH_CURVE", "Koch curve", "draw a Koch curve (keep iterations low)"),
+                         ("KOCH_CURVE_3D", "Koch curve 3d", "draw a 3d Koch curve (keep iterations low)"),
                          ("KOCH_CURVE_ISLAND", "Koch curve island", "draw a quadratic Koch curve island"),
                          ("KOCH_CURVE_ISLAND_3D", "Koch curve island 3d", "draw a 3d variant of quadratic Koch curve island"),
-                         ("HILBERT_CURVE_3D", "Hilbert curve 3d", "draw Hilbert curve 3d"),
+                         ("HILBERT_CURVE_3D", "Hilbert curve 3d", "draw Hilbert curve 3d (keep iterations very low)"),
                          ("SIERPINSKI_GASKET","Sierpinski gasket", "draw Sierpinski gasket"),
                          ("SIERPINSKI_GASKET_3D","Sierpinski gasket 3d", "draw a 3f Sierpinski gasket"),
                          ("SIERPINSKI_TRIANGLE","Sierpinski triangle", "draw Sierpinski triangle"),
-                         ("GOSPER_CURVE","Gosper curve", "draw Gosper curve"),
-                         ("GOSPER_CURVE_3D","Gosper curve 3d", "draw a 3d Gosper curve"),
+                         ("GOSPER_CURVE","Gosper curve", "draw Gosper curve (keep iterations low)"),
+                         ("GOSPER_CURVE_3D","Gosper curve 3d", "draw a 3d Gosper curve (keep iterations low)"),
                          ("CUSTOM_TURTLE","Custom turtle", "draw using custom turtle")
                         )
     cmd_variant : bpy.props.EnumProperty(name="Variant", items=cmd_variant_items, default="DRAGON_CURVE")

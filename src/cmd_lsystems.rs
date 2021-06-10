@@ -52,6 +52,54 @@ fn build_dragon_curve(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>
     Ok(result)
 }
 
+/// https://en.wikipedia.org/wiki/Lévy_C_curve
+fn build_levy_curve(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
+    let now = time::Instant::now();
+
+    let result = TurtleRules::default()
+        .add_token('F', TurtleCommand::Forward(100.0))?
+        .add_token('+', TurtleCommand::Yaw(Rad(45.0f64.to_radians())))?
+        .add_token('-', TurtleCommand::Yaw(Rad(-45.0f64.to_radians())))?
+        .add_axiom("F".to_string())?
+        .add_rule('F', "+ F - - F +".to_string())?
+        .round()?
+        .exec(cmd_arg_iterations, Turtle::default())?;
+
+    println!("build_levy_curve render() duration: {:?}", now.elapsed());
+    Ok(result)
+}
+
+/// build a crooked Lévy C curve in 3d
+fn build_levy_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
+    let now = time::Instant::now();
+
+    let result = TurtleRules::default()
+        .add_token('F', TurtleCommand::Forward(100.0))?
+        .add_token(
+            '+',
+            TurtleCommand::Rotate(
+                Rad(45.0f64.to_radians()),
+                Rad(0.0f64.to_radians()),
+                Rad(0.15f64.to_radians()),
+            ),
+        )?
+        .add_token(
+            '-',
+            TurtleCommand::Rotate(
+                Rad(-45.0f64.to_radians()),
+                Rad(0.0f64.to_radians()),
+                Rad(-0.15f64.to_radians()),
+            ),
+        )?
+        .add_axiom("F".to_string())?
+        .add_rule('F', "+ F - - F +".to_string())?
+        .round()?
+        .exec(cmd_arg_iterations, Turtle::default())?;
+
+    println!("build_levy_curve_3d render() duration: {:?}", now.elapsed());
+    Ok(result)
+}
+
 fn build_dragon_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
 
@@ -74,7 +122,9 @@ fn build_dragon_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f
 }
 
 /// https://en.wikipedia.org/wiki/L-system#Examples_of_L-systems
-fn sierpinski_triangle(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
+fn build_sierpinski_triangle(
+    cmd_arg_iterations: u8,
+) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
     let result = TurtleRules::default()
         .add_token('F', TurtleCommand::Forward(1.0))?
@@ -85,12 +135,17 @@ fn sierpinski_triangle(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64
         .add_rule('F', " F-G+F+G-F".to_string())?
         .add_rule('G', " GG".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
-    println!("sierpinski_triangle render() duration: {:?}", now.elapsed());
+    println!(
+        "build_sierpinski_triangle render() duration: {:?}",
+        now.elapsed()
+    );
     Ok(result)
 }
 
 /// Algorithmic_botany, page 11 (http://algorithmicbotany.org/papers/#abop)
-fn sierpinski_gasket(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
+fn build_sierpinski_gasket(
+    cmd_arg_iterations: u8,
+) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
     let result = TurtleRules::default()
         .add_token('R', TurtleCommand::Forward(200.0))?
@@ -101,11 +156,16 @@ fn sierpinski_gasket(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>;
         .add_rule('R', " L - R - L".to_string())?
         .add_rule('L', " R + L + R".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
-    println!("sierpinski_gasket render() duration: {:?}", now.elapsed());
+    println!(
+        "build_sierpinski_gasket render() duration: {:?}",
+        now.elapsed()
+    );
     Ok(result)
 }
 
-fn sierpinski_gasket_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
+fn build_sierpinski_gasket_3d(
+    cmd_arg_iterations: u8,
+) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
     let result = TurtleRules::default()
         .add_token('R', TurtleCommand::Forward(200.0))?
@@ -116,12 +176,15 @@ fn sierpinski_gasket_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f6
         .add_rule('R', " L - R - L".to_string())?
         .add_rule('L', " R + L + R".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
-    println!("sierpinski_gasket render() duration: {:?}", now.elapsed());
+    println!(
+        "build_sierpinski_gasket render() duration: {:?}",
+        now.elapsed()
+    );
     Ok(result)
 }
 
 /// Algorithmic_botany, page 12 (http://algorithmicbotany.org/papers/#abop)
-fn gosper_curve(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
+fn build_gosper_curve(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
     let result = TurtleRules::default()
         .add_token('R', TurtleCommand::Forward(1.0))?
@@ -132,11 +195,14 @@ fn gosper_curve(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>,
         .add_rule('L', " L+R++R-L--LL-R+".to_string())?
         .add_rule('R', " -L+RR++R+L--L-R".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
-    println!("sierpinski_gasket render() duration: {:?}", now.elapsed());
+    println!(
+        "build_sierpinski_gasket render() duration: {:?}",
+        now.elapsed()
+    );
     Ok(result)
 }
 
-fn gosper_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
+fn build_gosper_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
     let result = TurtleRules::default()
         .add_token('R', TurtleCommand::Forward(1.0))?
@@ -149,12 +215,15 @@ fn gosper_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2
         .add_rule('L', " L+R++R-L--LL-R+P".to_string())?
         .add_rule('R', " -L+RR++R+L--L-Rp".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
-    println!("sierpinski_gasket render() duration: {:?}", now.elapsed());
+    println!(
+        "build_sierpinski_gasket render() duration: {:?}",
+        now.elapsed()
+    );
     Ok(result)
 }
 
 /// Algorithmic_botany, page 9 (http://algorithmicbotany.org/papers/#abop)
-fn koch_curve(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
+fn build_koch_curve(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
     let result = TurtleRules::default()
         .add_token('F', TurtleCommand::Forward(30.0))?
@@ -163,11 +232,11 @@ fn koch_curve(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, T
         .add_axiom("F".to_string())?
         .add_rule('F', " F + F - F - F + F".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
-    println!("koch_curve render() duration: {:?}", now.elapsed());
+    println!("build_koch_curve render() duration: {:?}", now.elapsed());
     Ok(result)
 }
 
-fn koch_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
+fn build_koch_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
     let result = TurtleRules::default()
         .add_token('F', TurtleCommand::Forward(30.0))?
@@ -176,12 +245,12 @@ fn koch_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>
         .add_axiom("F".to_string())?
         .add_rule('F', " F + F - F - F + F".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
-    println!("koch_curve_3d render() duration: {:?}", now.elapsed());
+    println!("build_koch_curve_3d render() duration: {:?}", now.elapsed());
     Ok(result)
 }
 
 /// Algorithmic_botany, page 9 (http://algorithmicbotany.org/papers/#abop)
-fn quadratic_koch_curve_island(
+fn build_quadratic_koch_curve_island(
     cmd_arg_iterations: u8,
 ) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
@@ -194,13 +263,13 @@ fn quadratic_koch_curve_island(
         .round()?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!(
-        "quadratic_koch_curve_island render() duration: {:?}",
+        "build_quadratic_koch_curve_island render() duration: {:?}",
         now.elapsed()
     );
     Ok(result)
 }
 
-fn quadratic_koch_curve_island_3d(
+fn build_quadratic_koch_curve_island_3d(
     cmd_arg_iterations: u8,
 ) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
@@ -214,14 +283,16 @@ fn quadratic_koch_curve_island_3d(
         .add_rule('F', " F+FRFr-FRFr-F-F+F+FRFr-F-F+F+FRFr+FRFr-F".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!(
-        "quadratic_koch_curve_island render() duration: {:?}",
+        "build_quadratic_koch_curve_island render() duration: {:?}",
         now.elapsed()
     );
     Ok(result)
 }
 
 /// https://en.wikipedia.org/wiki/L-system#Examples_of_L-systems
-fn fractal_binary_tree(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
+fn build_fractal_binary_tree(
+    cmd_arg_iterations: u8,
+) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
     let result = TurtleRules::default()
         .add_token('0', TurtleCommand::Forward(50.0))?
@@ -235,12 +306,15 @@ fn fractal_binary_tree(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64
         .add_rule('0', " 1[L0]R0".to_string())?
         .rotate(Rad(90.0f64.to_radians()), Rad(0.0), Rad(0.0))?
         .exec(cmd_arg_iterations, Turtle::default())?;
-    println!("fractal_binary_tree render() duration: {:?}", now.elapsed());
+    println!(
+        "build_fractal_binary_tree render() duration: {:?}",
+        now.elapsed()
+    );
 
     Ok(result)
 }
 
-fn fractal_binary_tree_3d(
+fn build_fractal_binary_tree_3d(
     cmd_arg_iterations: u8,
 ) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
@@ -258,7 +332,10 @@ fn fractal_binary_tree_3d(
         .add_rule('0', " 1[L)0]R(0".to_string())?
         .rotate(Rad(90.0f64.to_radians()), Rad(0.0), Rad(0.0))?
         .exec(cmd_arg_iterations, Turtle::default())?;
-    println!("fractal_binary_tree render() duration: {:?}", now.elapsed());
+    println!(
+        "build_fractal_binary_tree_3d render() duration: {:?}",
+        now.elapsed()
+    );
 
     Ok(result)
 }
@@ -266,7 +343,7 @@ fn fractal_binary_tree_3d(
 /// Rather messy implementation of a text parser for a custom turtle builder.
 /// It takes a lot of shortcuts, all parenthesis are ignored, it assumes there is one command per
 /// line etc. etc.
-fn custom_turtle(
+fn build_custom_turtle(
     cmd_arg_iterations: u8,
     cmd_custom_turtle: Option<&String>,
 ) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
@@ -281,13 +358,13 @@ fn custom_turtle(
     let result = TurtleRules::default()
         .parse(cmd_custom_turtle)?
         .exec(cmd_arg_iterations, Turtle::default())?;
-    println!("custom_turtle render() duration: {:?}", now.elapsed());
+    println!("build_custom_turtle render() duration: {:?}", now.elapsed());
 
     Ok(result)
 }
 
 /// https://en.wikipedia.org/wiki/L-system#Examples_of_L-systems
-fn fractal_plant(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
+fn build_fractal_plant(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
     let result = TurtleRules::default()
         .add_token('X', TurtleCommand::Nop)?
@@ -307,12 +384,17 @@ fn fractal_plant(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>
         .rotate(Rad(70.0f64.to_radians()), Rad(0.0), Rad(0.0))?
         .exec(cmd_arg_iterations, Turtle::default())?;
 
-    println!("fractal_binary_tree render() duration: {:?}", now.elapsed());
+    println!(
+        "build_fractal_binary_tree render() duration: {:?}",
+        now.elapsed()
+    );
     Ok(result)
 }
 
 /// Algorithmic_botany, page 20 (http://algorithmicbotany.org/papers/#abop)
-fn hilbert_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
+fn build_hilbert_curve_3d(
+    cmd_arg_iterations: u8,
+) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
     let result = TurtleRules::default()
         .add_token('A', TurtleCommand::Nop)?
@@ -334,7 +416,10 @@ fn hilbert_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 
         .add_rule('D', " |CFB-F+B|FA&F∧A&&FB-F+B|FC//".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
 
-    println!("fractal_binary_tree render() duration: {:?}", now.elapsed());
+    println!(
+        "build_fractal_binary_tree_3d render() duration: {:?}",
+        now.elapsed()
+    );
     Ok(result)
 }
 
@@ -484,20 +569,22 @@ pub fn command(
     let mesh = match cmd_arg_variant.as_str() {
         "DRAGON_CURVE" => build_dragon_curve(cmd_arg_iterations),
         "DRAGON_CURVE_3D" => build_dragon_curve_3d(cmd_arg_iterations),
-        "FRACTAL_BINARY_TREE" => fractal_binary_tree(cmd_arg_iterations),
-        "FRACTAL_BINARY_TREE_3D" => fractal_binary_tree_3d(cmd_arg_iterations),
-        "FRACTAL_PLANT" => fractal_plant(cmd_arg_iterations),
-        "SIERPINSKI_TRIANGLE" => sierpinski_triangle(cmd_arg_iterations),
-        "SIERPINSKI_GASKET" => sierpinski_gasket(cmd_arg_iterations),
-        "SIERPINSKI_GASKET_3D" => sierpinski_gasket_3d(cmd_arg_iterations),
-        "KOCH_CURVE" => koch_curve(cmd_arg_iterations),
-        "KOCH_CURVE_3D" => koch_curve_3d(cmd_arg_iterations),
-        "GOSPER_CURVE" => gosper_curve(cmd_arg_iterations),
-        "GOSPER_CURVE_3D" => gosper_curve_3d(cmd_arg_iterations),
-        "KOCH_CURVE_ISLAND" => quadratic_koch_curve_island(cmd_arg_iterations),
-        "KOCH_CURVE_ISLAND_3D" => quadratic_koch_curve_island_3d(cmd_arg_iterations),
-        "CUSTOM_TURTLE" => custom_turtle(cmd_arg_iterations, cmd_custom_turtle),
-        "HILBERT_CURVE_3D" => hilbert_curve_3d(cmd_arg_iterations),
+        "FRACTAL_BINARY_TREE" => build_fractal_binary_tree(cmd_arg_iterations),
+        "FRACTAL_BINARY_TREE_3D" => build_fractal_binary_tree_3d(cmd_arg_iterations),
+        "FRACTAL_PLANT" => build_fractal_plant(cmd_arg_iterations),
+        "SIERPINSKI_TRIANGLE" => build_sierpinski_triangle(cmd_arg_iterations),
+        "SIERPINSKI_GASKET" => build_sierpinski_gasket(cmd_arg_iterations),
+        "SIERPINSKI_GASKET_3D" => build_sierpinski_gasket_3d(cmd_arg_iterations),
+        "KOCH_CURVE" => build_koch_curve(cmd_arg_iterations),
+        "KOCH_CURVE_3D" => build_koch_curve_3d(cmd_arg_iterations),
+        "GOSPER_CURVE" => build_gosper_curve(cmd_arg_iterations),
+        "GOSPER_CURVE_3D" => build_gosper_curve_3d(cmd_arg_iterations),
+        "KOCH_CURVE_ISLAND" => build_quadratic_koch_curve_island(cmd_arg_iterations),
+        "KOCH_CURVE_ISLAND_3D" => build_quadratic_koch_curve_island_3d(cmd_arg_iterations),
+        "CUSTOM_TURTLE" => build_custom_turtle(cmd_arg_iterations, cmd_custom_turtle),
+        "HILBERT_CURVE_3D" => build_hilbert_curve_3d(cmd_arg_iterations),
+        "LEVY_C_CURVE" => build_levy_curve(cmd_arg_iterations),
+        "LEVY_C_CURVE_3D" => build_levy_curve_3d(cmd_arg_iterations),
         _ => Err(TBError::InvalidInputData(format!(
             "Invalid CMD_VARIANT parameter:{}",
             cmd_arg_variant
