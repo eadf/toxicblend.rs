@@ -237,7 +237,7 @@ pub fn command(
     }
     if !a_command.models.is_empty() {
         let input_model = &a_command.models[0];
-        let output_model = knife_intersect(&input_model)?;
+        let output_model = knife_intersect(input_model)?;
         let mut reply = PB_Reply {
             options: vec![PB_KeyValuePair {
                 key: "ONLY_EDGES".to_string(),

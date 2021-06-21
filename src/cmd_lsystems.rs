@@ -591,7 +591,7 @@ pub fn command(
         ))),
     }?;
 
-    let pb_model = build_output_bp_model(&a_command, mesh)?;
+    let pb_model = build_output_bp_model(a_command, mesh)?;
     println!("pb_model.vertices.len() {}", pb_model.vertices.len());
     println!("pb_model.faces.len() {}", pb_model.faces.len());
 

@@ -186,7 +186,7 @@ pub fn command(
     }
     if !a_command.models.is_empty() {
         let input_model = &a_command.models[0];
-        let (rv_lines, rv_vector) = remove_internal_edges(&input_model)?;
+        let (rv_lines, rv_vector) = remove_internal_edges(input_model)?;
         let mut reply = PB_Reply {
             options: vec![PB_KeyValuePair {
                 key: "ONLY_EDGES".to_string(),

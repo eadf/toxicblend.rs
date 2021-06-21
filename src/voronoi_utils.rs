@@ -16,7 +16,7 @@ pub(crate) fn reject_external_edges(
             .edge_is_finite(Some(edge_id))
             .ok_or_else(|| TBError::InternalError("Could not get edge status".to_string()))?
         {
-            mark_connected_edges(&diagram, edge_id, &mut rejected_edges)?;
+            mark_connected_edges(diagram, edge_id, &mut rejected_edges)?;
         }
     }
     Ok(rejected_edges)

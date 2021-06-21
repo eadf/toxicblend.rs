@@ -247,7 +247,7 @@ pub(crate) fn build_output_bp_model(
                 if !deep_inside_extent.contains(pv) {
                     // only use vertex de-duplication if the vertex was close to the edges
                     // of the extent
-                    let key = transmute_to_u32(&p);
+                    let key = transmute_to_u32(p);
                     let _ = vertex_map.insert(
                         pi as u32 + indices_offset,
                         *unique_vertex_map.entry(key).or_insert_with(|| {

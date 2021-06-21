@@ -26,6 +26,11 @@ The server binds to `localhost` as well; so it should not be reachable from any 
 cargo +nightly run --bin toxicblend_server --release
 ```
 
+or just 
+```
+cargo +nightly run --release
+```
+
 ## Run blender
 If the grpc server (for any unimaginable reason) would crash, blender will hang waiting for response.
 This can easily be fixed if you run blender from the console. A `ctrl` - `C` will fix it.

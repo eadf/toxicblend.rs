@@ -455,7 +455,7 @@ pub fn command(
 
     let lines = find_linestrings(&a_command.models[0])?;
     let lines = simplify_rdp_percent(&a_command.models[0], distance, lines)?;
-    let model = build_bp_model(&a_command, lines)?;
+    let model = build_bp_model(a_command, lines)?;
 
     let mut reply = PB_Reply {
         options: vec![PB_KeyValuePair {

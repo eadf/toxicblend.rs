@@ -236,12 +236,12 @@ impl TurtleRules {
             for v in rv.iter() {
                 if v == &' ' {
                     continue;
-                } else if let Some(rule) = self.rules.get(&v) {
+                } else if let Some(rule) = self.rules.get(v) {
                     // it was a rule
                     tmp.append(&mut rule.chars().collect());
                 } else {
                     // maybe a token?
-                    let _ = self.tokens.get(&v).ok_or_else(|| {
+                    let _ = self.tokens.get(v).ok_or_else(|| {
                         eprintln!("tokens: {:?}", self.tokens.keys());
                         eprintln!("rules: {:?}", self.rules.keys());
                         TBError::LSystems3D(format!("Could not find rule or token:'{}'", &v))

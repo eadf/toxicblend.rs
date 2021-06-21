@@ -816,6 +816,7 @@ impl DiagramHelperRo {
     }
 }
 
+/// Parse the protobuffer input into voronoi data structures
 #[allow(clippy::type_complexity)]
 fn parse_input(
     input_pb_model: &PB_Model,
@@ -965,9 +966,7 @@ fn voronoi_mesh(
         vertices: vor_vertices,
         segments: vor_lines,
         diagram: vor_diagram,
-        //aabb: vor_aabb2,
         rejected_edges: reject_edges,
-        //discrete_distance: cmd_discrete_distance,
         internal_vertices,
         inverted_transform,
     };
@@ -1066,7 +1065,7 @@ pub fn command(
     // we already tested a_command.models.len()
     let input_model = &a_command.models[0];
     let output_model = voronoi_mesh(
-        &input_model,
+        input_model,
         cmd_arg_max_voronoi_dimension,
         cmd_arg_discretization_distance,
     )?;

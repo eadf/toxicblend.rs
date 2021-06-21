@@ -465,6 +465,7 @@ fn voronoi(
     build_output(input_pb_model, diagram_helper, inverted_transform)
 }
 
+/// Build the protobuffer output from the diagram
 fn build_output(
     input_pb_model: &PB_Model,
     diagram: DiagramHelper,
@@ -675,7 +676,7 @@ pub fn command(
     if !a_command.models.is_empty() {
         let input_model = &a_command.models[0];
         let output_model = voronoi(
-            &input_model,
+            input_model,
             cmd_arg_max_voronoi_dimension,
             cmd_arg_discrete_distance,
             cmd_arg_remove_externals,

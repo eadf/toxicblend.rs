@@ -18,7 +18,7 @@ type Point3f = PointN<[f32; 3]>;
 #[allow(clippy::too_many_arguments)]
 /// Build the gyroid voxel data from the input
 // todo: should i rebuild the return value to just Result<Vec<PosNormMesh>,TBError>?
-// the current return value does not live very long, a re-shuffle would just take time.
+// todo: the current return value does not live very long, a re-shuffle would just take time.
 fn build_gyroid_voxel(
     divisions: f32,
     cmd_arg_s_param: f32,

@@ -133,6 +133,7 @@ pub enum TBError {
 #[derive(Debug, Default)]
 pub struct TheToxicBlendService {}
 
+#[inline(always)]
 /// convert the options to a hashmap
 fn options_to_map(options: &[PB_KeyValuePair]) -> HashMap<String, String> {
     let mut rv = HashMap::<String, String>::new();

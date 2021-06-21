@@ -141,8 +141,8 @@ pub fn build_output_bp_model(
                 ));
             }
             // unwrap of first and last is safe now that we know there are at least 2 vertices in the list
-            let v0 = super::xy_to_3d(&linestring.points().first().unwrap());
-            let v1 = super::xy_to_3d(&linestring.points().last().unwrap());
+            let v0 = super::xy_to_3d(linestring.points().first().unwrap());
+            let v1 = super::xy_to_3d(linestring.points().last().unwrap());
             let v0_key = transmute_to_u64(&v0);
             let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
                 let new_index = output_pb_model_vertices.len();
@@ -240,7 +240,7 @@ pub fn build_output_bp_model(
             // unwrap of first and last is safe now that we know there are at least 2 vertices in the list
             let v0 = linestring.points().first().unwrap();
             let v1 = linestring.points().last().unwrap();
-            let v0_key = transmute_to_u64(&v0);
+            let v0_key = transmute_to_u64(v0);
             let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
                 let new_index = output_pb_model_vertices.len();
                 output_pb_model_vertices
@@ -248,7 +248,7 @@ pub fn build_output_bp_model(
                 //println!("ls0 pushed ({},{},{})", v0.x, v0.y, v0.z);
                 new_index
             });
-            let v1_key = transmute_to_u64(&v1);
+            let v1_key = transmute_to_u64(v1);
             let v1_index = *v_map.entry(v1_key).or_insert_with(|| {
                 let new_index = output_pb_model_vertices.len();
                 output_pb_model_vertices
@@ -524,7 +524,7 @@ pub fn command(
         >>()?;
     //println!("<-build_voronoi");
 
-    let model = build_output_bp_model(&a_command, shapes, cmd_arg_weld, inverted_transform)?;
+    let model = build_output_bp_model(a_command, shapes, cmd_arg_weld, inverted_transform)?;
 
     //println!("<-build_bp_model");
     let mut reply = PB_Reply {
