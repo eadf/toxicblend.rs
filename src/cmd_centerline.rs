@@ -344,7 +344,7 @@ pub fn command(
         )));
     }
     let cmd_arg_max_voronoi_dimension = {
-        let tmp_value = super::MAX_VORONOI_DIMENSION.to_string();
+        let tmp_value = super::DEFAULT_MAX_VORONOI_DIMENSION.to_string();
         let value = options.get("MAX_VORONOI_DIMENSION").unwrap_or(&tmp_value);
         value.parse::<f64>().map_err(|_| {
             TBError::InvalidInputData(format!(
@@ -353,10 +353,10 @@ pub fn command(
             ))
         })?
     };
-    if !(super::MAX_VORONOI_DIMENSION..100_000_000.0).contains(&cmd_arg_max_voronoi_dimension) {
+    if !(super::DEFAULT_MAX_VORONOI_DIMENSION..100_000_000.0).contains(&cmd_arg_max_voronoi_dimension) {
         return Err(TBError::InvalidInputData(format!(
             "The valid range of MAX_VORONOI_DIMENSION is [{}..100_000_000[% :({})",
-            super::MAX_VORONOI_DIMENSION,
+            super::DEFAULT_MAX_VORONOI_DIMENSION,
             cmd_arg_max_voronoi_dimension
         )));
     }
