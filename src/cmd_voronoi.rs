@@ -601,7 +601,9 @@ pub fn command(
             ))
         })?
     };
-    if !(super::DEFAULT_MAX_VORONOI_DIMENSION..100_000_000.0).contains(&cmd_arg_max_voronoi_dimension) {
+    if !(super::DEFAULT_MAX_VORONOI_DIMENSION..100_000_000.0)
+        .contains(&cmd_arg_max_voronoi_dimension)
+    {
         return Err(TBError::InvalidInputData(format!(
             "The valid range of MAX_VORONOI_DIMENSION is [{}..100_000_000[% :({})",
             super::DEFAULT_MAX_VORONOI_DIMENSION,

@@ -147,6 +147,7 @@ fn options_to_map(options: &[PB_KeyValuePair]) -> HashMap<String, String> {
 
 #[tonic::async_trait]
 impl ToxicBlendService for TheToxicBlendService {
+    /// Receive network command, dispatch to the correct module
     async fn execute(
         &self,
         request: PB_Request<PB_Command>,

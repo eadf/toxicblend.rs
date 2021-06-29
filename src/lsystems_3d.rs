@@ -5,6 +5,7 @@ use logos::Logos;
 use std::f64;
 
 #[derive(Debug, Clone)]
+/// A structure defining the 3D heading of a turtle
 struct Heading {
     heading: Vector3<f64>,
     up: Vector3<f64>,
@@ -20,49 +21,32 @@ impl Default for Heading {
 }
 
 impl Heading {
-    #[allow(dead_code)]
-    fn new(forward: Vector3<f64>, up: Vector3<f64>) -> Self {
-        Self {
-            heading: forward,
-            up,
-        }
-    }
-
-    // rotate around 'forward' or longitudinal axis
+    /// rotate around 'forward' or longitudinal axis
     fn roll(&self, angle: Rad<f64>) -> Heading {
         let rot: Basis3<f64> = Rotation3::from_axis_angle(self.heading, angle);
-        //let rv =
         Self {
             heading: self.heading,
             up: rot.rotate_vector(self.up).normalize(),
         }
-        //println!("Roll angle:{}rad heading:{:?}->{:?}  up:{:?}->{:?}", angle.0, self.heading, rv.heading, self.up, rv.up);
-        //rv
     }
 
-    // rotate around 'up' or vertical axis
+    /// rotate around 'up' or vertical axis
     fn yaw(&self, angle: Rad<f64>) -> Heading {
         let rot: Basis3<f64> = Rotation3::from_axis_angle(self.up, angle);
-        //let rv =
         Self {
             heading: rot.rotate_vector(self.heading).normalize(),
             up: self.up,
         }
-        //println!("Yaw angle:{}rad heading:{:?}->{:?}  up:{:?}->{:?}", angle.0, self.heading, rv.heading, self.up, rv.up);
-        //rv
     }
 
-    // rotate around axis perpendicular to 'up' and 'forward' - i.e. lateral/traverse axis
+    /// rotate around axis perpendicular to 'up' and 'forward' - i.e. lateral/traverse axis
     fn pitch(&self, angle: Rad<f64>) -> Heading {
         let pitch_v = self.heading.cross(self.up).normalize();
         let rot: Basis3<f64> = Rotation3::from_axis_angle(pitch_v, angle);
-        //let rv =
         Self {
             heading: rot.rotate_vector(self.heading).normalize(),
             up: rot.rotate_vector(self.up).normalize(),
         }
-        //println!("Pitch angle:{}rad heading:{:?}->{:?}  up:{:?}->{:?}", angle.0, self.heading, rv.heading, self.up, rv.up);
-        //rv
     }
 
     /// Perform yaw, pitch and roll in that order
@@ -76,7 +60,9 @@ pub struct Turtle {
     position: cgmath::Point3<f64>,
     stack: Vec<(Heading, cgmath::Point3<f64>)>,
     result: Vec<[cgmath::Point3<f64>; 2]>,
+    /// Should the turtle draw while moving?
     pen_up: bool,
+    /// should coordinates be rounded to int after each move?
     round: bool,
 }
 
@@ -94,6 +80,7 @@ impl Default for Turtle {
 }
 
 impl Turtle {
+    /// Apply a turtle command
     fn apply(&mut self, action: &TurtleCommand) -> Result<(), TBError> {
         match action {
             TurtleCommand::Nop => {}
