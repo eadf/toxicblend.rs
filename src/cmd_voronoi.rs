@@ -6,14 +6,13 @@ use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
 use boostvoronoi::builder as VB;
-use cgmath::{ulps_eq, EuclideanSpace, SquareMatrix, Transform, UlpsEq};
-use linestring::cgmath_2d::Aabb2;
-//use linestring::cgmath_3d::Plane;
 use boostvoronoi::diagram as VD;
+use boostvoronoi::geometry;
 use boostvoronoi::visual_utils as VU;
+use cgmath::{ulps_eq, EuclideanSpace, SquareMatrix, Transform, UlpsEq};
 use itertools::Itertools;
+use linestring::cgmath_2d::Aabb2;
 use std::collections::HashMap;
-//use boostvoronoi::{InputType, OutputType};
 
 /// converts from a private, comparable and hash-able format
 /// only use this for floats that are f64::is_finite()
@@ -33,11 +32,11 @@ fn transmute_to_u64(a: &cgmath::Point2<f64>) -> (u64, u64) {
     (a.x.to_bits(), a.y.to_bits())
 }
 
-/// Helper structs that build PB buffer from VoronoiDiagram
+/// Helper structs that build PB buffer from Diagram
 struct DiagramHelper {
-    diagram: VD::VoronoiDiagram<i64, f64>,
-    vertices: Vec<boostvoronoi::Point<i64>>,
-    segments: Vec<boostvoronoi::Line<i64>>,
+    diagram: VD::Diagram<i64, f64>,
+    vertices: Vec<geometry::Point<i64>>,
+    segments: Vec<geometry::Line<i64>>,
     aabb: Aabb2<f64>,
     rejected_edges: Option<yabf::Yabf>,
     discrete_distance: f64,
@@ -119,7 +118,7 @@ impl DiagramHelper {
             .unwrap_or_else(|| yabf::Yabf::with_capacity(0));
 
         for it in self.diagram.edges().iter().enumerate() {
-            let edge_id = VD::VoronoiEdgeIndex(it.0);
+            let edge_id = VD::EdgeIndex(it.0);
             let edge = it.1.get();
             if (self.remove_secondary_edges && edge.is_secondary())
                 || already_drawn.bit(edge_id.0)
@@ -131,29 +130,29 @@ impl DiagramHelper {
 
             // no point in setting current edge as drawn, the edge id will not repeat
             // set twin as drawn
-            if let Some(twin) = self.diagram.edge_get_twin(Some(edge_id)) {
-                already_drawn.set_bit(twin.0, true);
-            }
+            already_drawn.set_bit(self.diagram.edge_get_twin(edge_id)?.0, true);
 
             // the coordinates in samples must be 'screen' coordinates, i.e. affine transformed
             let mut samples = Vec::<[f64; 2]>::new();
-            if !self.diagram.edge_is_finite(Some(edge_id)).unwrap() {
+            if !self.diagram.edge_is_finite(edge_id)? {
                 self.clip_infinite_edge(edge_id, &mut samples)?;
             } else {
-                let vertex0 = self.diagram.vertex_get(edge.vertex0()).unwrap().get();
+                // edge is finite -> vertexX.unwrap() is safe
+                let vertex0 = self.diagram.edge_get_vertex0(edge_id)?.unwrap();
+                let vertex0 = self.diagram.vertex_get(vertex0)?.get();
 
                 samples.push([vertex0.x(), vertex0.y()]);
-                let vertex1 = self.diagram.edge_get_vertex1(Some(edge_id));
-                let vertex1 = self.diagram.vertex_get(vertex1).unwrap().get();
+                let vertex1 = self.diagram.edge_get_vertex1(edge_id)?.unwrap();
+                let vertex1 = self.diagram.vertex_get(vertex1)?.get();
 
                 samples.push([vertex1.x(), vertex1.y()]);
                 if edge.is_curved() {
                     self.sample_curved_edge(
                         max_dist,
                         &dummy_affine,
-                        VD::VoronoiEdgeIndex(it.0),
+                        VD::EdgeIndex(it.0),
                         &mut samples,
-                    );
+                    )?;
                 }
             }
 
@@ -210,23 +209,23 @@ impl DiagramHelper {
         &self,
         max_dist: f64,
         dummy_affine: &VU::SimpleAffine<i64, f64>,
-        edge_id: VD::VoronoiEdgeIndex,
+        edge_id: VD::EdgeIndex,
         sampled_edge: &mut Vec<[f64; 2]>,
-    ) {
-        let cell_id = self.diagram.edge_get_cell(Some(edge_id)).unwrap();
-        let cell = self.diagram.get_cell(cell_id).get();
-        let twin_id = self.diagram.edge_get_twin(Some(edge_id)).unwrap();
-        let twin_cell_id = self.diagram.edge_get_cell(Some(twin_id)).unwrap();
+    ) -> Result<(), TBError> {
+        let cell_id = self.diagram.edge_get_cell(edge_id)?;
+        let cell = self.diagram.get_cell(cell_id)?.get();
+        let twin_id = self.diagram.edge_get_twin(edge_id)?;
+        let twin_cell_id = self.diagram.edge_get_cell(twin_id)?;
 
         let point = if cell.contains_point() {
-            self.retrieve_point(cell_id)
+            self.retrieve_point(cell_id)?
         } else {
-            self.retrieve_point(twin_cell_id)
+            self.retrieve_point(twin_cell_id)?
         };
         let segment = if cell.contains_point() {
-            self.retrieve_segment(twin_cell_id)
+            self.retrieve_segment(twin_cell_id)?
         } else {
-            self.retrieve_segment(cell_id)
+            self.retrieve_segment(cell_id)?
         };
         VU::VoronoiVisualUtils::<i64, f64>::discretize(
             &point,
@@ -235,70 +234,69 @@ impl DiagramHelper {
             dummy_affine,
             sampled_edge,
         );
+        Ok(())
     }
 
     /// Retrieves a point from the voronoi input in the order it was presented to
     /// the voronoi builder
     #[inline(always)]
-    fn retrieve_point(&self, cell_id: VD::VoronoiCellIndex) -> boostvoronoi::Point<i64> {
-        let (index, cat) = self.diagram.get_cell(cell_id).get().source_index_2();
-        match cat {
+    fn retrieve_point(&self, cell_id: VD::CellIndex) -> Result<geometry::Point<i64>, TBError> {
+        let (index, cat) = self.diagram.get_cell(cell_id)?.get().source_index_2();
+        Ok(match cat {
             VD::SourceCategory::SinglePoint => self.vertices[index],
             VD::SourceCategory::SegmentStart => self.segments[index - self.vertices.len()].start,
             VD::SourceCategory::Segment | VD::SourceCategory::SegmentEnd => {
                 self.segments[index - self.vertices.len()].end
             }
-        }
+        })
     }
 
     /// Retrieves a segment from the voronoi input in the order it was presented to
     /// the voronoi builder
     #[inline(always)]
-    fn retrieve_segment(&self, cell_id: VD::VoronoiCellIndex) -> &boostvoronoi::Line<i64> {
-        let cell = self.diagram.get_cell(cell_id).get();
+    fn retrieve_segment(&self, cell_id: VD::CellIndex) -> Result<&geometry::Line<i64>, TBError> {
+        let cell = self.diagram.get_cell(cell_id)?.get();
         let index = cell.source_index() - self.vertices.len();
-        &self.segments[index]
+        Ok(&self.segments[index])
     }
 
     fn clip_infinite_edge(
         &self,
-        edge_id: VD::VoronoiEdgeIndex,
+        edge_id: VD::EdgeIndex,
         clipped_edge: &mut Vec<[f64; 2]>,
     ) -> Result<(), TBError> {
-        let edge = self.diagram.get_edge(edge_id);
+        let edge = self.diagram.get_edge(edge_id)?;
         //const cell_type& cell1 = *edge.cell();
-        let cell1_id = self.diagram.edge_get_cell(Some(edge_id)).unwrap();
-        let cell1 = self.diagram.get_cell(cell1_id).get();
+        let cell1_id = self.diagram.edge_get_cell(edge_id)?;
+        let cell1 = self.diagram.get_cell(cell1_id)?.get();
         //const cell_type& cell2 = *edge.twin()->cell();
         let cell2_id = self
             .diagram
-            .edge_get_twin(Some(edge_id))
-            .and_then(|e| self.diagram.edge_get_cell(Some(e)))
-            .unwrap();
-        let cell2 = self.diagram.get_cell(cell2_id).get();
+            .edge_get_cell(self.diagram.edge_get_twin(edge_id)?)?;
+        let cell2 = self.diagram.get_cell(cell2_id)?.get();
 
         let mut origin = [0_f64, 0.0];
         let mut direction = [0_f64, 0.0];
         // Infinite edges could not be created by two segment sites.
         if cell1.contains_point() && cell2.contains_point() {
-            let p1 = self.retrieve_point(cell1_id);
-            let p2 = self.retrieve_point(cell2_id);
+            let p1 = self.retrieve_point(cell1_id)?;
+            let p2 = self.retrieve_point(cell2_id)?;
             origin[0] = ((p1.x as f64) + (p2.x as f64)) * 0.5;
             origin[1] = ((p1.y as f64) + (p2.y as f64)) * 0.5;
             direction[0] = (p1.y as f64) - (p2.y as f64);
             direction[1] = (p2.x as f64) - (p1.x as f64);
         } else {
             origin = if cell1.contains_segment() {
-                let p = self.retrieve_point(cell2_id);
+                let p = self.retrieve_point(cell2_id)?;
                 [p.x as f64, p.y as f64]
             } else {
-                let p = self.retrieve_point(cell1_id);
+                let p = self.retrieve_point(cell1_id)?;
                 [p.x as f64, p.y as f64]
             };
             let segment = if cell1.contains_segment() {
-                self.retrieve_segment(cell1_id)
+                self.retrieve_segment(cell1_id)?
             } else {
-                self.retrieve_segment(cell2_id)
+                self.retrieve_segment(cell2_id)?
             };
             let dx = segment.end.x - segment.start.x;
             let dy = segment.end.y - segment.start.y;
@@ -319,24 +317,24 @@ impl DiagramHelper {
         let koef = side / (direction[0].abs().max(direction[1].abs()));
 
         let vertex0 = edge.get().vertex0();
-        if vertex0.is_none() {
+        if let Some(vertex0) = vertex0 {
+            let vertex0 = self.diagram.vertex_get(vertex0)?.get();
+            clipped_edge.push([vertex0.x(), vertex0.y()]);
+        } else {
             clipped_edge.push([
                 origin[0] - direction[0] * koef,
                 origin[1] - direction[1] * koef,
             ]);
-        } else {
-            let vertex0 = self.diagram.vertex_get(vertex0).unwrap().get();
-            clipped_edge.push([vertex0.x(), vertex0.y()]);
         }
-        let vertex1 = self.diagram.edge_get_vertex1(Some(edge_id));
-        if vertex1.is_none() {
+        let vertex1 = self.diagram.edge_get_vertex1(edge_id)?;
+        if let Some(vertex1) = vertex1 {
+            let vertex1 = self.diagram.vertex_get(vertex1)?.get();
+            clipped_edge.push([vertex1.x(), vertex1.y()]);
+        } else {
             clipped_edge.push([
                 origin[0] + direction[0] * koef,
                 origin[1] + direction[1] * koef,
             ]);
-        } else {
-            let vertex1 = self.diagram.vertex_get(vertex1).unwrap().get();
-            clipped_edge.push([vertex1.x(), vertex1.y()]);
         }
         Ok(())
     }
@@ -348,8 +346,8 @@ fn parse_input(
     cmd_arg_max_voronoi_dimension: f64,
 ) -> Result<
     (
-        Vec<boostvoronoi::Point<i64>>,
-        Vec<boostvoronoi::Line<i64>>,
+        Vec<geometry::Point<i64>>,
+        Vec<geometry::Line<i64>>,
         Aabb2<f64>,
         cgmath::Matrix4<f64>,
     ),
@@ -380,8 +378,8 @@ fn parse_input(
     println!("voronoi: data was in plane:{:?} aabb:{:?}", plane, aabb);
     //println!("input Lines:{:?}", input_pb_model.vertices);
 
-    let mut vor_lines = Vec::<boostvoronoi::Line<i64>>::with_capacity(input_pb_model.faces.len());
-    let vor_vertices: Vec<boostvoronoi::Point<i64>> = input_pb_model
+    let mut vor_lines = Vec::<geometry::Line<i64>>::with_capacity(input_pb_model.faces.len());
+    let vor_vertices: Vec<geometry::Point<i64>> = input_pb_model
         .vertices
         .iter()
         .map(|vertex| {
@@ -390,7 +388,7 @@ fn parse_input(
                 y: vertex.y,
                 z: vertex.z,
             }));
-            boostvoronoi::Point {
+            geometry::Point {
                 x: p.x as i64,
                 y: p.y as i64,
             }
@@ -405,7 +403,7 @@ fn parse_input(
                 let v0 = face.vertices[0] as usize;
                 let v1 = face.vertices[1] as usize;
 
-                vor_lines.push(boostvoronoi::Line {
+                vor_lines.push(geometry::Line {
                     start: vor_vertices[v0],
                     end: vor_vertices[v1],
                 });
@@ -418,7 +416,7 @@ fn parse_input(
         }
     }
     // save the unused vertices as points
-    let vor_vertices: Vec<boostvoronoi::Point<i64>> = vor_vertices
+    let vor_vertices: Vec<geometry::Point<i64>> = vor_vertices
         .into_iter()
         .enumerate()
         .filter(|x| !used_vertices.bit(x.0))
@@ -445,7 +443,7 @@ fn voronoi(
     let mut vb = VB::Builder::default();
     vb.with_vertices(vor_vertices.iter())?;
     vb.with_segments(vor_lines.iter())?;
-    let vor_diagram = vb.construct()?;
+    let vor_diagram = vb.build()?;
     //println!("diagram:{:?}", vor_diagram);
     println!("aabb2:{:?}", vor_aabb2);
     let mut diagram_helper = DiagramHelper {
@@ -465,7 +463,6 @@ fn voronoi(
     build_output(input_pb_model, diagram_helper, inverted_transform)
 }
 
-/// Build the protobuffer output from the diagram
 fn build_output(
     input_pb_model: &PB_Model,
     diagram: DiagramHelper,
@@ -592,7 +589,7 @@ pub fn command(
     }
 
     let cmd_arg_max_voronoi_dimension = {
-        let tmp_value = super::DEFAULT_MAX_VORONOI_DIMENSION.to_string();
+        let tmp_value = super::MAX_VORONOI_DIMENSION.to_string();
         let value = options.get("MAX_VORONOI_DIMENSION").unwrap_or(&tmp_value);
         value.parse::<f64>().map_err(|_| {
             TBError::InvalidInputData(format!(
@@ -601,17 +598,15 @@ pub fn command(
             ))
         })?
     };
-    if !(super::DEFAULT_MAX_VORONOI_DIMENSION..100_000_000.0)
-        .contains(&cmd_arg_max_voronoi_dimension)
-    {
+    if !(super::MAX_VORONOI_DIMENSION..100_000_000.0).contains(&cmd_arg_max_voronoi_dimension) {
         return Err(TBError::InvalidInputData(format!(
             "The valid range of MAX_VORONOI_DIMENSION is [{}..100_000_000[% :({})",
-            super::DEFAULT_MAX_VORONOI_DIMENSION,
+            super::MAX_VORONOI_DIMENSION,
             cmd_arg_max_voronoi_dimension
         )));
     }
     let cmd_arg_discrete_distance = {
-        let tmp_value = super::DEFAULT_VORONOI_DISCRETE_DISTANCE.to_string();
+        let tmp_value = super::VORONOI_DISCRETE_DISTANCE.to_string();
         let value = options
             .get("VORONOI_DISCRETE_DISTANCE")
             .unwrap_or(&tmp_value);
@@ -622,10 +617,10 @@ pub fn command(
             ))
         })?
     };
-    if !(super::DEFAULT_VORONOI_DISCRETE_DISTANCE..1.0).contains(&cmd_arg_discrete_distance) {
+    if !(super::VORONOI_DISCRETE_DISTANCE..1.0).contains(&cmd_arg_discrete_distance) {
         return Err(TBError::InvalidInputData(format!(
             "The valid range of VORONOI_DISCRETE_DISTANCE is [{}..1.0[% :({})",
-            super::DEFAULT_VORONOI_DISCRETE_DISTANCE,
+            super::VORONOI_DISCRETE_DISTANCE,
             cmd_arg_discrete_distance
         )));
     }

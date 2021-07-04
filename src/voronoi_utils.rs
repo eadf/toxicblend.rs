@@ -4,19 +4,16 @@ use std::collections::VecDeque;
 
 /// Mark infinite edges and their adjacent edges as EXTERNAL.
 pub(crate) fn reject_external_edges(
-    diagram: &VD::VoronoiDiagram<i64, f64>,
+    diagram: &VD::Diagram<i64, f64>,
 ) -> Result<yabf::Yabf, TBError> {
     let mut rejected_edges = yabf::Yabf::with_capacity(diagram.edges().len());
 
     for edge in diagram.edges().iter() {
         let edge = edge.get();
-        let edge_id = edge.get_id();
+        let edge_id = edge.id();
 
-        if !diagram
-            .edge_is_finite(Some(edge_id))
-            .ok_or_else(|| TBError::InternalError("Could not get edge status".to_string()))?
-        {
-            mark_connected_edges(diagram, edge_id, &mut rejected_edges)?;
+        if diagram.edge_is_infinite(edge_id)? {
+            mark_connected_edges(&diagram, edge_id, &mut rejected_edges)?;
         }
     }
     Ok(rejected_edges)
@@ -26,13 +23,14 @@ pub(crate) fn reject_external_edges(
 /// Repeat stops when connecting to input geometry.
 /// if 'initial' is set to true it will search both ways, edge and the twin edge.
 /// 'initial' will be set to false when going past the first edge
+/// Note that this is not a recursive function (as it is in boostvoronoi)
 pub(crate) fn mark_connected_edges(
-    diagram: &VD::VoronoiDiagram<i64, f64>,
-    edge_id: VD::VoronoiEdgeIndex,
+    diagram: &VD::Diagram<i64, f64>,
+    edge_id: VD::EdgeIndex,
     marked_edges: &mut yabf::Yabf,
 ) -> Result<(), TBError> {
     let mut initial = true;
-    let mut queue = VecDeque::<VD::VoronoiEdgeIndex>::new();
+    let mut queue = VecDeque::<VD::EdgeIndex>::new();
     queue.push_front(edge_id);
 
     'outer: while !queue.is_empty() {
@@ -44,8 +42,8 @@ pub(crate) fn mark_connected_edges(
             continue 'outer;
         }
 
-        let v1 = diagram.edge_get_vertex1(Some(edge_id));
-        if diagram.edge_get_vertex0(Some(edge_id)).is_some() && v1.is_none() {
+        let v1 = diagram.edge_get_vertex1(edge_id)?;
+        if diagram.edge_get_vertex0(edge_id)?.is_some() && v1.is_none() {
             // this edge leads to nowhere
             marked_edges.set_bit(edge_id.0, true);
             initial = false;
@@ -56,19 +54,9 @@ pub(crate) fn mark_connected_edges(
         #[allow(unused_assignments)]
         if initial {
             initial = false;
-            queue.push_back(
-                diagram
-                    .edge_get_twin(Some(edge_id))
-                    .ok_or_else(|| TBError::InternalError("Could not get edge twin".to_string()))?,
-            );
+            queue.push_back(diagram.edge_get_twin(edge_id)?);
         } else {
-            marked_edges.set_bit(
-                diagram
-                    .edge_get_twin(Some(edge_id))
-                    .ok_or_else(|| TBError::InternalError("Could not get edge twin".to_string()))?
-                    .0,
-                true,
-            );
+            marked_edges.set_bit(diagram.edge_get_twin(edge_id)?.0, true);
         }
 
         if v1.is_none()
@@ -84,24 +72,21 @@ pub(crate) fn mark_connected_edges(
         }
         // v1 is always Some from this point on
         if let Some(v1) = v1 {
-            let v1 = diagram
-                .vertex_get(Some(v1))
-                .ok_or_else(|| TBError::InternalError("Could not get expected vertex".to_string()))?
-                .get();
+            let v1 = diagram.vertex_get(v1)?.get();
             if v1.is_site_point() {
                 // stop iterating line when site points detected
                 initial = false;
                 continue 'outer;
             }
             //self.reject_vertex(v1, color);
-            let mut e = v1.get_incident_edge();
-            let v_incident_edge = e;
-            while let Some(this_edge) = e {
-                if !marked_edges.bit(this_edge.0) {
-                    queue.push_back(this_edge);
+            let mut edge_iter = v1.get_incident_edge()?;
+            let v_incident_edge = edge_iter;
+            loop {
+                if !marked_edges.bit(edge_iter.0) {
+                    queue.push_back(edge_iter);
                 }
-                e = diagram.edge_rot_next(Some(this_edge));
-                if e == v_incident_edge {
+                edge_iter = diagram.edge_rot_next(edge_iter)?;
+                if edge_iter == v_incident_edge {
                     break;
                 }
             }

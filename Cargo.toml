@@ -20,10 +20,10 @@ prost = "0.7"
 ahash = "0.7"
 tokio = { version = "1.6", features = ["macros", "rt-multi-thread"] }
 thiserror = "1.0"
-linestring = {version="0.4",default-features=false,features=["impl-cgmath", "impl-rayon"]}
-centerline = "^0.4.1"
+linestring = {version="0.6",default-features=false,features=["cgmath", "rayon"]}
+centerline = "0.5"
 yabf = {version="0.1",default-features=false}
-boostvoronoi = "^0.8.4"
+boostvoronoi = "0.9"
 rayon = "1.5"
 smallvec = "^1.6.1"
 cgmath = "0.18"
@@ -38,6 +38,7 @@ path = "src/server.rs"
 
 [build-dependencies]
 tonic-build = "0.4"
+version_check = "0.9"
 
 [profile.release]
 lto = true

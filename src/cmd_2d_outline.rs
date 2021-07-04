@@ -99,7 +99,19 @@ pub fn remove_internal_edges(
     for (n, v) in internal_edges.iter().enumerate() {
         println!("#{}, {:?}", n, v);
     }*/
-    let _ = all_edges.drain_filter(|x| internal_edges.contains(x));
+    #[cfg(feature = "hash_drain_filter")]
+    {
+        let _ = all_edges.drain_filter(|x| internal_edges.contains(x));
+    }
+    #[cfg(not(feature = "hash_drain_filter"))]
+    {
+        // inefficient version of drain_filter for +stable
+        let kept_edges = all_edges
+            .into_iter()
+            .filter(|x| !internal_edges.contains(&x))
+            .collect();
+        all_edges = kept_edges;
+    }
     for e in single_edges.into_iter() {
         let _ = all_edges.insert(e);
     }

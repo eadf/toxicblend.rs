@@ -5,6 +5,7 @@ use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
+use boostvoronoi::geometry;
 use cgmath::{Angle, EuclideanSpace, SquareMatrix};
 use cgmath::{Transform, UlpsEq};
 use itertools::Itertools;
@@ -344,7 +345,7 @@ pub fn command(
         )));
     }
     let cmd_arg_max_voronoi_dimension = {
-        let tmp_value = super::DEFAULT_MAX_VORONOI_DIMENSION.to_string();
+        let tmp_value = super::MAX_VORONOI_DIMENSION.to_string();
         let value = options.get("MAX_VORONOI_DIMENSION").unwrap_or(&tmp_value);
         value.parse::<f64>().map_err(|_| {
             TBError::InvalidInputData(format!(
@@ -353,12 +354,10 @@ pub fn command(
             ))
         })?
     };
-    if !(super::DEFAULT_MAX_VORONOI_DIMENSION..100_000_000.0)
-        .contains(&cmd_arg_max_voronoi_dimension)
-    {
+    if !(super::MAX_VORONOI_DIMENSION..100_000_000.0).contains(&cmd_arg_max_voronoi_dimension) {
         return Err(TBError::InvalidInputData(format!(
             "The valid range of MAX_VORONOI_DIMENSION is [{}..100_000_000[% :({})",
-            super::DEFAULT_MAX_VORONOI_DIMENSION,
+            super::MAX_VORONOI_DIMENSION,
             cmd_arg_max_voronoi_dimension
         )));
     }
@@ -465,18 +464,18 @@ pub fn command(
     let shapes = raw_data
         .into_par_iter()
         .map(|shape| {
-            let mut segments = Vec::<boostvoronoi::Line<i64>>::with_capacity(
+            let mut segments = Vec::<geometry::Line<i64>>::with_capacity(
                 shape.set().iter().map(|x| x.len()).sum(),
             );
             for lines in shape.set().iter() {
                 for lineseq in lines.as_lines_iter() {
-                    segments.push(boostvoronoi::Line::new(
+                    segments.push(geometry::Line::new(
                         // boost voronoi only accepts integers as coordinates
-                        boostvoronoi::Point {
+                        geometry::Point {
                             x: lineseq.start.x as i64,
                             y: lineseq.start.y as i64,
                         },
-                        boostvoronoi::Point {
+                        geometry::Point {
                             x: lineseq.end.x as i64,
                             y: lineseq.end.y as i64,
                         },

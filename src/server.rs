@@ -1,10 +1,11 @@
-#![feature(hash_drain_filter)]
 #![deny(non_camel_case_types)]
 #![deny(unused_parens)]
 #![deny(non_upper_case_globals)]
 #![deny(unused_qualifications)]
 #![deny(unused_results)]
 #![deny(unused_imports)]
+#![cfg_attr(feature = "hash_drain_filter", feature(hash_drain_filter))]
+#![cfg_attr(feature = "map_first_last", feature(map_first_last))]
 
 mod cmd_2d_outline;
 mod cmd_centerline;
@@ -33,12 +34,12 @@ use toxicblend_pb::toxic_blend_service_server::{ToxicBlendService, ToxicBlendSer
 /// The largest allowed error when selecting a plane for 2D<->3D conversion
 const EPSILON: f64 = 0.0001;
 
-/// The default of the largest dimension of the voronoi input, totally arbitrarily selected.
-const DEFAULT_MAX_VORONOI_DIMENSION: f64 = 200000.0;
+/// The largest dimension of the voronoi input, totally arbitrarily selected.
+const MAX_VORONOI_DIMENSION: f64 = 200000.0;
 
-/// The default value of length of one 'step' for curved edges discretization as a
-/// percentage of the longest AABB axis of the object.
-const DEFAULT_VORONOI_DISCRETE_DISTANCE: f64 = 0.0001;
+/// The length of one 'step' for curved edges discretization as a percentage of the longest
+/// AABB axis of the object.
+const VORONOI_DISCRETE_DISTANCE: f64 = 0.0001;
 
 pub mod toxicblend_pb {
     tonic::include_proto!("toxicblend");
@@ -56,7 +57,6 @@ impl From<cgmath::Point3<f64>> for PB_Vertex {
 
 impl PB_Vertex {
     #[inline(always)]
-    /// Returns the distance² between two vertices
     pub fn distance_squared(&self, other: &PB_Vertex) -> f64 {
         let x = self.x - other.x;
         let y = self.y - other.y;
@@ -131,11 +131,9 @@ pub enum TBError {
     LSystems3D(String),
 }
 
-/// The main gRPC dispatcher. It receives the commands and sends them to the correct operations.
 #[derive(Debug, Default)]
 pub struct TheToxicBlendService {}
 
-#[inline(always)]
 /// convert the options to a hashmap
 fn options_to_map(options: &[PB_KeyValuePair]) -> HashMap<String, String> {
     let mut rv = HashMap::<String, String>::new();
@@ -147,7 +145,6 @@ fn options_to_map(options: &[PB_KeyValuePair]) -> HashMap<String, String> {
 
 #[tonic::async_trait]
 impl ToxicBlendService for TheToxicBlendService {
-    /// Receive network command, dispatch to the correct module
     async fn execute(
         &self,
         request: PB_Request<PB_Command>,
@@ -186,7 +183,6 @@ impl ToxicBlendService for TheToxicBlendService {
 }
 
 #[tokio::main]
-/// Main function, will start the gRPC ToxicBlendService
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let address = "[::1]:50069".parse()?;
     let service = TheToxicBlendService::default();
