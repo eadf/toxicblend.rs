@@ -3,11 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/toxicblend.svg)](https://crates.io/crates/toxicblend)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)
-[![dependency status](https://deps.rs/crate/toxicblend/0.0.10/status.svg)](https://deps.rs/crate/toxicblend/0.0.10)
-
-
-Work in progress.\
-This will be a rust port of my old scala based project [toxicblend.](https://github.com/toxicblend/toxicblend) (now defunct)
+[![dependency status](https://deps.rs/crate/toxicblend/0.0.11/status.svg)](https://deps.rs/crate/toxicblend/0.0.11)
 
 It is a [client-server](https://grpc.io) based addon for [Blender](blender.org) written in Rust (and Python for the client side parts).  
 
@@ -16,7 +12,7 @@ Follow instructions in [install_as_blender_addon.md](blender_addon/install_as_bl
 
 ## Rust requirement
 
-Requires `#![feature(hash_drain_filter)]` and `#![feature(map_first_last)]` i.e. `rust +nightly`
+Will automatically make use of the fast(er) features `hash_drain_filter` and `map_first_last` if run on `rust +nightly`
 
 ## Run local server
 A blender addon based on a client-server model using [grpc](https://grpc.io) and [tonic](https://github.com/hyperium/tonic).
@@ -34,6 +30,9 @@ cargo +nightly run --release
 ## Run blender
 If the grpc server (for any unimaginable reason) would crash, blender will hang waiting for response.
 This can easily be fixed if you run blender from the console. A `ctrl` - `C` will fix it.
+
+## Development status
+Project is still in development, I will add more operations.
 
 ## Addon operations:
 
@@ -150,12 +149,7 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 
 ## Todo
 
-- [X] Improve the addon installation process, put the site-package files in a separate pip package.
-- [X] Document the rest of the operations.
+- [ ] Update to the latest building-blocks crate.
 - [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
 - [ ] Port the rest of the operations.
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
-- [x] completely replace fnv
-- [x] make the gRPC protocol much more efficient, support f32 and packed triangles 
-- [x] voronoi mesh generates some faulty faces 
-- [x] After the 3d modification, the LSystems op. generates duplicated edges and vertices
