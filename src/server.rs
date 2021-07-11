@@ -35,11 +35,11 @@ use toxicblend_pb::toxic_blend_service_server::{ToxicBlendService, ToxicBlendSer
 const EPSILON: f64 = 0.0001;
 
 /// The largest dimension of the voronoi input, totally arbitrarily selected.
-const MAX_VORONOI_DIMENSION: f64 = 200000.0;
+const DEFAULT_MAX_VORONOI_DIMENSION: f64 = 200000.0;
 
 /// The length of one 'step' for curved edges discretization as a percentage of the longest
 /// AABB axis of the object.
-const VORONOI_DISCRETE_DISTANCE: f64 = 0.0001;
+const DEFAULT_VORONOI_DISCRETE_DISTANCE: f64 = 0.0001;
 
 pub mod toxicblend_pb {
     tonic::include_proto!("toxicblend");
@@ -134,6 +134,7 @@ pub enum TBError {
 #[derive(Debug, Default)]
 pub struct TheToxicBlendService {}
 
+#[inline(always)]
 /// convert the options to a hashmap
 fn options_to_map(options: &[PB_KeyValuePair]) -> HashMap<String, String> {
     let mut rv = HashMap::<String, String>::new();

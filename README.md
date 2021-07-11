@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/toxicblend.svg)](https://crates.io/crates/toxicblend)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)
-[![dependency status](https://deps.rs/crate/toxicblend/0.0.11/status.svg)](https://deps.rs/crate/toxicblend/0.0.11)
+[![dependency status](https://deps.rs/crate/toxicblend/0.0.12/status.svg)](https://deps.rs/crate/toxicblend/0.0.12)
 
 It is a [client-server](https://grpc.io) based addon for [Blender](blender.org) written in Rust (and Python for the client side parts).  
 
@@ -149,7 +149,7 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 
 ## Todo
 
-- [ ] Update to the latest building-blocks crate.
+- [ ] Update to building-blocks 0.7.
 - [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
 - [ ] Port the rest of the operations.
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
