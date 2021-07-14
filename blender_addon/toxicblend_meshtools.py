@@ -522,6 +522,7 @@ class ToxicBlend_SelectCollinearEdges(Operator):
 
                 # print("from_v:", from_v, " is connected to edge :", candidate_e.index)
                 if to_v == candidate_e.verts[0].index:
+                    # todo: use vertex.calc_edge_angle()
                     angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
                                                 bm.verts[candidate_e.verts[1].index].co)
                     # print("from_v<->to_v<->candidate_e.verts[1] angle:", angle)
@@ -530,6 +531,7 @@ class ToxicBlend_SelectCollinearEdges(Operator):
                         work_queue.add(candidate_e)
 
                 elif to_v == candidate_e.verts[1].index:
+                    # todo: use vertex.calc_edge_angle()
                     angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
                                                 bm.verts[candidate_e.verts[0].index].co)
                     # print("from_v<->to_v<->candidate_e.verts[0] angle:",angle)
@@ -547,6 +549,7 @@ class ToxicBlend_SelectCollinearEdges(Operator):
 
                 # print("from_v:", from_v, " is connected to edge :", candidate_e.index)
                 if to_v == candidate_e.verts[0].index:
+                    # todo: use vertex.calc_edge_angle()
                     angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
                                                 bm.verts[candidate_e.verts[1].index].co)
                     # print("from_v<->to_v<->candidate_e.verts[1] angle:", angle)
@@ -555,6 +558,7 @@ class ToxicBlend_SelectCollinearEdges(Operator):
                         work_queue.add(candidate_e)
 
                 elif to_v == candidate_e.verts[1].index:
+                    # todo: use vertex.calc_edge_angle()
                     angle = angle_between_edges(bm.verts[from_v].co, bm.verts[to_v].co,
                                                 bm.verts[candidate_e.verts[0].index].co)
                     # print("from_v<->to_v<->candidate_e.verts[0] angle:", angle)
@@ -613,11 +617,65 @@ class ToxicBlend_SelectIntersectionVertices(Operator):
         return {'FINISHED'}
 
 
+class ToxicBlend_SelectVerticesUntilIntersection(Operator):
+    """Selects all (wire-frame) vertices that are connected to already selected vertices until an intersection is detected (offline plugin)"""
+    bl_idname = "mesh.toxicblend_meshtools_select_vertices_until_intersection"
+    bl_label = "Select vertices until intersection"
+    bl_description = "Selects all (wire-frame) vertices that are connected to already selected vertices until an intersection is detected (offline plugin)"
+    bl_options = {'REGISTER', 'UNDO'}  # enable undo for the operator.
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def execute(self, context):
+
+        check_toxicblend_version()
+        # Get the active mesh
+        obj = bpy.context.edit_object
+        me = obj.data
+
+        # Get a BMesh representation
+        bm = bmesh.from_edit_mesh(me)
+        bm.verts.ensure_lookup_table()
+        bm.edges.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+
+        if len(bm.edges) > 0 and len(bm.faces) == 0:
+
+            already_selected = set()  # key by vertex.index
+            work_queue = set()  # vertex.index
+
+            for v in bm.verts:
+                if v.select:
+                    work_queue.add(v.index)
+
+            while len(work_queue) > 0:
+                v = work_queue.pop()
+                if v in already_selected:
+                    continue
+
+                if len(bm.verts[v].link_edges) <= 2:
+                    bm.verts[v].select = True
+                    for e in bm.verts[v].link_edges:
+                        if e.verts[0].index != v and e.verts[0].index not in already_selected:
+                            work_queue.add(e.verts[0].index)
+                        if e.verts[1].index != v and e.verts[1].index not in already_selected:
+                            work_queue.add(e.verts[1].index)
+
+                # only mark vertices as already_selected if they've been through the loop once
+                already_selected.add(v)
+
+        # Show the updates in the viewport
+        bmesh.update_edit_mesh(me, False)
+        return {'FINISHED'}
+
+
 # 2d_outline operator
 class Toxicblend_2D_Outline(Operator):
     bl_idname = "mesh.toxicblend_meshtools_2d_outline"
     bl_label = "2D Outline"
-    bl_description = "Outline 2d geometry, the geometry must be flat and on a plane intersecting origin"
+    bl_description = "Outline 2d geometry into a wire frame, the geometry must be flat and on a plane intersecting origin"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -1105,6 +1163,7 @@ class VIEW3D_MT_edit_mesh_toxicblend_meshtools(Menu):
         layout.operator("mesh.toxicblend_meshtools_voxel")
         layout.operator("mesh.toxicblend_meshtools_select_end_vertices")
         layout.operator("mesh.toxicblend_meshtools_select_collinear_edges")
+        layout.operator("mesh.toxicblend_meshtools_select_vertices_until_intersection")
         layout.operator("mesh.toxicblend_meshtools_select_intersection_vertices")
         layout.operator("mesh.toxicblend_meshtools_debug_object")
 
@@ -1264,6 +1323,7 @@ classes = (
     Toxicblend_Voxel,
     ToxicBlend_SelectEndVertices,
     ToxicBlend_SelectIntersectionVertices,
+    ToxicBlend_SelectVerticesUntilIntersection,
     ToxicBlend_SelectCollinearEdges,
     ToxicBlend_debug_object,
 )
