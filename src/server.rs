@@ -1,9 +1,18 @@
-#![deny(non_camel_case_types)]
-#![deny(unused_parens)]
-#![deny(non_upper_case_globals)]
-#![deny(unused_qualifications)]
-#![deny(unused_results)]
-#![deny(unused_imports)]
+#![deny(
+    rust_2018_compatibility,
+    rust_2018_idioms,
+    nonstandard_style,
+    unused,
+    future_incompatible,
+    non_camel_case_types,
+    unused_parens,
+    non_upper_case_globals,
+    unused_qualifications,
+    unused_results,
+    unused_imports,
+    unused_variables
+)]
+
 #![cfg_attr(feature = "hash_drain_filter", feature(hash_drain_filter))]
 #![cfg_attr(feature = "map_first_last", feature(map_first_last))]
 
@@ -41,6 +50,7 @@ const DEFAULT_MAX_VORONOI_DIMENSION: f64 = 200000.0;
 /// AABB axis of the object.
 const DEFAULT_VORONOI_DISCRETE_DISTANCE: f64 = 0.0001;
 
+#[allow(unused_qualifications)] // tonic codegen has unused_qualifications
 pub mod toxicblend_pb {
     tonic::include_proto!("toxicblend");
 }
