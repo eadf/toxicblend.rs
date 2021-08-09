@@ -4,6 +4,7 @@
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)
 [![dependency status](https://deps.rs/crate/toxicblend/0.0.13/status.svg)](https://deps.rs/crate/toxicblend/0.0.13)
+![license](https://img.shields.io/crates/l/toxicblend)
 
 It is a [client-server](https://grpc.io) based addon for [Blender](blender.org) written in Rust (and Python for the client side parts).  
 
