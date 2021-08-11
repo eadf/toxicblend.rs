@@ -6,7 +6,7 @@ This is an example of how this can be done.
 
 Run blender from the console so that you can see the console output. Then open the script tab in blender and run this:
 
-Blender MacOS Arm 2.93.0 Beta does not seem to work as it does not (yet) contain Python.h, so grpcio can't be installed.
+Blender MacOS Arm 2.93.2 does not seem to work as it does not (yet) contain Python.h, so grpcio can't be installed (the x64 version works)
 
 ```
 import subprocess
