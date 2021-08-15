@@ -290,7 +290,7 @@ def handle_received_object(active_object, pb_message, remove_doubles_threshold=N
             if set_origin_to_cursor:
                 bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
 
-
+# todo: use vertex.calc_edge_angle()
 def angle_between_edges(p0, p1, p2):
     """ angle between the two vectors defined as p0->p1 and p1->p2
     return value in degrees """
@@ -488,10 +488,6 @@ class ToxicBlend_SelectCollinearEdges(Operator):
         bm.faces.ensure_lookup_table()
 
         angle_criteria = math.degrees(self.angle)
-
-        # angle_between_edges(p0,p1,p2)
-        # make_edge_key(v0, v1):
-        # append_value(dict_obj, key, value):
 
         vertex_dict = dict()  # key by vertex.index to [edges]
         already_selected = set()  # key by edge.index
