@@ -18,7 +18,7 @@ exclude = [
 tonic = "0.5"
 prost = "0.8"
 ahash = "0.7"
-tokio = { version = "1.6", features = ["macros", "rt-multi-thread"] }
+tokio = { version = ">=1.8.1", features = ["macros", "rt-multi-thread"] }
 thiserror = "1.0"
 linestring = {version="0.6.3",default-features=false,features=["cgmath", "rayon"]}
 centerline = "0.5.2"
