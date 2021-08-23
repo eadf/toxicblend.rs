@@ -50,7 +50,7 @@ from bpy_extras.object_utils import AddObjectHelper
 bl_info = {
     'name': "Toxicblend - Add Lindenmayer systems",
     "author": "EADF",
-    "version": (0, 0, 13),
+    "version": (0, 0, 14),
     "blender": (2, 92, 0),
     # "location": "View3D > Sidebar > Edit Tab / Edit Mode Context Menu",
     "warning": "Communicates with a gRPC server on localhost",
