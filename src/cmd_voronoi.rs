@@ -11,7 +11,7 @@ use boostvoronoi::geometry;
 use boostvoronoi::visual_utils as VU;
 use cgmath::{ulps_eq, EuclideanSpace, SquareMatrix, Transform, UlpsEq};
 use itertools::Itertools;
-use linestring::cgmath_2d::Aabb2;
+use linestring::linestring_2d::Aabb2;
 use std::collections::HashMap;
 
 /// converts from a private, comparable and hash-able format
@@ -353,7 +353,7 @@ fn parse_input(
     ),
     TBError,
 > {
-    let mut aabb = linestring::cgmath_3d::Aabb3::<f64>::default();
+    let mut aabb = linestring::linestring_3d::Aabb3::<f64>::default();
     for v in input_pb_model.vertices.iter() {
         aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }

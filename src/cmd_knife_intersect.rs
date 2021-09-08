@@ -8,7 +8,7 @@ use crate::toxicblend_pb::Vertex as PB_Vertex;
 use cgmath::EuclideanSpace;
 use cgmath::UlpsEq;
 use itertools::Itertools;
-use linestring::cgmath_3d::Plane;
+use linestring::linestring_3d::Plane;
 use std::collections::HashMap;
 
 /// converts from a private, comparable and hashable format
@@ -30,7 +30,7 @@ fn transmute_to_u64(a: cgmath::Point2<f64>) -> (u64, u64) {
 
 /// detect self intersections and cut those lines at the intersection
 fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
-    let mut aabb = linestring::cgmath_3d::Aabb3::<f64>::default();
+    let mut aabb = linestring::linestring_3d::Aabb3::<f64>::default();
     for v in input_pb_model.vertices.iter() {
         aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
@@ -77,13 +77,13 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
     };
 
     let mut lines =
-        Vec::<linestring::cgmath_2d::Line2<f64>>::with_capacity(input_pb_model.faces.len());
+        Vec::<linestring::linestring_2d::Line2<f64>>::with_capacity(input_pb_model.faces.len());
 
     // todo, the enumeration is never used
     for f in input_pb_model.faces.iter().enumerate() {
         match f.1.vertices.len() {
             3..=usize::MAX => return Err(TBError::ModelContainsFaces("Model can't contain any faces, only edges. Use the 2d_outline tool to remove faces".to_string())),
-            2 => lines.push(linestring::cgmath_2d::Line2 {
+            2 => lines.push(linestring::linestring_2d::Line2 {
                 start: vertices_2d[f.1.vertices[0] as usize],
                 end: vertices_2d[f.1.vertices[1] as usize],
             }),
@@ -95,7 +95,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
     let mut edge_is_split = yabf::Yabf::with_capacity(input_pb_model.faces.len());
     {
         let intersection_result =
-            linestring::cgmath_2d::intersection::IntersectionData::<f64>::default()
+            linestring::linestring_2d::intersection::IntersectionData::<f64>::default()
                 .with_ignore_end_point_intersections(true)?
                 .with_stop_at_first_intersection(false)?
                 .with_lines(lines.into_iter())?

@@ -9,8 +9,8 @@ use boostvoronoi::geometry;
 use cgmath::{Angle, EuclideanSpace, SquareMatrix};
 use cgmath::{Transform, UlpsEq};
 use itertools::Itertools;
-use linestring::cgmath_3d;
-use linestring::cgmath_3d::Plane;
+use linestring::linestring_3d;
+use linestring::linestring_3d::Plane;
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -42,11 +42,11 @@ pub fn parse_input(
     (
         ahash::AHashSet<(usize, usize)>,
         Vec<cgmath::Point3<f64>>,
-        cgmath_3d::Aabb3<f64>,
+        linestring_3d::Aabb3<f64>,
     ),
     TBError,
 > {
-    let mut aabb = cgmath_3d::Aabb3::<f64>::default();
+    let mut aabb = linestring_3d::Aabb3::<f64>::default();
     for v in input_pb_model.vertices.iter() {
         aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
@@ -102,7 +102,7 @@ pub fn parse_input(
 pub fn build_output_bp_model(
     a_command: &PB_Command,
     shapes: Vec<(
-        linestring::cgmath_2d::LineStringSet2<f64>,
+        linestring::linestring_2d::LineStringSet2<f64>,
         centerline::Centerline<i64, f64>,
     )>,
     cmd_arg_weld: bool,
@@ -436,9 +436,9 @@ pub fn command(
 
     //println!("-> transform");
     // transform each linestring to 2d
-    let mut raw_data: Vec<linestring::cgmath_2d::LineStringSet2<f64>> = lines
+    let mut raw_data: Vec<linestring::linestring_2d::LineStringSet2<f64>> = lines
         .par_iter()
-        .map(|x| x.transform(&transform).copy_to_2d(cgmath_3d::Plane::XY))
+        .map(|x| x.transform(&transform).copy_to_2d(linestring_3d::Plane::XY))
         .collect();
     {
         // truncate the floats to nearest int
@@ -451,7 +451,7 @@ pub fn command(
     //println!("->calculate hull");
 
     // calculate the hull of each shape
-    let raw_data: Vec<linestring::cgmath_2d::LineStringSet2<f64>> = raw_data
+    let raw_data: Vec<linestring::linestring_2d::LineStringSet2<f64>> = raw_data
         .into_par_iter()
         .map(|mut x| {
             let _ = x.calculate_convex_hull();
@@ -520,7 +520,7 @@ pub fn command(
         })
         .collect::<Result<
             Vec<(
-                linestring::cgmath_2d::LineStringSet2<f64>,
+                linestring::linestring_2d::LineStringSet2<f64>,
                 centerline::Centerline<i64, f64>,
             )>,
             TBError,

@@ -8,7 +8,7 @@ use crate::toxicblend_pb::Vertex as PB_Vertex;
 use cgmath::EuclideanSpace;
 use cgmath::UlpsEq;
 use itertools::Itertools;
-use linestring::cgmath_3d;
+use linestring::linestring_3d;
 use std::collections::HashMap;
 
 #[inline(always)]
@@ -31,12 +31,12 @@ pub fn remove_internal_edges(
     let mut internal_edges = ahash::AHashSet::<(usize, usize)>::default();
     //println!("Input faces : {:?}", obj.faces);
 
-    let mut aabb = cgmath_3d::Aabb3::<f64>::default();
+    let mut aabb = linestring_3d::Aabb3::<f64>::default();
     for v in obj.vertices.iter() {
         aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
     let plane =
-        cgmath_3d::Plane::get_plane_relaxed(&aabb, super::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
+        linestring_3d::Plane::get_plane_relaxed(&aabb, super::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
             let aabbe_d = aabb.get_high().unwrap() - aabb.get_low().unwrap();
             let aabbe_c = (aabb.get_high().unwrap().to_vec() + aabb.get_low().unwrap().to_vec())/2.0;
             TBError::InputNotPLane(format!(
@@ -108,7 +108,7 @@ pub fn remove_internal_edges(
         // inefficient version of drain_filter for +stable
         let kept_edges = all_edges
             .into_iter()
-            .filter(|x| !internal_edges.contains(&x))
+            .filter(|x| !internal_edges.contains(x))
             .collect();
         all_edges = kept_edges;
     }

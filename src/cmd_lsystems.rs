@@ -438,7 +438,7 @@ fn build_output_bp_model(
     // Default capacity is probably a little bit too low
     let mut pb_vertices = Vec::<PB_Vertex>::with_capacity(lines.len());
     let mut pb_faces = Vec::<PB_Face>::with_capacity(lines.len());
-    let mut src_aabb = linestring::cgmath_3d::Aabb3::default();
+    let mut src_aabb = linestring::linestring_3d::Aabb3::default();
 
     for [p0, p1] in lines.into_iter() {
         let key = transmute_to_u64(&p0);

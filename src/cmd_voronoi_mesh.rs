@@ -10,8 +10,8 @@ use boostvoronoi::diagram as VD;
 use boostvoronoi::geometry;
 use cgmath::{EuclideanSpace, SquareMatrix, Transform, UlpsEq};
 use itertools::Itertools;
-use linestring::cgmath_2d::Aabb2;
-use linestring::cgmath_2d::VoronoiParabolicArc;
+use linestring::linestring_2d::Aabb2;
+use linestring::linestring_2d::VoronoiParabolicArc;
 use std::collections::HashMap;
 
 /// converts from a private, comparable and hash-able format
@@ -245,7 +245,7 @@ impl DiagramHelperRo {
             }
         };
 
-        let segment = linestring::cgmath_2d::Line2::from([
+        let segment = linestring::linestring_2d::Line2::from([
             segment.start.x as f64,
             segment.start.y as f64,
             segment.end.x as f64,
@@ -259,7 +259,7 @@ impl DiagramHelperRo {
                 samples.push([start_point.x, start_point.y, start_point.z]);
             } else {
                 let z_comp = if cell.contains_point() {
-                    -linestring::cgmath_2d::distance_to_point_squared(
+                    -linestring::linestring_2d::distance_to_point_squared(
                         &cell_point,
                         &cgmath::Point2 {
                             x: start_point.x,
@@ -268,7 +268,7 @@ impl DiagramHelperRo {
                     )
                     .sqrt()
                 } else {
-                    -linestring::cgmath_2d::distance_to_line_squared_safe(
+                    -linestring::linestring_2d::distance_to_line_squared_safe(
                         &segment.start,
                         &segment.end,
                         &cgmath::Point2 {
@@ -289,7 +289,7 @@ impl DiagramHelperRo {
                 samples.push([end_point.x, end_point.y, end_point.z]);
             } else {
                 let z_comp = if cell.contains_point() {
-                    -linestring::cgmath_2d::distance_to_point_squared(
+                    -linestring::linestring_2d::distance_to_point_squared(
                         &cell_point,
                         &cgmath::Point2 {
                             x: end_point.x,
@@ -298,7 +298,7 @@ impl DiagramHelperRo {
                     )
                     .sqrt()
                 } else {
-                    -linestring::cgmath_2d::distance_to_line_squared_safe(
+                    -linestring::linestring_2d::distance_to_line_squared_safe(
                         &segment.start,
                         &segment.end,
                         &cgmath::Point2 {
@@ -415,7 +415,7 @@ impl DiagramHelperRo {
             y: cell_point.y as f64,
         };
 
-        let segment = linestring::cgmath_2d::Line2::from([
+        let segment = linestring::linestring_2d::Line2::from([
             segment.start.x as f64,
             segment.start.y as f64,
             segment.end.x as f64,
@@ -453,7 +453,7 @@ impl DiagramHelperRo {
                     samples.push([start_point.x, start_point.y, start_point.z]);
                 } else {
                     let z_comp = if cell.contains_point() {
-                        -linestring::cgmath_2d::distance_to_point_squared(
+                        -linestring::linestring_2d::distance_to_point_squared(
                             &cell_point,
                             &cgmath::Point2 {
                                 x: start_point.x,
@@ -462,7 +462,7 @@ impl DiagramHelperRo {
                         )
                         .sqrt()
                     } else {
-                        -linestring::cgmath_2d::distance_to_line_squared_safe(
+                        -linestring::linestring_2d::distance_to_line_squared_safe(
                             &segment.start,
                             &segment.end,
                             &cgmath::Point2 {
@@ -481,7 +481,7 @@ impl DiagramHelperRo {
                     samples.push([end_point.x, end_point.y, end_point.z]);
                 } else {
                     let z_comp = if cell.contains_point() {
-                        -linestring::cgmath_2d::distance_to_point_squared(
+                        -linestring::linestring_2d::distance_to_point_squared(
                             &cell_point,
                             &cgmath::Point2 {
                                 x: end_point.x,
@@ -490,7 +490,7 @@ impl DiagramHelperRo {
                         )
                         .sqrt()
                     } else {
-                        -linestring::cgmath_2d::distance_to_line_squared_safe(
+                        -linestring::linestring_2d::distance_to_line_squared_safe(
                             &segment.start,
                             &segment.end,
                             &cgmath::Point2 {
@@ -792,7 +792,7 @@ fn parse_input(
     ),
     TBError,
 > {
-    let mut aabb = linestring::cgmath_3d::Aabb3::<f64>::default();
+    let mut aabb = linestring::linestring_3d::Aabb3::<f64>::default();
     for v in input_pb_model.vertices.iter() {
         aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }

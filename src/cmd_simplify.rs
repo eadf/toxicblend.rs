@@ -6,7 +6,7 @@ use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
 use itertools::Itertools;
-use linestring::cgmath_3d;
+use linestring::linestring_3d;
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -14,8 +14,8 @@ use std::collections::HashMap;
 /// The end and start points has duplicate-checked vertex numbers, the 'in the middle' vertexes do not.
 pub fn find_linestrings(
     obj: &PB_Model,
-) -> Result<Vec<(usize, cgmath_3d::LineString3<f64>, usize)>, TBError> {
-    let mut linestrings = Vec::<(usize, cgmath_3d::LineString3<f64>, usize)>::new();
+) -> Result<Vec<(usize, linestring_3d::LineString3<f64>, usize)>, TBError> {
+    let mut linestrings = Vec::<(usize, linestring_3d::LineString3<f64>, usize)>::new();
 
     // vertex number usize is connected to u32 number of other vertices.
     let mut connections_map = ahash::AHashMap::<usize, smallvec::SmallVec<[usize; 2]>>::default();
@@ -153,7 +153,7 @@ fn walk_single_line_edges(
     edge_set: &mut ahash::AHashSet<(usize, usize)>,
     connections_map: &ahash::AHashMap<usize, smallvec::SmallVec<[usize; 2]>>,
     vertices: &[PB_Vertex],
-) -> Result<(usize, cgmath_3d::LineString3<f64>), TBError> {
+) -> Result<(usize, linestring_3d::LineString3<f64>), TBError> {
     let started_at_vertex = from_v;
     let mut kill_pill = edge_set.len() + 2;
 
@@ -164,7 +164,7 @@ fn walk_single_line_edges(
     //let mut first_loop = true;
     //let end_key = make_key(from_v, to_v);
 
-    let mut result = cgmath_3d::LineString3::<f64>::default();
+    let mut result = linestring_3d::LineString3::<f64>::default();
     /*
     println!(
         "--> from:{}, to:{}",
@@ -297,9 +297,9 @@ fn walk_single_line_edges(
 fn simplify_rdp_percent(
     pb_model: &PB_Model,
     distance_multiplier: f64,
-    lines: Vec<(usize, cgmath_3d::LineString3<f64>, usize)>,
-) -> Result<Vec<(usize, cgmath_3d::LineString3<f64>, usize)>, TBError> {
-    let mut aabb = linestring::cgmath_3d::Aabb3::<f64>::default();
+    lines: Vec<(usize, linestring_3d::LineString3<f64>, usize)>,
+) -> Result<Vec<(usize, linestring_3d::LineString3<f64>, usize)>, TBError> {
+    let mut aabb = linestring::linestring_3d::Aabb3::<f64>::default();
     for v in pb_model.vertices.iter() {
         aabb.update_point(&cgmath::Point3::new(v.x, v.y, v.z))
     }
@@ -313,7 +313,7 @@ fn simplify_rdp_percent(
     }*/
     let diff = lines.iter().map(|x| x.1.points().len()).sum::<usize>();
 
-    let rv: Vec<(usize, cgmath_3d::LineString3<f64>, usize)> = lines
+    let rv: Vec<(usize, linestring_3d::LineString3<f64>, usize)> = lines
         .into_par_iter()
         .map(|(v0, ls, v1)| (v0, ls.simplify(discrete_distance), v1))
         .collect();
@@ -334,7 +334,7 @@ fn simplify_rdp_percent(
 /// lines contains a vector of (<first vertex index>,<a list of points><last vertex index>)
 fn build_bp_model(
     a_command: &PB_Command,
-    lines: Vec<(usize, cgmath_3d::LineString3<f64>, usize)>,
+    lines: Vec<(usize, linestring_3d::LineString3<f64>, usize)>,
 ) -> Result<PB_Model, TBError> {
     let input_pb_model = &a_command.models[0];
     // capacity is not correct, but in a ballpark range

@@ -13,7 +13,7 @@ bl_info = {
     "name": "Toxicblend - Metavolume (offline plugin)",
     'description': 'Generates volume from a lattice of edges using metaballs (offline plugin)',
     'author': 'EADF',
-    "version": (0, 0, 14),
+    "version": (0, 0, 15),
     'blender': (2, 92, 0),
     "category": "Object",
 }

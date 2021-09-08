@@ -13,7 +13,7 @@ pub(crate) fn reject_external_edges(
         let edge_id = edge.id();
 
         if diagram.edge_is_infinite(edge_id)? {
-            mark_connected_edges(&diagram, edge_id, &mut rejected_edges)?;
+            mark_connected_edges(diagram, edge_id, &mut rejected_edges)?;
         }
     }
     Ok(rejected_edges)

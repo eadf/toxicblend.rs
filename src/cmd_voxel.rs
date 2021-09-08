@@ -37,11 +37,11 @@ pub fn parse_input_pb_model(
     (
         Vec<PointN<[f32; 3]>>,
         Vec<(usize, usize)>,
-        linestring::cgmath_3d::Aabb3<f32>,
+        linestring::linestring_3d::Aabb3<f32>,
     ),
     TBError,
 > {
-    let mut aabb = linestring::cgmath_3d::Aabb3::<f32>::default();
+    let mut aabb = linestring::linestring_3d::Aabb3::<f32>::default();
     let vertices: Vec<PointN<[f32; 3]>> = obj
         .vertices
         .iter()
@@ -82,7 +82,7 @@ fn build_voxel(
     divisions: f32,
     vertices: Vec<PointN<[f32; 3]>>,
     edges: Vec<(usize, usize)>,
-    aabb: linestring::cgmath_3d::Aabb3<f32>,
+    aabb: linestring::linestring_3d::Aabb3<f32>,
 ) -> Result<
     (
         f32, // <-voxel_size
