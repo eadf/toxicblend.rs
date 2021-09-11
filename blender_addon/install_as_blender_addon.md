@@ -6,8 +6,6 @@ This is an example of how this can be done.
 
 Run blender from the console so that you can see the console output. Then open the script tab in blender and run this:
 
-Blender MacOS Arm 2.93.2 does not seem to work as it does not (yet) contain Python.h, so grpcio can't be installed (the x64 version works)
-
 ```
 import subprocess
 import sys
@@ -27,6 +25,9 @@ assert( subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "t
 # check that the installed toxicblend version is 0.2.0 
 assert(subprocess.call([sys.executable, "-m", "pip", "list"]) == 0)
 ```
+Note that you can't install [grpcio](https://github.com/grpc/grpc) on Blender MacOS Arm 2.93.4 (grpcio does not contain the Arm binaries, and Blender is missing Python.h). 
+But the x64 version of Blender can install grpcio.
+
 If you run into permission problems, you will have to run the pip commands on the blender python executable with raised privileges (e.g. sudo)
 ```
 sudo <path to the blender built in python>/python3.7m -m pip install --upgrade toxicblend
