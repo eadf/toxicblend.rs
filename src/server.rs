@@ -24,7 +24,7 @@ mod cmd_centerline;
 mod cmd_knife_intersect;
 mod cmd_lsystems;
 #[cfg(feature = "saft")]
-mod cmd_saft_sdf;
+mod cmd_saft_voxel;
 mod cmd_simplify;
 mod cmd_voronoi;
 mod cmd_voronoi_mesh;
@@ -151,6 +151,10 @@ pub enum TBError {
 
     #[error("Error in LSystems {0}")]
     LSystems3D(String),
+
+    #[cfg(feature = "saft")]
+    #[error(transparent)]
+    SaftError(#[from] saft::Error),
 }
 
 #[derive(Debug, Default)]
@@ -183,22 +187,23 @@ impl ToxicBlendService for TheToxicBlendService {
             "voronoi_mesh" => cmd_voronoi_mesh::command(a_command, options_map),
             "voronoi" => cmd_voronoi::command(a_command, options_map),
             "voxel" => Err(TBError::InCompatibleVersion(String::from(
-                "Please update your toxicblend blender addons to current version.",
+                "Please update your toxicblend blender addons",
             ))),
             "voxel_bb" => cmd_bb_voxel::command(a_command, options_map),
-            "voxel_saft" => Err(TBError::NotImplemented(String::from(
-                "The voxel backend 'saft' is not implemented (yet)",
+            #[cfg(feature = "saft")]
+            "voxel_saft" => cmd_saft_voxel::command(a_command, options_map),
+            #[cfg(not(feature = "saft"))]
+            "voxel_saft" => Err(TBError::DisabledFeature(String::from(
+                "The feature 'saft' is not enabled in the server",
             ))),
             "lsystems" => cmd_lsystems::command(a_command, options_map),
             "sdf" => Err(TBError::InCompatibleVersion(String::from(
-                "Please update your toxicblend blender addons to current version.",
+                "Please update your toxicblend blender addons",
             ))),
             "sdf_bb" => cmd_bb_sdf::command(a_command, options_map),
-            #[cfg(feature = "saft")]
-            "saft_sdf" => cmd_saft_sdf::command(a_command, options_map),
-            #[cfg(not(feature = "saft"))]
-            "sdf_saft" => Err(TBError::DisabledFeature(String::from(
-                "The feature 'saft' is not enabled in the server",
+
+            "saft_sdf" => Err(TBError::NotImplemented(String::from(
+                "The sdf backend 'saft' is not implemented (yet)",
             ))),
             _ => Err(TBError::UnknownCommand(a_command.command.clone())),
         };

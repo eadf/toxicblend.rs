@@ -71,7 +71,7 @@ import toxicblend.toxicblend_pb2 as toxicblend_pb2
 bl_info = {
     "name": "Toxicblend MeshTools",
     "author": "EADF",
-    "version": (0, 0, 16),
+    "version": (0, 0, 17),
     "blender": (2, 92, 0),
     "location": "View3D > Sidebar > Edit Tab / Edit Mode Context Menu",
     "warning": "Communicates with a gRPC server on localhost",
@@ -1039,7 +1039,7 @@ class Toxicblend_Voxel(Operator):
     )
 
     backend_variant_items = (("_BB", "Building blocks", "use building blocks backend"),
-                             #                                 ("_SAFT", "Saft", "use saft backend")
+                             ("_SAFT", "Saft", "use saft backend")
                              )
     cmd_backend: bpy.props.EnumProperty(name="Backend", items=backend_variant_items, default="_BB")
 

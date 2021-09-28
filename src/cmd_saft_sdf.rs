@@ -1,5 +1,5 @@
 use super::TBError;
-use crate::cmd_voxel_bb;
+use crate::cmd_saft_voxel;
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Reply as PB_Reply;
