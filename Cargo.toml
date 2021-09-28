@@ -13,6 +13,9 @@ exclude = [
     "idea/*",
     ".github/*",
 ]
+[features]
+# This is for debugging purposes, will place small blobs at each corner of each voxel chunk
+display_chunks = []
 
 [dependencies]
 tonic = "0.5"
@@ -28,9 +31,9 @@ rayon = "1.5"
 smallvec = "^1.6.1"
 cgmath = "0.18"
 itertools = "0.10"
-building-blocks = { version="0.6", default-features = false, features = ["mesh"]}
+building-blocks = { git="https://github.com/bonsairobo/building-blocks.git", rev="21165e0", default-features = false, features = ["mesh", "cgmath"]}
+#building-blocks = { path="../building-blocks", default-features = false, features = ["mesh", "cgmath"]}
 logos = "0.12"
-async-scoped = { version = "0.7", features = ["use-tokio"] }
 
 [[bin]]
 name = "toxicblend_server"

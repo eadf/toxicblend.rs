@@ -12,19 +12,23 @@
     unused_imports,
     unused_variables
 )]
-
 #![cfg_attr(feature = "hash_drain_filter", feature(hash_drain_filter))]
 #![cfg_attr(feature = "map_first_last", feature(map_first_last))]
 
+#[cfg(feature = "saft")]
+extern crate saft_cr as saft;
 mod cmd_2d_outline;
+mod cmd_bb_sdf;
+mod cmd_voxel;
+use cmd_voxel as cmd_bb_voxel;
 mod cmd_centerline;
 mod cmd_knife_intersect;
 mod cmd_lsystems;
-mod cmd_sdf;
+#[cfg(feature = "saft")]
+mod cmd_saft_sdf;
 mod cmd_simplify;
 mod cmd_voronoi;
 mod cmd_voronoi_mesh;
-mod cmd_voxel;
 mod lsystems_3d;
 mod voronoi_utils;
 
@@ -95,8 +99,14 @@ fn xy_to_2d(point: &cgmath::Point3<f64>) -> cgmath::Point2<f64> {
 
 #[derive(thiserror::Error, Debug)]
 pub enum TBError {
+    #[error("Not implemented : {0}")]
+    NotImplemented(String),
+
     #[error("Overflow error: {0}")]
     Overflow(String),
+
+    #[error("Feature not active: {0}")]
+    DisabledFeature(String),
 
     #[error("Unknown command received: {0}")]
     UnknownCommand(String),
@@ -170,9 +180,18 @@ impl ToxicBlendService for TheToxicBlendService {
             "centerline" => cmd_centerline::command(a_command, options_map),
             "voronoi_mesh" => cmd_voronoi_mesh::command(a_command, options_map),
             "voronoi" => cmd_voronoi::command(a_command, options_map),
-            "voxel" => cmd_voxel::command(a_command, options_map),
+            "voxel_bb" => cmd_bb_voxel::command(a_command, options_map),
+            "voxel_saft" => Err(TBError::NotImplemented(String::from(
+                "The voxel backend 'saft' is not implemented (yet)",
+            ))),
             "lsystems" => cmd_lsystems::command(a_command, options_map),
-            "sdf" => cmd_sdf::command(a_command, options_map),
+            "sdf_bb" => cmd_bb_sdf::command(a_command, options_map),
+            #[cfg(feature = "saft")]
+            "saft_sdf" => cmd_saft_sdf::command(a_command, options_map),
+            #[cfg(not(feature = "saft"))]
+            "sdf_saft" => Err(TBError::DisabledFeature(String::from(
+                "The feature 'saft' is not enabled in the server",
+            ))),
             _ => Err(TBError::UnknownCommand(a_command.command.clone())),
         };
         // convert TBError to a valid Error message

@@ -6,20 +6,13 @@ use crate::toxicblend_pb::Matrix4x432 as PB_Matrix4x432;
 use crate::toxicblend_pb::Model32 as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex32 as PB_Vertex;
-use async_scoped::TokioScope;
 use building_blocks::core::prelude::PointN;
 use building_blocks::core::prelude::*;
 use building_blocks::mesh::*;
-use building_blocks::prelude::Sd16;
 use building_blocks::storage::prelude::*;
-use building_blocks::storage::Channel;
-use building_blocks::storage::ChunkHashMap;
-use building_blocks::storage::ChunkMapBuilderNxM;
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::time;
-
-type Point3f = PointN<[f32; 3]>;
-type Extent3f = ExtentN<[f32; 3]>;
 
 /// converts to a private, comparable and hash-able format
 /// only use this for floats that are f32::is_finite().
@@ -35,13 +28,20 @@ pub fn parse_input_pb_model(
     obj: &PB_Model,
 ) -> Result<
     (
-        Vec<PointN<[f32; 3]>>,
-        Vec<(usize, usize)>,
+        Vec<Point3f>,
+        Vec<(u32, u32)>,
         linestring::linestring_3d::Aabb3<f32>,
     ),
     TBError,
 > {
     let mut aabb = linestring::linestring_3d::Aabb3::<f32>::default();
+    if obj.vertices.len() >= u32::MAX as usize {
+        return Err(TBError::Overflow(format!(
+            "Input data contains too many vertices. {}",
+            obj.vertices.len()
+        )));
+    }
+
     let vertices: Vec<PointN<[f32; 3]>> = obj
         .vertices
         .iter()
@@ -54,7 +54,7 @@ pub fn parse_input_pb_model(
             PointN([vertex.x as f32, vertex.y as f32, vertex.z as f32])
         })
         .collect();
-    let mut edges = Vec::<(usize, usize)>::with_capacity(vertices.len() + 100);
+    let mut edges = Vec::<(u32, u32)>::with_capacity(vertices.len() + 100);
 
     for face in obj.faces.iter() {
         if face.vertices.len() > 2 {
@@ -66,36 +66,33 @@ pub fn parse_input_pb_model(
             ));
         };
         edges.push((
-            *face.vertices.first().unwrap() as usize,
-            *face.vertices.last().unwrap() as usize,
+            *face.vertices.first().unwrap(),
+            *face.vertices.last().unwrap(),
         ));
     }
     Ok((vertices, edges, aabb))
 }
 
-#[allow(clippy::type_complexity)]
-/// Build the voxel data from the input
-// todo: should i rebuild the return value to just Result<Vec<PosNormMesh>,TBError>?
-// the current return value does not live very long, a re-shuffle would just take time.
 fn build_voxel(
     radius_multiplier: f32,
     divisions: f32,
     vertices: Vec<PointN<[f32; 3]>>,
-    edges: Vec<(usize, usize)>,
+    edges: Vec<(u32, u32)>,
     aabb: linestring::linestring_3d::Aabb3<f32>,
 ) -> Result<
     (
-        f32, // <-voxel_size
-        Vec<Result<Option<(PosNormMesh, Extent3i)>, tokio::task::JoinError>>,
+        f32, // <- voxel_size
+        Vec<(PosNormMesh, Extent3i)>,
     ),
     TBError,
 > {
     let dimensions = aabb.get_high().unwrap() - aabb.get_low().unwrap();
     let max_dimension = dimensions.x.max(dimensions.y).max(dimensions.z);
 
-    let radius = max_dimension * radius_multiplier;
+    let radius = max_dimension * radius_multiplier; // unscaled
+    let thickness = radius * 2.0; // unscaled
     let scale = (divisions / max_dimension) as f32;
-    let thickness = (radius * 2.0) as f32 * scale;
+
     println!(
         "Voxelizing using tube thickness. {} = {}*{}*{}",
         thickness, max_dimension, radius_multiplier, scale
@@ -118,80 +115,214 @@ fn build_voxel(
     );
     let vertices: Vec<PointN<[f32; 3]>> = vertices.into_iter().map(|v| v * scale).collect();
 
-    let map = {
-        let now = time::Instant::now();
+    let chunk_chape_dim = 16_i32;
+    let total_extent = {
+        let min_p = Point3f::from(aabb.get_low().unwrap()) - Point3f::fill(thickness);
+        let max_p = Point3f::from(aabb.get_high().unwrap()) + Point3f::fill(thickness);
 
-        let builder = ChunkMapBuilder3x1::new(PointN([16; 3]), Sd16::ONE);
-        let mut map = builder.build_with_hash_map_storage();
+        /*println!("scale {:?}", scale);
+        println!("thickness {:?} radius {:?}", thickness, radius);
+        println!("min_p {:?}", min_p);
+        println!("max_p {:?}", max_p);*/
 
-        for (from_v, to_v) in edges
-            .into_iter()
-            .map(|(from, to)| (vertices[from], vertices[to]))
-        {
-            let sample_extent = {
-                let extent_min = from_v.meet(to_v).round().into_int();
-                let extent_max = from_v.join(to_v).round().into_int();
-                Extent3i::from_min_and_max(extent_min, extent_max).padded(thickness.ceil() as i32)
-            };
-            map.for_each_mut(&sample_extent, |p: Point3i, prev_dist| {
-                let pa = Point3f::from(p) - from_v;
-                let ba = to_v - from_v;
-                let t = pa.dot(ba) as f32 / ba.dot(ba) as f32;
-                let h = t.clamp(0.0, 1.0);
-                let dist = pa - (ba * h);
-                let mut dist = Sd16::from(dist.norm() - thickness);
-                *prev_dist = *prev_dist.min(&mut dist);
-            });
-        }
-        println!("for_each_mut() duration: {:?}", now.elapsed());
-        map
+        let extent_min = (min_p * scale / chunk_chape_dim as f32).floor().into_int();
+        // todo why is -0.5 needed???
+        let extent_max = ((max_p * scale / chunk_chape_dim as f32) - Point3f::fill(0.5))
+            .ceil()
+            .into_int();
+        let extent = Extent3i::from_min_and_max(extent_min, extent_max);
+
+        /*
+        println!("extent_min {:?}", extent_min);
+        println!("extent_max {:?}", extent_max);
+        println!("extent {:?}", extent);*/
+        // todo: might result in a slightly over/under-sized extent
+        // todo: there must be better to "nudge" input data to better fit integer chunks
+        ChunkUnits(extent)
     };
+    println!("total_extent {:?}", total_extent);
+
+    let now = time::Instant::now();
+
+    let sdf_chunks = generate_sdf_chunks3(
+        total_extent,
+        PointN::fill(chunk_chape_dim),
+        &vertices,
+        &edges,
+        thickness * scale,
+    );
+    //unimplemented!();
+    let builder = ChunkTreeBuilder3x1::new(ChunkTreeConfig {
+        chunk_shape: PointN([chunk_chape_dim; 3]),
+        ambient_value: Sd16::from(99999.0),
+        root_lod: 0,
+    });
+    let mut map = builder.build_with_hash_map_storage();
+    for (chunk_min, chunk) in sdf_chunks.into_iter() {
+        let _ = map.write_chunk(ChunkKey::new(0, chunk_min), chunk);
+    }
+
+    println!("generate_sdf_chunks3() duration: {:?}", now.elapsed());
 
     let voxel_size = 1.0 / scale;
 
     generate_mesh(voxel_size, &map)
 }
 
+/// Spawn off threads creating the chunks, returns a vec of chunks.
+/// One thread task per chunk
+pub fn generate_sdf_chunks3(
+    total_extent: ChunkUnits<Extent3i>,
+    chunk_shape: Point3i,
+    vertices: &Vec<PointN<[f32; 3]>>,
+    edges: &Vec<(u32, u32)>,
+    thickness: f32,
+) -> Vec<(Point3i, Array3x1<Sd16>)> {
+    total_extent
+        .0
+        .iter_points()
+        .par_bridge()
+        .filter_map(move |p| {
+            let chunk_min = p * chunk_shape;
+            let chunk_extent = Extent3i::from_min_and_shape(chunk_min, chunk_shape);
+
+            generate_sdf_chunk3(chunk_extent, vertices, edges, thickness).map(|c| (chunk_min, c))
+        })
+        .collect()
+}
+
+/// Generate the data of a single chunk
+pub fn generate_sdf_chunk3(
+    chunk_extent: Extent3i,
+    vertices: &Vec<Point3f>,
+    edges: &Vec<(u32, u32)>,
+    thickness: f32,
+) -> Option<Array3x1<Sd16>> {
+    // filter out the edges that does not affect this chunk
+    let edges = edges
+        .into_iter()
+        .filter_map(|(e0, e1)| {
+            let (e0, e1) = (*e0 as usize, *e1 as usize);
+            let tube_extent: Extent3i = {
+                let extent_min = (vertices[e0].meet(vertices[e1]) - Point3f::fill(thickness))
+                    .floor()
+                    .into_int();
+                let extent_max = (vertices[e0].join(vertices[e1]) + Point3f::fill(thickness))
+                    .ceil()
+                    .into_int();
+                Extent3i::from_min_and_max(extent_min, extent_max)
+            };
+            if !chunk_extent.intersection(&tube_extent).is_empty() {
+                Some((e0, e1))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    #[cfg(not(feature = "display_chunks"))]
+    if edges.is_empty() {
+        // no tubes intersected this chunk
+        return None;
+    }
+    let usable_edges = &edges;
+
+    let mut array = create_chunk_array(chunk_extent, Sd16::from(99999.9));
+    #[cfg(feature = "display_chunks")]
+    let c = {
+        let shape = (
+            chunk_extent.shape.x() as f32,
+            chunk_extent.shape.y() as f32,
+            chunk_extent.shape.z() as f32,
+        );
+        (
+            Point3f::from(chunk_extent.minimum),
+            Point3f::from(chunk_extent.minimum) + PointN([shape.0, 0.0, 0.0]),
+            Point3f::from(chunk_extent.minimum) + PointN([shape.0, shape.1, 0.0]),
+            Point3f::from(chunk_extent.minimum) + PointN([0.0, shape.1, 0.0]),
+            Point3f::from(chunk_extent.minimum) + PointN([0.0, 0.0, shape.2]),
+            Point3f::from(chunk_extent.minimum) + PointN([shape.0, 0.0, shape.2]),
+            Point3f::from(chunk_extent.minimum) + PointN([shape.0, shape.1, shape.2]),
+            Point3f::from(chunk_extent.minimum) + PointN([0.0, shape.1, shape.2]),
+        )
+    };
+    array.for_each_mut(&chunk_extent, |(p, _), x| {
+        #[cfg(feature = "display_chunks")]
+        {
+            let pf = Point3f::from(p);
+            *x = *x.min(&mut Sd16::from(c.0.l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c.1.l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c.2.l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c.3.l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c.4.l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c.5.l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c.6.l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c.7.l2_distance_squared(pf).sqrt() - 1.5));
+        }
+        for (e0, e1) in usable_edges.iter() {
+            let from_v = vertices[*e0];
+            let to_v = vertices[*e1];
+
+            let pa = Point3f::from(p) - from_v;
+            let ba = to_v - from_v;
+            let t = pa.dot(ba) as f32 / ba.dot(ba) as f32;
+            let h = t.clamp(0.0, 1.0);
+            let dist = pa - (ba * h);
+            let mut dist = Sd16::from(dist.norm() - thickness);
+            *x = *x.min(&mut dist);
+        }
+    });
+    Some(array)
+}
+
+#[inline(always)]
+pub fn create_chunk_array(extent: Extent3i, default_sdf_value: Sd16) -> Array3x1<Sd16> {
+    let size = (extent.shape.x() * extent.shape.y() * extent.shape.z()) as usize;
+    let chunk: Vec<Sd16> = vec![default_sdf_value; size];
+    Array3x1::new_one_channel(extent, chunk.into_boxed_slice())
+}
+
 #[allow(clippy::type_complexity)]
-pub(crate) fn generate_mesh(
+pub(crate) fn generate_mesh<T: 'static + Clone + Send + Sync + SignedDistance>(
     voxel_size: f32,
-    map_ref: &ChunkHashMap<[i32; 3], Sd16, ChunkMapBuilderNxM<[i32; 3], Sd16, Channel<Sd16>>>,
+    map: &HashMapChunkTree3x1<T>,
 ) -> Result<
     (
-        f32, // <-voxel_size
-        Vec<Result<Option<(PosNormMesh, Extent3i)>, tokio::task::JoinError>>,
+        f32, // <- voxel_size
+        Vec<(PosNormMesh, Extent3i)>,
     ),
     TBError,
 > {
+    let flat_shaded = true;
     let now = time::Instant::now();
-    let chunk_meshes: Vec<Result<Option<(PosNormMesh, Extent3i)>, tokio::task::JoinError>> =
-        TokioScope::scope_and_block(|s| {
-            for chunk_key in map_ref.storage().keys() {
-                s.spawn(async move {
-                    let padded_chunk_extent = padded_surface_nets_chunk_extent(
-                        &map_ref.indexer.extent_for_chunk_at_key(*chunk_key),
-                    );
-                    let mut padded_chunk = Array3x1::fill(padded_chunk_extent, Sd16(0));
-                    copy_extent(&padded_chunk_extent, map_ref, &mut padded_chunk);
+    let chunk_meshes: Vec<(PosNormMesh, Extent3i)> = map
+        .lod_storage(0)
+        .keys()
+        .par_bridge()
+        .filter_map(move |chunk_min| {
+            let padded_chunk_extent = padded_surface_nets_chunk_extent(
+                &map.indexer.extent_for_chunk_with_min(*chunk_min),
+            );
+            let mut padded_chunk = Array3x1::fill(padded_chunk_extent, map.ambient_value());
+            copy_extent(&padded_chunk_extent, &map.lod_view(0), &mut padded_chunk);
 
-                    let mut surface_nets_buffer = SurfaceNetsBuffer::default();
-                    // do the voxel_size multiplication later, vertices pos. needs to match extent.
-                    surface_nets(
-                        &padded_chunk,
-                        &padded_chunk_extent,
-                        1.0,
-                        &mut surface_nets_buffer,
-                    );
+            let mut surface_nets_buffer = SurfaceNetsBuffer::default();
+            // do the voxel_size multiplication later, vertices pos. needs to match extent.
+            surface_nets(
+                &padded_chunk,
+                &padded_chunk_extent,
+                1.0,
+                !flat_shaded,
+                &mut surface_nets_buffer,
+            );
 
-                    if surface_nets_buffer.mesh.indices.is_empty() {
-                        None
-                    } else {
-                        Some((surface_nets_buffer.mesh, padded_chunk_extent))
-                    }
-                })
+            if surface_nets_buffer.mesh.indices.is_empty() {
+                None
+            } else {
+                Some((surface_nets_buffer.mesh, padded_chunk_extent))
             }
         })
-        .1;
+        .collect();
+
     println!("surface_nets() duration: {:?}", now.elapsed());
     Ok((voxel_size, chunk_meshes))
 }
@@ -201,27 +332,19 @@ pub(crate) fn build_output_bp_model(
     pb_model_name: String,
     pb_world: Option<PB_Matrix4x432>,
     voxel_size: f32,
-    meshes: Vec<Result<Option<(PosNormMesh, Extent3i)>, tokio::task::JoinError>>,
+    meshes: Vec<(PosNormMesh, Extent3i)>,
 ) -> Result<PB_Model, TBError> {
     // calculate the maximum required v&f capacity
-    let (vertex_capacity, face_capacity) = meshes
-        .iter()
-        .filter_map(|x| {
-            if let Ok(Some((chunk, _))) = x {
-                Some((chunk.positions.len(), chunk.indices.len()))
-            } else {
-                None
-            }
-        })
-        .fold((0_usize, 0_usize), |(v, f), chunk| {
-            (v + chunk.0, f + chunk.1)
+    let (vertex_capacity, face_capacity) =
+        meshes.iter().fold((0_usize, 0_usize), |(v, f), chunk| {
+            (v + chunk.0.positions.len(), f + chunk.0.indices.len())
         });
     if vertex_capacity >= u32::MAX as usize {
-        return Err(TBError::Overflow(format!("Generated mesh contains too many vertices to be referenced by u32: {}. Reduce resolution.",vertex_capacity )));
+        return Err(TBError::Overflow(format!("Generated mesh contains too many vertices to be referenced by u32: {}. Reduce the resolution.",vertex_capacity)));
     }
 
     if face_capacity >= u32::MAX as usize {
-        return Err(TBError::Overflow(format!("Generated mesh contains too many faces to be referenced by u32: {}. Reduce resolution.",vertex_capacity )));
+        return Err(TBError::Overflow(format!("Generated mesh contains too many faces to be referenced by u32: {}. Reduce the resolution.",vertex_capacity)));
     }
 
     let mut pb_vertices: Vec<PB_Vertex> = Vec::with_capacity(vertex_capacity);
@@ -232,57 +355,54 @@ pub(crate) fn build_output_bp_model(
     let mut vertex_map: ahash::AHashMap<u32, u32> = ahash::AHashMap::default();
 
     let now = time::Instant::now();
-    for mesh in meshes.into_iter() {
-        if let Some((mesh, extent)) = mesh? {
-            // each chunk starts counting vertices from zero
-            let indices_offset = pb_vertices.len() as u32;
-            // vertices this far inside a chunk should (probably?) not be used outside this chunk.
-            let deep_inside_extent = Extent3f::from_min_and_shape(
-                Point3f::from(extent.minimum),
-                Point3f::from(extent.shape),
-            )
-            .padded(-1.5);
-            for (pi, p) in mesh.positions.iter().enumerate() {
-                let pv = PointN::<[f32; 3]>(*p);
-                if !deep_inside_extent.contains(pv) {
-                    // only use vertex de-duplication if the vertex was close to the edges
-                    // of the extent
-                    let key = transmute_to_u32(p);
-                    let _ = vertex_map.insert(
-                        pi as u32 + indices_offset,
-                        *unique_vertex_map.entry(key).or_insert_with(|| {
-                            let n = pb_vertices.len() as u32;
-                            pb_vertices.push(PB_Vertex {
-                                x: (voxel_size * p[0]),
-                                y: (voxel_size * p[1]),
-                                z: (voxel_size * p[2]),
-                            });
-                            n
-                        }),
-                    );
-                } else {
-                    // vertex found deep inside chunk, skip vertex de-duplication.
-                    let _ = vertex_map.insert(pi as u32 + indices_offset, {
+    for (mesh, extent) in meshes.iter() {
+        // each chunk starts counting vertices from zero
+        let indices_offset = pb_vertices.len() as u32;
+        // vertices this far inside a chunk should (probably?) not be used outside this chunk.
+        let deep_inside_extent = Extent3f::from_min_and_shape(
+            Point3f::from(extent.minimum),
+            Point3f::from(extent.shape),
+        )
+        .padded(-1.5);
+        for (pi, p) in mesh.positions.iter().enumerate() {
+            let p: Point3f = PointN(*p);
+            if !deep_inside_extent.contains(p) {
+                // only use vertex de-duplication if the vertex was close to the edges
+                // of the extent
+                let key = transmute_to_u32(&p.0);
+                let _ = vertex_map.insert(
+                    pi as u32 + indices_offset,
+                    *unique_vertex_map.entry(key).or_insert_with(|| {
                         let n = pb_vertices.len() as u32;
                         pb_vertices.push(PB_Vertex {
-                            x: (voxel_size * p[0]),
-                            y: (voxel_size * p[1]),
-                            z: (voxel_size * p[2]),
+                            x: (voxel_size * p.x()),
+                            y: (voxel_size * p.y()),
+                            z: (voxel_size * p.z()),
                         });
                         n
+                    }),
+                );
+            } else {
+                // vertex found deep inside chunk, skip vertex de-duplication.
+                let _ = vertex_map.insert(pi as u32 + indices_offset, {
+                    let n = pb_vertices.len() as u32;
+                    pb_vertices.push(PB_Vertex {
+                        x: (voxel_size * p.x()),
+                        y: (voxel_size * p.y()),
+                        z: (voxel_size * p.z()),
                     });
-                }
+                    n
+                });
             }
-
-            for vertex_id in mesh.indices.iter() {
-                if let Some(vertex_id) = vertex_map.get(&(*vertex_id as u32 + indices_offset)) {
-                    pb_faces.push(*vertex_id);
-                } else {
-                    return Err(TBError::InternalError(format!(
-                        "Vertex id {} not found while de-duplicating vertices",
-                        vertex_id
-                    )));
-                }
+        }
+        for vertex_id in mesh.indices.iter() {
+            if let Some(vertex_id) = vertex_map.get(&(*vertex_id as u32 + indices_offset)) {
+                pb_faces.push(*vertex_id);
+            } else {
+                return Err(TBError::InternalError(format!(
+                    "Vertex id {} not found while de-duplicating vertices",
+                    vertex_id
+                )));
             }
         }
     }
@@ -292,19 +412,6 @@ pub(crate) fn build_output_bp_model(
         now.elapsed()
     );
 
-    //println!("unique_vertex_map.len(): {}", unique_vertex_map.len());
-    //println!("vertex_map.len(): {}", vertex_map.len());
-
-    /*println!(
-        "pb_vertices:{}, vertex_capacity:{}",
-        pb_vertices.len(),
-        vertex_capacity
-    );*/
-    /*println!(
-        "pb_faces:{}, face_capacity:{}",
-        pb_face.len(),
-        face_capacity
-    );*/
     Ok(PB_Model {
         name: pb_model_name,
         world_orientation: pb_world,

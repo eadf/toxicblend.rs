@@ -71,20 +71,22 @@ import toxicblend.toxicblend_pb2 as toxicblend_pb2
 bl_info = {
     "name": "Toxicblend MeshTools",
     "author": "EADF",
-    "version": (0, 0, 15),
+    "version": (0, 0, 16),
     "blender": (2, 92, 0),
     "location": "View3D > Sidebar > Edit Tab / Edit Mode Context Menu",
     "warning": "Communicates with a gRPC server on localhost",
     "description": "Tools for handling lines and linestrings in edit mesh mode",
-    #"doc_url": "{BLENDER_MANUAL_URL}/addons/mesh/toxicblend_meshtools.html",
+    # "doc_url": "{BLENDER_MANUAL_URL}/addons/mesh/toxicblend_meshtools.html",
     "category": "Mesh",
 }
 
 SERVER_URL = 'localhost:50069'
 
+
 def check_toxicblend_version():
     if toxicblend.__version__ != '0.2.0':
         raise ToxicblendException("pip package toxicblend version 0.2.0 is required")
+
 
 class ToxicblendException(Exception):
     def __init__(self, message):
@@ -245,11 +247,11 @@ def handle_received_object(active_object, pb_message, remove_doubles_threshold=N
             packed_faces = True
 
     if len(pb_message.models) > 0:
-       pb_model = pb_message.models[0]
+        pb_model = pb_message.models[0]
     elif len(pb_message.models32) > 0:
-       pb_model = pb_message.models32[0]
+        pb_model = pb_message.models32[0]
     else:
-       raise ToxicblendException("No return models found")
+        raise ToxicblendException("No return models found")
 
     if not pb_model is None:
         (vertices, edges, faces, matrix) = get_pydata(pb_model, only_edges, packed_faces)
@@ -289,6 +291,7 @@ def handle_received_object(active_object, pb_message, remove_doubles_threshold=N
                 bpy.ops.object.mode_set(mode='OBJECT')
             if set_origin_to_cursor:
                 bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+
 
 # todo: use vertex.calc_edge_angle()
 def angle_between_edges(p0, p1, p2):
@@ -699,7 +702,8 @@ class Toxicblend_2D_Outline(Operator):
                 response = stub.execute(command)
                 handle_response(response)
                 if len(response.models) > 0 or len(response.models32) > 0:
-                    print("client received options: ", len(response.options), " models64:", len(response.models), " models32:", len(response.models32))
+                    print("client received options: ", len(response.options), " models64:", len(response.models),
+                          " models32:", len(response.models32))
                     handle_received_object(active_object, response)
 
             # cleaning up
@@ -780,7 +784,8 @@ class Toxicblend_Voronoi(Operator):
                 response = stub.execute(command)
                 handle_response(response)
                 if len(response.models) > 0 or len(response.models32) > 0:
-                    print("client received options: ", len(response.options), " models64:", len(response.models), " models32:", len(response.models32))
+                    print("client received options: ", len(response.options), " models64:", len(response.models),
+                          " models32:", len(response.models32))
                     handle_received_object(active_object, response)
 
             # cleaning up
@@ -827,7 +832,8 @@ class Toxicblend_Knife_Intersect(Operator):
                 response = stub.execute(command)
                 handle_response(response)
                 if len(response.models) > 0 or len(response.models32) > 0:
-                    print("client received options: ", len(response.options), " models64:", len(response.models), " models32:", len(response.models32))
+                    print("client received options: ", len(response.options), " models64:", len(response.models),
+                          " models32:", len(response.models32))
                     handle_received_object(active_object, response)
 
             # cleaning up
@@ -927,7 +933,8 @@ class Toxicblend_Centerline(Operator):
                 response = stub.execute(command)
                 handle_response(response)
                 if len(response.models) > 0 or len(response.models32) > 0:
-                    print("client received options: ", len(response.options), " models64:", len(response.models), " models32:", len(response.models32))
+                    print("client received options: ", len(response.options), " models64:", len(response.models),
+                          " models32:", len(response.models32))
                     handle_received_object(active_object, response)
 
             # cleaning up
@@ -988,7 +995,8 @@ class Toxicblend_Voronoi_Mesh(Operator):
                 response = stub.execute(command)
                 handle_response(response)
                 if len(response.models) > 0 or len(response.models32) > 0:
-                    print("client received options: ", len(response.options), " models64:", len(response.models), " models32:", len(response.models32))
+                    print("client received options: ", len(response.options), " models64:", len(response.models),
+                          " models32:", len(response.models32))
                     handle_received_object(active_object, response)
 
             # cleaning up
@@ -1030,6 +1038,11 @@ class Toxicblend_Voxel(Operator):
         subtype='FACTOR'
     )
 
+    backend_variant_items = (("_BB", "Building blocks", "use building blocks backend"),
+                             #                                 ("_SAFT", "Saft", "use saft backend")
+                             )
+    cmd_backend: bpy.props.EnumProperty(name="Backend", items=backend_variant_items, default="_BB")
+
     @classmethod
     def poll(cls, context):
         ob = context.active_object
@@ -1051,7 +1064,7 @@ class Toxicblend_Voxel(Operator):
                            ('grpc.max_receive_message_length', 512 * 1024 * 1024)]
             with grpc.insecure_channel(SERVER_URL, options=channel_opt) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
-                command = toxicblend_pb2.Command(command='voxel')
+                command = toxicblend_pb2.Command(command='voxel' + str(self.cmd_backend).lower())
                 build_pb_model(active_object, active_mesh, command.models32.add())
 
                 opt = command.options.add()
@@ -1065,7 +1078,8 @@ class Toxicblend_Voxel(Operator):
                 response = stub.execute(command)
                 handle_response(response)
                 if len(response.models) > 0 or len(response.models32) > 0:
-                    print("client received options: ", len(response.options), " models64:", len(response.models), " models32:", len(response.models32))
+                    print("client received options: ", len(response.options), " models64:", len(response.models),
+                          " models32:", len(response.models32))
                     handle_received_object(active_object, response)
 
             # cleaning up
@@ -1125,7 +1139,8 @@ class Toxicblend_Simplify(Operator):
                 response = stub.execute(command)
                 handle_response(response)
                 if len(response.models) > 0 or len(response.models32) > 0:
-                    print("client received options: ", len(response.options), " models64:", len(response.models), " models32:", len(response.models32))
+                    print("client received options: ", len(response.options), " models64:", len(response.models),
+                          " models32:", len(response.models32))
                     handle_received_object(active_object, response)
 
             # cleaning up

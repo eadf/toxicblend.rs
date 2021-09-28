@@ -1,5 +1,5 @@
 use super::TBError;
-use crate::cmd_voxel;
+use crate::cmd_voxel as cmd_bb_voxel;
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Reply as PB_Reply;
@@ -17,7 +17,7 @@ type Point3f = PointN<[f32; 3]>;
 #[allow(clippy::type_complexity)]
 #[allow(clippy::too_many_arguments)]
 /// Build the gyroid voxel data from the input
-// todo: should i rebuild the return value to just Result<Vec<PosNormMesh>,TBError>?
+// todo: should i rebuild the return value to just Result<Vec<PosNormMesh, Extent3i>,TBError>?
 // todo: the current return value does not live very long, a re-shuffle would just take time.
 fn build_gyroid_voxel(
     divisions: f32,
@@ -30,7 +30,7 @@ fn build_gyroid_voxel(
 ) -> Result<
     (
         f32, // <-voxel_size
-        Vec<Result<Option<(PosNormMesh, Extent3i)>, tokio::task::JoinError>>,
+        Vec<(PosNormMesh, Extent3i)>,
     ),
     TBError,
 > {
@@ -46,7 +46,12 @@ fn build_gyroid_voxel(
     let map = {
         let now = time::Instant::now();
 
-        let builder = ChunkMapBuilder3x1::new(PointN([16; 3]), Sd16::ONE);
+        let builder = ChunkTreeBuilder3x1::new(ChunkTreeConfig {
+            chunk_shape: Point3i::fill(16),
+            //ambient_value:Sd16::from(99999.0),
+            ambient_value: Sd16::ONE,
+            root_lod: 0,
+        });
         let mut map = builder.build_with_hash_map_storage();
 
         let extent = {
@@ -57,7 +62,7 @@ fn build_gyroid_voxel(
             let extent_max = from_v.join(to_v).round().into_int();
             Extent3i::from_min_and_max(extent_min, extent_max) //.padded(thickness.ceil() as i32)
         };
-        map.for_each_mut(&extent, |p: Point3i, prev_dist| {
+        let sdf = |p: Point3i| {
             let pa = Point3f::from(p) * scale;
             let sin_pa: Point3f = PointN([
                 cmd_arg_x_param * pa.x().sin(),
@@ -71,11 +76,10 @@ fn build_gyroid_voxel(
             ]);
 
             // sdf formula of a gyroid is: abs(dot(sin(pa), cos(pa.zxy)) - b) - t;
-            let mut dist =
-                Sd16::from((sin_pa.dot(cos_pa_zxy) - cmd_arg_b_param).abs() - cmd_arg_t_param);
-            *prev_dist = *prev_dist.min(&mut dist);
-        });
-        println!("for_each_mut() duration: {:?}", now.elapsed());
+            Sd16::from((sin_pa.dot(cos_pa_zxy) - cmd_arg_b_param).abs() - cmd_arg_t_param)
+        };
+        copy_extent(&extent, &Func(Box::new(sdf)), &mut map.lod_view_mut(0));
+        println!("copy_extent() duration: {:?}", now.elapsed());
         map
     };
 
@@ -83,7 +87,7 @@ fn build_gyroid_voxel(
     let voxel_size = 3.0 / divisions;
 
     // Generate the chunk meshes.
-    cmd_voxel::generate_mesh(voxel_size, &map)
+    cmd_bb_voxel::generate_mesh(voxel_size, &map)
 }
 
 pub fn command(
@@ -181,7 +185,7 @@ pub fn command(
         cmd_arg_z_param,
     )?;
     let packed_faces_model =
-        cmd_voxel::build_output_bp_model("gyroid".to_string(), None, voxel_size, mesh)?;
+        cmd_bb_voxel::build_output_bp_model("gyroid".to_string(), None, voxel_size, mesh)?;
     println!(
         "Total number of vertices: {}",
         packed_faces_model.vertices.len()
