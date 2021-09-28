@@ -90,12 +90,11 @@ fn build_voxel(
     let max_dimension = dimensions.x.max(dimensions.y).max(dimensions.z);
 
     let radius = max_dimension * radius_multiplier; // unscaled
-    let thickness = radius * 2.0; // unscaled
     let scale = (divisions / max_dimension) as f32;
 
     println!(
-        "Voxelizing using tube thickness. {} = {}*{}*{}",
-        thickness, max_dimension, radius_multiplier, scale
+        "Voxelizing using tube radius. {} = {}*{}*{}",
+        radius, max_dimension, radius_multiplier, scale
     );
 
     println!(
@@ -117,8 +116,8 @@ fn build_voxel(
 
     let chunk_chape_dim = 16_i32;
     let total_extent = {
-        let min_p = (Point3f::from(aabb.get_low().unwrap()) - Point3f::fill(thickness)) * scale;
-        let max_p = (Point3f::from(aabb.get_high().unwrap()) + Point3f::fill(thickness)) * scale;
+        let min_p = (Point3f::from(aabb.get_low().unwrap()) - Point3f::fill(radius)) * scale;
+        let max_p = (Point3f::from(aabb.get_high().unwrap()) + Point3f::fill(radius)) * scale;
 
         /*
         println!("scale {:?}", scale);
@@ -153,7 +152,7 @@ fn build_voxel(
         PointN::fill(chunk_chape_dim),
         &vertices,
         &edges,
-        thickness * scale,
+        radius * scale,
     );
     //unimplemented!();
     let builder = ChunkTreeBuilder3x1::new(ChunkTreeConfig {
@@ -178,8 +177,8 @@ fn build_voxel(
 pub fn generate_sdf_chunks3(
     total_extent: ChunkUnits<Extent3i>,
     chunk_shape: Point3i,
-    vertices: &Vec<PointN<[f32; 3]>>,
-    edges: &Vec<(u32, u32)>,
+    vertices: &[Point3f],
+    edges: &[(u32, u32)],
     thickness: f32,
 ) -> Vec<(Point3i, Array3x1<Sd16>)> {
     total_extent
@@ -198,13 +197,13 @@ pub fn generate_sdf_chunks3(
 /// Generate the data of a single chunk
 pub fn generate_sdf_chunk3(
     chunk_extent: Extent3i,
-    vertices: &Vec<Point3f>,
-    edges: &Vec<(u32, u32)>,
+    vertices: &[Point3f],
+    edges: &[(u32, u32)],
     thickness: f32,
 ) -> Option<Array3x1<Sd16>> {
     // filter out the edges that does not affect this chunk
     let edges = edges
-        .into_iter()
+        .iter()
         .filter_map(|(e0, e1)| {
             let (e0, e1) = (*e0 as usize, *e1 as usize);
             let tube_extent: Extent3i = {
@@ -504,12 +503,13 @@ pub fn command(
     );
 
     println!(
-        "Total number of faces: {}",
+        "Total number of triangles: {}",
         packed_faces_model
             .faces
             .iter()
             .map(|x| x.vertices.len())
             .sum::<usize>()
+            / 3
     );
 
     let reply = PB_Reply {

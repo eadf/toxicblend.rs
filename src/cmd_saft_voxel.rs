@@ -227,12 +227,13 @@ pub fn command(
     );
 
     println!(
-        "Total number of faces: {}",
+        "Total number of triangles: {}",
         packed_faces_model
             .faces
             .iter()
             .map(|x| x.vertices.len())
             .sum::<usize>()
+            / 3
     );
 
     let reply = PB_Reply {

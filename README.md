@@ -28,6 +28,12 @@ or just
 cargo +nightly run --release
 ```
 
+### saft backend
+You can enable the [saft](https://crates.io/crates/saft) meshing backend like this:
+```
+cargo +nightly run --release --features saft
+```
+
 ## Run blender
 If the grpc server (for any unimaginable reason) would crash, blender will hang waiting for response.
 This can easily be fixed if you run blender from the console. A `ctrl` - `C` will fix it.
