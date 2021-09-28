@@ -98,6 +98,9 @@ fn xy_to_2d(point: &cgmath::Point3<f64>) -> cgmath::Point2<f64> {
 
 #[derive(thiserror::Error, Debug)]
 pub enum TBError {
+    #[error("In compatibleVersion : {0}")]
+    InCompatibleVersion(String),
+
     #[error("Not implemented : {0}")]
     NotImplemented(String),
 
@@ -179,11 +182,17 @@ impl ToxicBlendService for TheToxicBlendService {
             "centerline" => cmd_centerline::command(a_command, options_map),
             "voronoi_mesh" => cmd_voronoi_mesh::command(a_command, options_map),
             "voronoi" => cmd_voronoi::command(a_command, options_map),
+            "voxel" => Err(TBError::InCompatibleVersion(String::from(
+                "Please update your toxicblend blender addons to current version.",
+            ))),
             "voxel_bb" => cmd_bb_voxel::command(a_command, options_map),
             "voxel_saft" => Err(TBError::NotImplemented(String::from(
                 "The voxel backend 'saft' is not implemented (yet)",
             ))),
             "lsystems" => cmd_lsystems::command(a_command, options_map),
+            "sdf" => Err(TBError::InCompatibleVersion(String::from(
+                "Please update your toxicblend blender addons to current version.",
+            ))),
             "sdf_bb" => cmd_bb_sdf::command(a_command, options_map),
             #[cfg(feature = "saft")]
             "saft_sdf" => cmd_saft_sdf::command(a_command, options_map),
