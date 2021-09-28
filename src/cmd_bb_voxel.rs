@@ -117,25 +117,29 @@ fn build_voxel(
 
     let chunk_chape_dim = 16_i32;
     let total_extent = {
-        let min_p = Point3f::from(aabb.get_low().unwrap()) - Point3f::fill(thickness);
-        let max_p = Point3f::from(aabb.get_high().unwrap()) + Point3f::fill(thickness);
+        let min_p = (Point3f::from(aabb.get_low().unwrap()) - Point3f::fill(thickness)) * scale;
+        let max_p = (Point3f::from(aabb.get_high().unwrap()) + Point3f::fill(thickness)) * scale;
 
-        /*println!("scale {:?}", scale);
+        /*
+        println!("scale {:?}", scale);
         println!("thickness {:?} radius {:?}", thickness, radius);
-        println!("min_p {:?}", min_p);
-        println!("max_p {:?}", max_p);*/
-
-        let extent_min = (min_p * scale / chunk_chape_dim as f32).floor().into_int();
-        // todo why is -0.5 needed???
-        let extent_max = ((max_p * scale / chunk_chape_dim as f32) - Point3f::fill(0.5))
+        println!("min_p: {:?} {}", min_p, " is the min point of the generated graphics");
+        println!("max_p: {:?} {}", max_p, " is the max point of the generated graphics");
+        println!("delta_p: {:?}", max_p-min_p);
+        */
+        let extent_min = (min_p / chunk_chape_dim as f32).floor().into_int();
+        // todo why is -0.9 needed, seems like there is an off-by-one error somewhere???
+        let extent_max = ((max_p / chunk_chape_dim as f32) - Point3f::fill(0.9))
             .ceil()
             .into_int();
         let extent = Extent3i::from_min_and_max(extent_min, extent_max);
-
         /*
-        println!("extent_min {:?}", extent_min);
-        println!("extent_max {:?}", extent_max);
-        println!("extent {:?}", extent);*/
+        println!("extent_min {:?} coverts {:?}", extent_min, (extent_min*chunk_chape_dim));
+        println!("extent_max {:?} coverts {:?}", extent_max, (extent_max*chunk_chape_dim));
+        println!("extent {:?}", extent);
+        println!("chunk size {}x{}x{}", chunk_chape_dim,chunk_chape_dim,chunk_chape_dim);
+        println!("extent.shape*chunk size {:?}", extent.shape*chunk_chape_dim);
+        */
         // todo: might result in a slightly over/under-sized extent
         // todo: there must be better to "nudge" input data to better fit integer chunks
         ChunkUnits(extent)
