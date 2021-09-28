@@ -19,8 +19,7 @@
 extern crate saft_cr as saft;
 mod cmd_2d_outline;
 mod cmd_bb_sdf;
-mod cmd_voxel;
-use cmd_voxel as cmd_bb_voxel;
+mod cmd_bb_voxel;
 mod cmd_centerline;
 mod cmd_knife_intersect;
 mod cmd_lsystems;
