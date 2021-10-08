@@ -14,19 +14,24 @@ use std::time;
 
 type Point3f = PointN<[f32; 3]>;
 
-#[allow(clippy::type_complexity)]
-#[allow(clippy::too_many_arguments)]
-/// Build the gyroid voxel data from the input
-// todo: should i rebuild the return value to just Result<Vec<PosNormMesh, Extent3i>,TBError>?
-// todo: the current return value does not live very long, a re-shuffle would just take time.
-fn build_gyroid_voxel(
-    divisions: f32,
+#[derive(Default)]
+struct GyroidParameters {
+    cmd_arg_divisions: f32,
     cmd_arg_s_param: f32,
     cmd_arg_t_param: f32,
     cmd_arg_b_param: f32,
     cmd_arg_x_param: f32,
     cmd_arg_y_param: f32,
     cmd_arg_z_param: f32,
+}
+
+#[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments)]
+/// Build the gyroid voxel data from the input
+// todo: should i rebuild the return value to just Result<Vec<PosNormMesh, Extent3i>,TBError>?
+// todo: the current return value does not live very long, a re-shuffle would just take time.
+fn build_gyroid_voxel(
+    params: GyroidParameters,
 ) -> Result<
     (
         f32, // <-voxel_size
@@ -36,12 +41,15 @@ fn build_gyroid_voxel(
 > {
     println!(
         "Voxelizing gyroid using divisions={}, s={}, t={}, b={}",
-        divisions, cmd_arg_s_param, cmd_arg_t_param, cmd_arg_b_param
+        params.cmd_arg_divisions,
+        params.cmd_arg_s_param,
+        params.cmd_arg_t_param,
+        params.cmd_arg_b_param
     );
     println!();
     // set scale so that extent.min*scale -> -pi, extent.max*scale -> pi
     // when cmd_arg_s_param is 1.0
-    let scale = cmd_arg_s_param * f32::PI() / (divisions.abs() / 2.0);
+    let scale = params.cmd_arg_s_param * f32::PI() / (params.cmd_arg_divisions.abs() / 2.0);
 
     let map = {
         let now = time::Instant::now();
@@ -55,7 +63,7 @@ fn build_gyroid_voxel(
         let mut map = builder.build_with_hash_map_storage();
 
         let extent = {
-            let divisions_half = divisions.abs() / 2.0;
+            let divisions_half = params.cmd_arg_divisions.abs() / 2.0;
             let from_v = Point3f::fill(-divisions_half);
             let to_v = Point3f::fill(divisions_half);
             let extent_min = from_v.meet(to_v).round().into_int();
@@ -65,42 +73,47 @@ fn build_gyroid_voxel(
         let sdf = |p: Point3i| {
             let pa = Point3f::from(p) * scale;
             let sin_pa: Point3f = PointN([
-                cmd_arg_x_param * pa.x().sin(),
-                cmd_arg_y_param * pa.y().sin(),
-                cmd_arg_z_param * pa.z().sin(),
+                params.cmd_arg_x_param * pa.x().sin(),
+                params.cmd_arg_y_param * pa.y().sin(),
+                params.cmd_arg_z_param * pa.z().sin(),
             ]);
             let cos_pa_zxy: Point3f = PointN([
-                cmd_arg_z_param * pa.z().cos(),
-                cmd_arg_x_param * pa.x().cos(),
-                cmd_arg_y_param * pa.y().cos(),
+                params.cmd_arg_z_param * pa.z().cos(),
+                params.cmd_arg_x_param * pa.x().cos(),
+                params.cmd_arg_y_param * pa.y().cos(),
             ]);
 
             // sdf formula of a gyroid is: abs(dot(sin(pa), cos(pa.zxy)) - b) - t;
-            Sd16::from((sin_pa.dot(cos_pa_zxy) - cmd_arg_b_param).abs() - cmd_arg_t_param)
+            Sd16::from(
+                (sin_pa.dot(cos_pa_zxy) - params.cmd_arg_b_param).abs() - params.cmd_arg_t_param,
+            )
         };
+        // todo: copy to each chunk in parallel
         copy_extent(&extent, &Func(Box::new(sdf)), &mut map.lod_view_mut(0));
         println!("copy_extent() duration: {:?}", now.elapsed());
         map
     };
 
     // scale the voxel so that the result is 3 'units' wide or so.
-    let voxel_size = 3.0 / divisions;
+    let voxel_size = 3.0 / params.cmd_arg_divisions;
 
     // Generate the chunk meshes.
     cmd_bb_voxel::generate_mesh(voxel_size, &map)
 }
 
+#[allow(clippy::field_reassign_with_default)]
 pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
+    let now = time::Instant::now();
     println!(
-        r#"  _________    .___ _____
- /   _____/  __| _// ____\
- \_____  \  / __ |\   __\
- /        \/ /_/ | |  |
-/_______  /\____ | |__|
-        \/      \/"#
+        r#"____________________   _________    ___ _____
+\______   \______   \ /   _____/ __| _// ____\
+  |   |  _/ |   |  _/ \_____  \ / __ |\   __\
+  |   |   \ |   |   \ /        \ /_/ | |  |
+ /______  //______  //_______  /____ | |_ |
+        \/        \/         \/     \/   \/"#
     );
 
     if !a_command.models32.is_empty() {
@@ -109,37 +122,38 @@ pub fn command(
             a_command.models32.len()
         )));
     }
-    let cmd_arg_t_param = options
+    let mut params = GyroidParameters::default();
+    params.cmd_arg_t_param = options
         .get("T")
         .ok_or_else(|| TBError::InvalidInputData("Missing the T parameter".to_string()))?
         .parse::<f32>()
         .map_err(|_| TBError::InvalidInputData("Could not parse the T parameter".to_string()))?;
-    let cmd_arg_b_param = options
+    params.cmd_arg_b_param = options
         .get("B")
         .ok_or_else(|| TBError::InvalidInputData("Missing the B parameter".to_string()))?
         .parse::<f32>()
         .map_err(|_| TBError::InvalidInputData("Could not parse the B parameter".to_string()))?;
-    let cmd_arg_s_param = options
+    params.cmd_arg_s_param = options
         .get("S")
         .ok_or_else(|| TBError::InvalidInputData("Missing the S parameter".to_string()))?
         .parse::<f32>()
         .map_err(|_| TBError::InvalidInputData("Could not parse the S parameter".to_string()))?;
-    let cmd_arg_x_param = options
+    params.cmd_arg_x_param = options
         .get("X")
         .ok_or_else(|| TBError::InvalidInputData("Missing the X parameter".to_string()))?
         .parse::<f32>()
         .map_err(|_| TBError::InvalidInputData("Could not parse the Y parameter".to_string()))?;
-    let cmd_arg_y_param = options
+    params.cmd_arg_y_param = options
         .get("Y")
         .ok_or_else(|| TBError::InvalidInputData("Missing the Y parameter".to_string()))?
         .parse::<f32>()
         .map_err(|_| TBError::InvalidInputData("Could not parse the Y parameter".to_string()))?;
-    let cmd_arg_z_param = options
+    params.cmd_arg_z_param = options
         .get("Z")
         .ok_or_else(|| TBError::InvalidInputData("Missing the Z parameter".to_string()))?
         .parse::<f32>()
         .map_err(|_| TBError::InvalidInputData("Could not parse the Z parameter".to_string()))?;
-    let cmd_arg_divisions = options
+    params.cmd_arg_divisions = options
         .get("DIVISIONS")
         .ok_or_else(|| TBError::InvalidInputData("Missing the DIVISIONS parameter".to_string()))?
         .parse::<f32>()
@@ -158,32 +172,24 @@ pub fn command(
             _cmd_arg_plug_ends
         ))
     })?;
-    if !(9.9..400.1).contains(&cmd_arg_divisions) {
+    if !(9.9..400.1).contains(&params.cmd_arg_divisions) {
         return Err(TBError::InvalidInputData(format!(
             "The valid range of DIVISIONS is [{}..{}[% :({})",
-            10, 400, cmd_arg_divisions
+            10, 400, params.cmd_arg_divisions
         )));
     }
 
-    println!("Voxel divisions:{:?} ", cmd_arg_divisions);
-    println!("s parameter:{:?} ", cmd_arg_s_param);
-    println!("t parameter:{:?} ", cmd_arg_t_param);
-    println!("b parameter:{:?} ", cmd_arg_b_param);
-    println!("x parameter:{:?} ", cmd_arg_x_param);
-    println!("y parameter:{:?} ", cmd_arg_y_param);
-    println!("z parameter:{:?} ", cmd_arg_z_param);
-    //println!("plug ends:{:?} ", cmd_arg_plug_ends);
+    println!("Voxel divisions:{:?} ", params.cmd_arg_divisions);
+    println!("s parameter:{:?} ", params.cmd_arg_s_param);
+    println!("t parameter:{:?} ", params.cmd_arg_t_param);
+    println!("b parameter:{:?} ", params.cmd_arg_b_param);
+    println!("x parameter:{:?} ", params.cmd_arg_x_param);
+    println!("y parameter:{:?} ", params.cmd_arg_y_param);
+    println!("z parameter:{:?} ", params.cmd_arg_z_param);
+    //println!("plug ends:{:?} ", params.cmd_arg_plug_ends);
     println!();
 
-    let (voxel_size, mesh) = build_gyroid_voxel(
-        cmd_arg_divisions,
-        cmd_arg_s_param,
-        cmd_arg_t_param,
-        cmd_arg_b_param,
-        cmd_arg_x_param,
-        cmd_arg_y_param,
-        cmd_arg_z_param,
-    )?;
+    let (voxel_size, mesh) = build_gyroid_voxel(params)?;
     let packed_faces_model =
         cmd_bb_voxel::build_output_bp_model("gyroid".to_string(), None, voxel_size, mesh)?;
     println!(
@@ -210,9 +216,15 @@ pub fn command(
                 key: "PACKED_FACES".to_string(),
                 value: "True".to_string(),
             },
+            // tell blender to remove doubles
+            PB_KeyValuePair {
+                key: "REMOVE_DOUBLES".to_string(),
+                value: "True".to_string(),
+            },
         ],
         models: Vec::with_capacity(0),
         models32: vec![packed_faces_model],
     };
+    println!("total duration: {:?}", now.elapsed());
     Ok(reply)
 }

@@ -441,7 +441,8 @@ class TbAddVoxelSdf(bpy.types.Operator):
     # )
 
     backend_variant_items = (("_BB", "Building blocks", "use building blocks backend"),
-                             #                             ("_SAFT", "Saft", "use saft backend")
+                             #("_SAFT", "Saft", "use saft backend"),
+                             ("_FSN", "FSN", "use fast_surface_nets backend"),
                              )
     cmd_backend: bpy.props.EnumProperty(name="Backend", items=backend_variant_items, default="_BB")
 

@@ -28,7 +28,7 @@ or just
 cargo +nightly run --release
 ```
 
-### saft backend
+### Saft backend
 You can enable the [saft](https://crates.io/crates/saft) meshing backend like this:
 ```
 cargo +nightly run --release --features saft
@@ -162,7 +162,8 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 
 ## Todo
 
-- [ ] Update to building-blocks 0.7.
+- [ ] Update to building-blocks 0.8 once released
+- [ ] Update to ilattice crate once released
 - [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
 - [ ] Port the rest of the operations.
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.

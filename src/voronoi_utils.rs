@@ -1,12 +1,13 @@
 use super::TBError;
+use crate::GrowingVob;
 use boostvoronoi::diagram as VD;
 use std::collections::VecDeque;
 
 /// Mark infinite edges and their adjacent edges as EXTERNAL.
 pub(crate) fn reject_external_edges(
     diagram: &VD::Diagram<i64, f64>,
-) -> Result<yabf::Yabf, TBError> {
-    let mut rejected_edges = yabf::Yabf::with_capacity(diagram.edges().len());
+) -> Result<vob::Vob<u32>, TBError> {
+    let mut rejected_edges = vob::Vob::<u32>::fill(diagram.edges().len());
 
     for edge in diagram.edges().iter() {
         let edge = edge.get();
@@ -27,7 +28,7 @@ pub(crate) fn reject_external_edges(
 pub(crate) fn mark_connected_edges(
     diagram: &VD::Diagram<i64, f64>,
     edge_id: VD::EdgeIndex,
-    marked_edges: &mut yabf::Yabf,
+    marked_edges: &mut vob::Vob<u32>,
 ) -> Result<(), TBError> {
     let mut initial = true;
     let mut queue = VecDeque::<VD::EdgeIndex>::new();
@@ -37,7 +38,7 @@ pub(crate) fn mark_connected_edges(
         // unwrap is safe since we just checked !queue.is_empty()
         let edge_id = queue.pop_back().unwrap();
 
-        if marked_edges.bit(edge_id.0) {
+        if marked_edges.get_f(edge_id.0) {
             initial = false;
             continue 'outer;
         }
@@ -45,18 +46,18 @@ pub(crate) fn mark_connected_edges(
         let v1 = diagram.edge_get_vertex1(edge_id)?;
         if diagram.edge_get_vertex0(edge_id)?.is_some() && v1.is_none() {
             // this edge leads to nowhere
-            marked_edges.set_bit(edge_id.0, true);
+            let _ = marked_edges.set(edge_id.0, true);
             initial = false;
             continue 'outer;
         }
-        marked_edges.set_bit(edge_id.0, true);
+        let _ = marked_edges.set(edge_id.0, true);
 
         #[allow(unused_assignments)]
         if initial {
             initial = false;
             queue.push_back(diagram.edge_get_twin(edge_id)?);
         } else {
-            marked_edges.set_bit(diagram.edge_get_twin(edge_id)?.0, true);
+            let _ = marked_edges.set(diagram.edge_get_twin(edge_id)?.0, true);
         }
 
         if v1.is_none()
@@ -82,7 +83,7 @@ pub(crate) fn mark_connected_edges(
             let mut edge_iter = v1.get_incident_edge()?;
             let v_incident_edge = edge_iter;
             loop {
-                if !marked_edges.bit(edge_iter.0) {
+                if !marked_edges.get_f(edge_iter.0) {
                     queue.push_back(edge_iter);
                 }
                 edge_iter = diagram.edge_rot_next(edge_iter)?;

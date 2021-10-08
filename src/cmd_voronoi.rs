@@ -5,6 +5,7 @@ use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
+use crate::GrowingVob;
 use boostvoronoi::builder as VB;
 use boostvoronoi::diagram as VD;
 use boostvoronoi::geometry;
@@ -38,7 +39,7 @@ struct DiagramHelper {
     vertices: Vec<geometry::Point<i64>>,
     segments: Vec<geometry::Line<i64>>,
     aabb: Aabb2<f64>,
-    rejected_edges: Option<yabf::Yabf>,
+    rejected_edges: Option<vob::Vob<u32>>,
     discrete_distance: f64,
     remove_secondary_edges: bool,
 }
@@ -111,18 +112,19 @@ impl DiagramHelper {
         //println!("max distance = {}",max_dist);
         let dummy_affine = boostvoronoi::visual_utils::SimpleAffine::default();
 
-        let mut already_drawn = yabf::Yabf::default();
+        let mut already_drawn: vob::Vob<u32> = vob::Vob::<u32>::fill(self.diagram.edges().len());
+
         let rejected_edges = self
             .rejected_edges
             .take()
-            .unwrap_or_else(|| yabf::Yabf::with_capacity(0));
+            .unwrap_or_else(|| vob::Vob::<u32>::fill(self.diagram.edges().len()));
 
         for it in self.diagram.edges().iter().enumerate() {
             let edge_id = VD::EdgeIndex(it.0);
             let edge = it.1.get();
             if (self.remove_secondary_edges && edge.is_secondary())
-                || already_drawn.bit(edge_id.0)
-                || rejected_edges.bit(edge_id.0)
+                || already_drawn.get_f(edge_id.0)
+                || rejected_edges.get_f(edge_id.0)
             {
                 // already done this, or rather - it's twin
                 continue;
@@ -130,7 +132,7 @@ impl DiagramHelper {
 
             // no point in setting current edge as drawn, the edge id will not repeat
             // set twin as drawn
-            already_drawn.set_bit(self.diagram.edge_get_twin(edge_id)?.0, true);
+            let _ = already_drawn.set(self.diagram.edge_get_twin(edge_id)?.0, true);
 
             // the coordinates in samples must be 'screen' coordinates, i.e. affine transformed
             let mut samples = Vec::<[f64; 2]>::new();
@@ -394,7 +396,7 @@ fn parse_input(
             }
         })
         .collect();
-    let mut used_vertices = yabf::Yabf::with_capacity(vor_vertices.len());
+    let mut used_vertices = vob::Vob::fill(vor_vertices.len());
 
     for face in input_pb_model.faces.iter() {
         match face.vertices.len() {
@@ -407,8 +409,8 @@ fn parse_input(
                     start: vor_vertices[v0],
                     end: vor_vertices[v1],
                 });
-                used_vertices.set_bit(v0, true);
-                used_vertices.set_bit(v1, true);
+                let _ = used_vertices.set(v0, true);
+                let _ = used_vertices.set(v1, true);
             },
             // This does not work, face.len() is never 1
             //1 => points.push(vertices_2d[face.vertices[0] as usize]),
@@ -419,7 +421,7 @@ fn parse_input(
     let vor_vertices: Vec<geometry::Point<i64>> = vor_vertices
         .into_iter()
         .enumerate()
-        .filter(|x| !used_vertices.bit(x.0))
+        .filter(|x| !used_vertices.get_f(x.0))
         .map(|x| x.1)
         .collect();
     drop(used_vertices);

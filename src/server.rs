@@ -21,14 +21,19 @@ mod cmd_2d_outline;
 mod cmd_bb_sdf;
 mod cmd_bb_voxel;
 mod cmd_centerline;
+mod cmd_fsn_sdf;
+mod cmd_fsn_voxel;
 mod cmd_knife_intersect;
 mod cmd_lsystems;
 #[cfg(feature = "saft")]
 mod cmd_saft_voxel;
+//#[cfg(feature = "saft")]
+//mod cmd_saft_sdf;
 mod cmd_simplify;
 mod cmd_voronoi;
 mod cmd_voronoi_mesh;
 mod lsystems_3d;
+mod type_utils;
 mod voronoi_utils;
 
 use crate::toxicblend_pb::Command as PB_Command;
@@ -75,6 +80,32 @@ impl PB_Vertex {
         let y = self.y - other.y;
         let z = self.z - other.z;
         x * x + y * y + z * z
+    }
+}
+
+pub(crate) trait GrowingVob {
+    fn fill(initial_size: usize) -> vob::Vob<u32>;
+    fn set_grow(&mut self, bit: usize, state: bool) -> bool;
+    /// get with default value: false
+    fn get_f(&self, bit: usize) -> bool;
+}
+
+impl GrowingVob for vob::Vob<u32> {
+    fn fill(initial_size: usize) -> Self {
+        let mut v: vob::Vob<u32> = vob::Vob::<u32>::new_with_storage_type(0);
+        v.resize(initial_size, false);
+        v
+    }
+    #[inline]
+    fn set_grow(&mut self, bit: usize, state: bool) -> bool {
+        if bit >= self.len() {
+            self.resize(bit + 512, false);
+        }
+        self.set(bit, state)
+    }
+    #[inline]
+    fn get_f(&self, bit: usize) -> bool {
+        self.get(bit).unwrap_or(false)
     }
 }
 
@@ -190,6 +221,7 @@ impl ToxicBlendService for TheToxicBlendService {
                 "Please update your toxicblend blender addons",
             ))),
             "voxel_bb" => cmd_bb_voxel::command(a_command, options_map),
+            "voxel_fsn" => cmd_fsn_voxel::command(a_command, options_map),
             #[cfg(feature = "saft")]
             "voxel_saft" => cmd_saft_voxel::command(a_command, options_map),
             #[cfg(not(feature = "saft"))]
@@ -201,8 +233,8 @@ impl ToxicBlendService for TheToxicBlendService {
                 "Please update your toxicblend blender addons",
             ))),
             "sdf_bb" => cmd_bb_sdf::command(a_command, options_map),
-
-            "saft_sdf" => Err(TBError::NotImplemented(String::from(
+            "sdf_fsn" => cmd_fsn_sdf::command(a_command, options_map),
+            "sdf_saft" => Err(TBError::NotImplemented(String::from(
                 "The sdf backend 'saft' is not implemented (yet)",
             ))),
             _ => Err(TBError::UnknownCommand(a_command.command.clone())),

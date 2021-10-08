@@ -6,16 +6,14 @@ use crate::toxicblend_pb::Matrix4x432 as PB_Matrix4x432;
 use crate::toxicblend_pb::Model32 as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex32 as PB_Vertex;
-use glam::Vec3;
+use glam_saft::Vec3;
 use saft::BoundingBox;
 use std::collections::HashMap;
 use std::time;
 
 /// unpack the input PB_Model
 #[allow(clippy::type_complexity)]
-pub fn parse_input_pb_model(
-    obj: &PB_Model,
-) -> Result<(Vec<Vec3>, Vec<(u32, u32)>, BoundingBox), TBError> {
+pub fn parse_input_pb_model(obj: &PB_Model) -> Result<(Vec<(u32, u32)>, BoundingBox), TBError> {
     if obj.vertices.len() >= u32::MAX as usize {
         return Err(TBError::Overflow(format!(
             "Input data contains too many vertices. {}",
@@ -24,15 +22,11 @@ pub fn parse_input_pb_model(
     }
     let mut aabb = BoundingBox::default();
 
-    let vertices: Vec<Vec3> = obj
-        .vertices
-        .iter()
-        .map(|vertex| {
-            aabb.extend(Vec3::new(vertex.x, vertex.y, vertex.z));
-            Vec3::from([vertex.x as f32, vertex.y as f32, vertex.z as f32])
-        })
-        .collect();
-    let mut edges = Vec::<(u32, u32)>::with_capacity(vertices.len() + 100);
+    for v in obj.vertices.iter() {
+        aabb.extend(Vec3::new(v.x, v.y, v.z));
+    }
+
+    let mut edges = Vec::<(u32, u32)>::with_capacity(obj.vertices.len() + 100);
 
     for face in obj.faces.iter() {
         if face.vertices.len() > 2 {
@@ -48,14 +42,14 @@ pub fn parse_input_pb_model(
             *face.vertices.last().unwrap(),
         ));
     }
-    Ok((vertices, edges, aabb))
+    Ok((edges, aabb))
 }
 
 /// initialize the sdf capsules and generate the mesh
 fn build_voxel(
     radius_multiplier: f32,
     divisions: f32,
-    mut vertices: Vec<Vec3>,
+    vertices: &[PB_Vertex],
     edges: Vec<(u32, u32)>,
     aabb: BoundingBox,
 ) -> Result<
@@ -99,18 +93,19 @@ fn build_voxel(
         min_resolution: 8.0,
     };
 
-    for v in vertices.iter_mut() {
-        *v = *v * scale;
-    }
+    let vertices: Vec<_> = vertices
+        .iter()
+        .map(|v| Vec3::new(v.x, v.y, v.z) * scale)
+        .collect();
 
     let now = time::Instant::now();
     let mut graph = saft::Graph::default();
 
     let radius = radius * scale; // now scaled
-    let capsules = edges
+    let capsules: Vec<_> = edges
         .into_iter()
         .map(|(e0, e1)| graph.capsule([vertices[e0 as usize], vertices[e1 as usize]], radius))
-        .collect::<Vec<_>>();
+        .collect();
 
     let root = graph.op_union_multi(capsules);
     let mesh = saft::mesh_from_sdf(&graph, root, mesh_options)?;
@@ -151,6 +146,7 @@ pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
+    let now = time::Instant::now();
     println!(
         r#"  _________       _____  __ ____   ____                 .__
  /   _____/____ _/ ____\/  |\   \ /   /______  ___ ____ |  |
@@ -207,11 +203,11 @@ pub fn command(
         println!();
     }
 
-    let (vertices, edges, aabb) = parse_input_pb_model(&a_command.models32[0])?;
+    let (edges, aabb) = parse_input_pb_model(&a_command.models32[0])?;
     let (voxel_size, mesh) = build_voxel(
         cmd_arg_radius_multiplier,
         cmd_arg_divisions,
-        vertices,
+        &a_command.models32[0].vertices,
         edges,
         aabb,
     )?;
@@ -250,5 +246,6 @@ pub fn command(
         models: Vec::with_capacity(0),
         models32: vec![packed_faces_model],
     };
+    println!("total duration: {:?}", now.elapsed());
     Ok(reply)
 }

@@ -238,6 +238,8 @@ def handle_response(pb_message):
 def handle_received_object(active_object, pb_message, remove_doubles_threshold=None, set_origin_to_cursor=False):
     only_edges = False
     packed_faces = False
+    remove_doubles = ( remove_doubles_threshold is not None ) and remove_doubles_threshold > 0
+
     for option in pb_message.options:
         if option.key == "ERROR":
             raise ToxicblendException(str(option.value))
@@ -245,6 +247,10 @@ def handle_received_object(active_object, pb_message, remove_doubles_threshold=N
             only_edges = True
         if option.key == "PACKED_FACES" and option.value == "True":
             packed_faces = True
+        if option.key == "REMOVE_DOUBLES" and option.value == "True":
+            remove_doubles = True
+            if remove_doubles_threshold is None or remove_doubles_threshold <= 0:
+                remove_doubles_threshold = 0.0001
 
     if len(pb_message.models) > 0:
         pb_model = pb_message.models[0]
@@ -282,13 +288,14 @@ def handle_received_object(active_object, pb_message, remove_doubles_threshold=N
             if matrix:
                 active_object.matrix_world = matrix
 
-            if remove_doubles_threshold and remove_doubles_threshold > 0:
+            if remove_doubles:
                 # sometimes 'mode_set' does not take right away  :/
                 # bpy.ops.object.editmode_toggle()
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.mesh.remove_doubles(threshold=remove_doubles_threshold)
                 bpy.ops.object.editmode_toggle()
                 bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.ops.object.mode_set(mode='EDIT')
             if set_origin_to_cursor:
                 bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
 
@@ -1039,7 +1046,8 @@ class Toxicblend_Voxel(Operator):
     )
 
     backend_variant_items = (("_BB", "Building blocks", "use building blocks backend"),
-                             ("_SAFT", "Saft", "use saft backend")
+                             ("_SAFT", "Saft", "use saft backend"),
+                             ("_FSN", "Fast surface nets", "use fast-surface-nets backend")
                              )
     cmd_backend: bpy.props.EnumProperty(name="Backend", items=backend_variant_items, default="_BB")
 

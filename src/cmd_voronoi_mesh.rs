@@ -5,6 +5,7 @@ use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
+use crate::GrowingVob;
 use boostvoronoi::builder as VB;
 use boostvoronoi::diagram as VD;
 use boostvoronoi::geometry;
@@ -139,9 +140,9 @@ struct DiagramHelperRo {
     segments: Vec<geometry::Line<i64>>,
     //aabb: Aabb2<f64>,
     // this list uses the diagram::Edge id as index
-    rejected_edges: yabf::Yabf,
+    rejected_edges: vob::Vob<u32>,
     // this list uses the diagram::Vertex id as index
-    internal_vertices: yabf::Yabf,
+    internal_vertices: vob::Vob<u32>,
     //discrete_distance: f64,
     inverted_transform: cgmath::Matrix4<f64>,
 }
@@ -193,7 +194,7 @@ impl DiagramHelperRo {
 
         let start_point = if let Some(vertex0) = vertex0 {
             let vertex0 = self.diagram.vertex_get(vertex0)?.get();
-            if !self.internal_vertices.bit(vertex0.get_id().0) {
+            if !self.internal_vertices.get_f(vertex0.get_id().0) {
                 None
             } else if vertex0.is_site_point() {
                 Some(cgmath::Point3 {
@@ -214,7 +215,7 @@ impl DiagramHelperRo {
 
         let end_point = if let Some(vertex1) = vertex1 {
             let vertex1 = self.diagram.vertex_get(vertex1)?.get();
-            if !self.internal_vertices.bit(vertex1.get_id().0) {
+            if !self.internal_vertices.get_f(vertex1.get_id().0) {
                 None
             } else if vertex1.is_site_point() {
                 Some(cgmath::Point3 {
@@ -371,7 +372,10 @@ impl DiagramHelperRo {
                     z: f64::NAN,
                 }
             };
-            (start_point, self.internal_vertices.bit(vertex0.get_id().0))
+            (
+                start_point,
+                self.internal_vertices.get_f(vertex0.get_id().0),
+            )
         } else {
             return Err(TBError::InternalError(format!(
                 "Edge vertex0 could not be found. {}:{}",
@@ -396,7 +400,7 @@ impl DiagramHelperRo {
                     z: f64::NAN,
                 }
             };
-            (end_point, self.internal_vertices.bit(vertex1.get_id().0))
+            (end_point, self.internal_vertices.get_f(vertex1.get_id().0))
         } else {
             return Err(TBError::InternalError(format!(
                 "Edge vertex1 could not be found. {}:{}",
@@ -558,7 +562,7 @@ impl DiagramHelperRo {
             let edge = edge.get();
             let edge_id = edge.id();
             // secondary edges may be in the rejected list while still contain needed data
-            if !edge.is_secondary() && self.rejected_edges.bit(edge_id.0) {
+            if !edge.is_secondary() && self.rejected_edges.get_f(edge_id.0) {
                 // ignore rejected edges, but only non-secondary ones.
                 continue;
             }
@@ -671,7 +675,7 @@ impl DiagramHelperRo {
                     let edge = self.diagram.get_edge(edge_id)?.get();
                     let twin_id = edge.twin()?;
 
-                    if self.rejected_edges.bit(edge_id.0) && !edge.is_secondary() {
+                    if self.rejected_edges.get_f(edge_id.0) && !edge.is_secondary() {
                         //print!("secondary edge ignored {}", edge_id.0);
                         continue;
                     }
@@ -833,7 +837,7 @@ fn parse_input(
             }
         })
         .collect();
-    let mut used_vertices = yabf::Yabf::with_capacity(vor_vertices.len());
+    let mut used_vertices = vob::Vob::<u32>::fill(vor_vertices.len());
 
     for face in input_pb_model.faces.iter() {
         match face.vertices.len() {
@@ -846,8 +850,8 @@ fn parse_input(
                     start: vor_vertices[v0],
                     end: vor_vertices[v1],
                 });
-                used_vertices.set_bit(v0, true);
-                used_vertices.set_bit(v1, true);
+                let _ = used_vertices.set(v0, true);
+                let _ = used_vertices.set(v1, true);
             },
             // This does not work, face.len() is never 1
             //1 => points.push(vertices_2d[face.vertices[0] as usize]),
@@ -858,7 +862,7 @@ fn parse_input(
     let vor_vertices: Vec<geometry::Point<i64>> = vor_vertices
         .into_iter()
         .enumerate()
-        .filter(|x| !used_vertices.bit(x.0))
+        .filter(|x| !used_vertices.get_f(x.0))
         .map(|x| x.1)
         .collect();
     drop(used_vertices);
@@ -871,22 +875,22 @@ fn parse_input(
 /// from the list of rejected edges, find a list of internal (non-rejected) vertices.
 fn find_internal_vertices(
     diagram: &VD::Diagram<i64, f64>,
-    rejected_edges: &yabf::Yabf,
-) -> Result<yabf::Yabf, TBError> {
-    let mut internal_vertices = yabf::Yabf::with_capacity(diagram.vertices().len());
+    rejected_edges: &vob::Vob<u32>,
+) -> Result<vob::Vob<u32>, TBError> {
+    let mut internal_vertices = vob::Vob::<u32>::fill(diagram.vertices().len());
     for (_, e) in diagram
         .edges()
         .iter()
         .enumerate()
-        .filter(|(eid, _)| !rejected_edges.bit(*eid))
+        .filter(|(eid, _)| !rejected_edges.get_f(*eid))
     {
         let e = e.get();
         if e.is_primary() {
             if let Some(v0) = e.vertex0() {
-                internal_vertices.set_bit(v0.0, true);
+                let _ = internal_vertices.set(v0.0, true);
             }
             if let Some(v1) = diagram.edge_get_vertex1(e.id())? {
-                internal_vertices.set_bit(v1.0, true);
+                let _ = internal_vertices.set(v1.0, true);
             }
         }
     }
@@ -896,7 +900,7 @@ fn find_internal_vertices(
         .enumerate()
         .filter(|(_, v)| v.get().is_site_point())
     {
-        internal_vertices.set_bit(vid, true);
+        let _ = internal_vertices.set(vid, true);
     }
     Ok(internal_vertices)
 }

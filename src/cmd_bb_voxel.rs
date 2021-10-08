@@ -14,14 +14,6 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::time;
 
-/// converts to a private, comparable and hash-able format
-/// only use this for floats that are f32::is_finite().
-/// This will only match on bit-perfect copies of f32
-#[inline(always)]
-fn transmute_to_u32(a: &[f32; 3]) -> (u32, u32, u32) {
-    (a[0].to_bits(), a[1].to_bits(), a[2].to_bits())
-}
-
 /// unpack the input PB_Model
 #[allow(clippy::type_complexity)]
 pub fn parse_input_pb_model(
@@ -104,6 +96,7 @@ fn build_voxel(
         scale,
         (max_dimension as f32) * scale
     );
+    /*
     println!();
 
     println!("aabb.high:{:?}", aabb.get_high().unwrap());
@@ -112,6 +105,7 @@ fn build_voxel(
         "delta:{:?}",
         aabb.get_high().unwrap() - aabb.get_low().unwrap()
     );
+    */
     let vertices: Vec<PointN<[f32; 3]>> = vertices.into_iter().map(|v| v * scale).collect();
 
     let chunk_chape_dim = 16_i32;
@@ -127,11 +121,8 @@ fn build_voxel(
         println!("delta_p: {:?}", max_p-min_p);
         */
         let extent_min = (min_p / chunk_chape_dim as f32).floor().into_int();
-        // todo why is -0.9 needed, seems like there is an off-by-one error somewhere???
-        let extent_max = ((max_p / chunk_chape_dim as f32) - Point3f::fill(0.9))
-            .ceil()
-            .into_int();
-        let extent = Extent3i::from_min_and_max(extent_min, extent_max);
+        let extent_max = (max_p / chunk_chape_dim as f32).ceil().into_int();
+        let extent = Extent3i::from_min_and_lub(extent_min, extent_max);
         /*
         println!("extent_min {:?} coverts {:?}", extent_min, (extent_min*chunk_chape_dim));
         println!("extent_max {:?} coverts {:?}", extent_max, (extent_max*chunk_chape_dim));
@@ -140,10 +131,9 @@ fn build_voxel(
         println!("extent.shape*chunk size {:?}", extent.shape*chunk_chape_dim);
         */
         // todo: might result in a slightly over/under-sized extent
-        // todo: there must be better to "nudge" input data to better fit integer chunks
         ChunkUnits(extent)
     };
-    println!("total_extent {:?}", total_extent);
+    //println!("total_extent {:?}", total_extent);
 
     let now = time::Instant::now();
 
@@ -231,35 +221,26 @@ pub fn generate_sdf_chunk3(
 
     let mut array = create_chunk_array(chunk_extent, Sd16::from(99999.9));
     #[cfg(feature = "display_chunks")]
-    let c = {
-        let shape = (
-            chunk_extent.shape.x() as f32,
-            chunk_extent.shape.y() as f32,
-            chunk_extent.shape.z() as f32,
-        );
-        (
-            Point3f::from(chunk_extent.minimum),
-            Point3f::from(chunk_extent.minimum) + PointN([shape.0, 0.0, 0.0]),
-            Point3f::from(chunk_extent.minimum) + PointN([shape.0, shape.1, 0.0]),
-            Point3f::from(chunk_extent.minimum) + PointN([0.0, shape.1, 0.0]),
-            Point3f::from(chunk_extent.minimum) + PointN([0.0, 0.0, shape.2]),
-            Point3f::from(chunk_extent.minimum) + PointN([shape.0, 0.0, shape.2]),
-            Point3f::from(chunk_extent.minimum) + PointN([shape.0, shape.1, shape.2]),
-            Point3f::from(chunk_extent.minimum) + PointN([0.0, shape.1, shape.2]),
-        )
-    };
+    let c: Vec<Point3f> = chunk_extent
+        .corners()
+        .iter()
+        .map(|p| PointN {
+            0: [p.x() as f32, p.y() as f32, p.z() as f32],
+        })
+        .collect();
+
     array.for_each_mut(&chunk_extent, |(p, _), x| {
         #[cfg(feature = "display_chunks")]
         {
             let pf = Point3f::from(p);
-            *x = *x.min(&mut Sd16::from(c.0.l2_distance_squared(pf).sqrt() - 1.5));
-            *x = *x.min(&mut Sd16::from(c.1.l2_distance_squared(pf).sqrt() - 1.5));
-            *x = *x.min(&mut Sd16::from(c.2.l2_distance_squared(pf).sqrt() - 1.5));
-            *x = *x.min(&mut Sd16::from(c.3.l2_distance_squared(pf).sqrt() - 1.5));
-            *x = *x.min(&mut Sd16::from(c.4.l2_distance_squared(pf).sqrt() - 1.5));
-            *x = *x.min(&mut Sd16::from(c.5.l2_distance_squared(pf).sqrt() - 1.5));
-            *x = *x.min(&mut Sd16::from(c.6.l2_distance_squared(pf).sqrt() - 1.5));
-            *x = *x.min(&mut Sd16::from(c.7.l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c[0].l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c[1].l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c[2].l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c[3].l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c[4].l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c[5].l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c[6].l2_distance_squared(pf).sqrt() - 1.5));
+            *x = *x.min(&mut Sd16::from(c[7].l2_distance_squared(pf).sqrt() - 1.5));
         }
         for (e0, e1) in usable_edges.iter() {
             let from_v = vertices[*e0];
@@ -337,81 +318,45 @@ pub(crate) fn build_output_bp_model(
     voxel_size: f32,
     meshes: Vec<(PosNormMesh, Extent3i)>,
 ) -> Result<PB_Model, TBError> {
-    // calculate the maximum required v&f capacity
-    let (vertex_capacity, face_capacity) =
-        meshes.iter().fold((0_usize, 0_usize), |(v, f), chunk| {
-            (v + chunk.0.positions.len(), f + chunk.0.indices.len())
-        });
-    if vertex_capacity >= u32::MAX as usize {
-        return Err(TBError::Overflow(format!("Generated mesh contains too many vertices to be referenced by u32: {}. Reduce the resolution.",vertex_capacity)));
-    }
+    let (mut pb_vertices, mut pb_faces) = {
+        // calculate the maximum required vertex & faces capacity
+        let (vertex_capacity, face_capacity) =
+            meshes.iter().fold((0_usize, 0_usize), |(v, f), chunk| {
+                (v + chunk.0.positions.len(), f + chunk.0.indices.len())
+            });
+        if vertex_capacity >= u32::MAX as usize {
+            return Err(TBError::Overflow(format!("Generated mesh contains too many vertices to be referenced by u32: {}. Reduce the resolution.", vertex_capacity)));
+        }
 
-    if face_capacity >= u32::MAX as usize {
-        return Err(TBError::Overflow(format!("Generated mesh contains too many faces to be referenced by u32: {}. Reduce the resolution.",vertex_capacity)));
-    }
+        if face_capacity >= u32::MAX as usize {
+            return Err(TBError::Overflow(format!("Generated mesh contains too many faces to be referenced by u32: {}. Reduce the resolution.", vertex_capacity)));
+        }
 
-    let mut pb_vertices: Vec<PB_Vertex> = Vec::with_capacity(vertex_capacity);
-    let mut pb_faces: Vec<u32> = Vec::with_capacity(face_capacity);
-    // translates between bit-perfect copies of vertices and indices of already know vertices.
-    let mut unique_vertex_map: ahash::AHashMap<(u32, u32, u32), u32> = ahash::AHashMap::default();
-    // translates between the index used by the chunks + indices_offset and the vertex index in pb_vertices
-    let mut vertex_map: ahash::AHashMap<u32, u32> = ahash::AHashMap::default();
+        (
+            Vec::with_capacity(vertex_capacity),
+            Vec::with_capacity(face_capacity),
+        )
+    };
 
     let now = time::Instant::now();
-    for (mesh, extent) in meshes.iter() {
+    for (mesh, _extent) in meshes.iter() {
         // each chunk starts counting vertices from zero
         let indices_offset = pb_vertices.len() as u32;
-        // vertices this far inside a chunk should (probably?) not be used outside this chunk.
-        let deep_inside_extent = Extent3f::from_min_and_shape(
-            Point3f::from(extent.minimum),
-            Point3f::from(extent.shape),
-        )
-        .padded(-1.5);
-        for (pi, p) in mesh.positions.iter().enumerate() {
-            let p: Point3f = PointN(*p);
-            if !deep_inside_extent.contains(p) {
-                // only use vertex de-duplication if the vertex was close to the edges
-                // of the extent
-                let key = transmute_to_u32(&p.0);
-                let _ = vertex_map.insert(
-                    pi as u32 + indices_offset,
-                    *unique_vertex_map.entry(key).or_insert_with(|| {
-                        let n = pb_vertices.len() as u32;
-                        pb_vertices.push(PB_Vertex {
-                            x: (voxel_size * p.x()),
-                            y: (voxel_size * p.y()),
-                            z: (voxel_size * p.z()),
-                        });
-                        n
-                    }),
-                );
-            } else {
-                // vertex found deep inside chunk, skip vertex de-duplication.
-                let _ = vertex_map.insert(pi as u32 + indices_offset, {
-                    let n = pb_vertices.len() as u32;
-                    pb_vertices.push(PB_Vertex {
-                        x: (voxel_size * p.x()),
-                        y: (voxel_size * p.y()),
-                        z: (voxel_size * p.z()),
-                    });
-                    n
-                });
-            }
+
+        for p in mesh.positions.iter() {
+            pb_vertices.push(PB_Vertex {
+                x: (voxel_size * p[0]),
+                y: (voxel_size * p[1]),
+                z: (voxel_size * p[2]),
+            });
         }
         for vertex_id in mesh.indices.iter() {
-            if let Some(vertex_id) = vertex_map.get(&(*vertex_id as u32 + indices_offset)) {
-                pb_faces.push(*vertex_id);
-            } else {
-                return Err(TBError::InternalError(format!(
-                    "Vertex id {} not found while de-duplicating vertices",
-                    vertex_id
-                )));
-            }
+            pb_faces.push(vertex_id + indices_offset);
         }
     }
 
     println!(
-        "Vertex de-duplication and return model packaging duration: {:?}",
+        "Vertex return model packaging duration: {:?}",
         now.elapsed()
     );
 
@@ -427,6 +372,7 @@ pub fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
+    let now = time::Instant::now();
     println!(
         r#"________________________   ____                 .__
 \______   \______   \   \ /   /______  ___ ____ |  |
@@ -522,9 +468,15 @@ pub fn command(
                 key: "PACKED_FACES".to_string(),
                 value: "True".to_string(),
             },
+            // tell blender to remove doubles
+            PB_KeyValuePair {
+                key: "REMOVE_DOUBLES".to_string(),
+                value: "True".to_string(),
+            },
         ],
         models: Vec::with_capacity(0),
         models32: vec![packed_faces_model],
     };
+    println!("total duration: {:?}", now.elapsed());
     Ok(reply)
 }

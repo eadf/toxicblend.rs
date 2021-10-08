@@ -5,6 +5,7 @@ use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
+use crate::GrowingVob;
 use cgmath::EuclideanSpace;
 use cgmath::UlpsEq;
 use itertools::Itertools;
@@ -92,7 +93,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
     }
     //println!("Lines:{:?}", lines);
     let mut edge_split = ahash::AHashMap::<usize, smallvec::SmallVec<[(u64, u64); 1]>>::default();
-    let mut edge_is_split = yabf::Yabf::with_capacity(input_pb_model.faces.len());
+    let mut edge_is_split = vob::Vob::<u32>::fill(input_pb_model.faces.len());
     {
         let intersection_result =
             linestring::linestring_2d::intersection::IntersectionData::<f64>::default()
@@ -106,7 +107,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
         for (p, l) in intersection_result {
             println!("Intersection detected @{:?} Involved lines:{:?}", p, l);
             for e in l.iter() {
-                edge_is_split.set_bit(*e, true);
+                let _ = edge_is_split.set(*e, true);
                 if !p.x.is_finite() || !p.x.is_finite() {
                     return Err(TBError::InternalError(format!(
                         "The found intersection is not valid: x:{:?}, y:{:?}",
@@ -135,7 +136,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
     }
 
     for f in input_pb_model.faces.iter().enumerate() {
-        if !edge_is_split.bit(f.0) {
+        if !edge_is_split.get_f(f.0) {
             output_pb_model.faces.push(f.1.clone());
         }
     }
