@@ -78,6 +78,8 @@ fn build_voxel(
     ),
     TBError,
 > {
+    let default_sdf = 99999f32;
+
     let dimensions = aabb.get_high().unwrap() - aabb.get_low().unwrap();
     let max_dimension = dimensions.x.max(dimensions.y).max(dimensions.z);
 
@@ -114,46 +116,11 @@ fn build_voxel(
     let chunks_extent = {
         let min_p = (aabb.get_low().unwrap().to_float() - Vec3A::from([radius; 3])) * scale;
         let max_p = (aabb.get_high().unwrap().to_float() + Vec3A::from([radius; 3])) * scale;
-        /*
-        println!("scale {} 1/scale:{}", scale, 1.0 / scale);
-        println!("radius {:?}", radius);
-        println!(
-            "min_p: {:?} is the min point of the generated graphics",
-            min_p
-        );
-        println!(
-            "max_p: {:?} is the max point of the generated graphics",
-            max_p
-        );
-        println!("delta_p: {:?}", max_p - min_p);
-        */
+
         let extent_min: IVec3 = (min_p / (UNPADDED_CHUNK_SIDE as f32)).floor().to_int();
         let extent_max: IVec3 = (max_p / (UNPADDED_CHUNK_SIDE as f32)).ceil().to_int();
         //let extent =
         Extent3i::from_min_and_lub(extent_min, extent_max)
-        /*
-        println!(
-            "extent_min {:?} covers {:?}",
-            extent_min,
-            (extent_min * UNPADDED_CHUNK_SIDE as i32)
-        );
-        println!(
-            "extent_max {:?} covers {:?}",
-            extent_max,
-            (extent_max * UNPADDED_CHUNK_SIDE as i32)
-                + IVec3::from([UNPADDED_CHUNK_SIDE as i32; 3])
-        );
-        println!("extent {:?}", extent);
-        println!(
-            "chunk size {}x{}x{}",
-            UNPADDED_CHUNK_SIDE, UNPADDED_CHUNK_SIDE, UNPADDED_CHUNK_SIDE
-        );
-        println!(
-            "extent.shape*chunk size {:?}",
-            extent.shape * UNPADDED_CHUNK_SIDE as i32
-        );
-        */
-        //extent
     };
 
     //let chunks_extent = Extent3i::from_min_and_lub(IVec3::new(-1,-1,-1), IVec3::new(0,0,0));
@@ -161,14 +128,33 @@ fn build_voxel(
 
     let now = time::Instant::now();
 
-    let sdf_chunks = process_chunks(
-        chunks_extent,
-        IVec3::from([UNPADDED_CHUNK_SIDE as i32; 3]),
-        &vertices,
-        &edges,
-        radius * scale,
-        999999f32,
-    );
+    let sdf_chunks: Vec<_> = {
+        let min = chunks_extent.minimum;
+        let max = chunks_extent.least_upper_bound();
+        let radius = radius * scale;
+        let unpadded_chunk_shape = IVec3::from([UNPADDED_CHUNK_SIDE as i32; 3]);
+        // Spawn off threads creating and processing chunks.
+        // Could also do:
+        // (min.x..max.x).into_par_iter().flat_map(|x|
+        //     (min.y..max.y).into_par_iter().flat_map(|y|
+        //         (min.z..max.z).into_par_iter().map(|z| [x, y, z])))
+        itertools::iproduct!(min.x..max.x, min.y..max.y, min.z..max.z)
+            .par_bridge()
+            .filter_map(move |p| {
+                let chunk_min = IVec3::from(p) * unpadded_chunk_shape;
+                let unpadded_chunk_extent =
+                    Extent3i::from_min_and_shape(chunk_min, unpadded_chunk_shape);
+
+                generate_and_process_sdf_chunk(
+                    unpadded_chunk_extent,
+                    &vertices,
+                    &edges,
+                    radius,
+                    default_sdf,
+                )
+            })
+            .collect()
+    };
 
     println!(
         "process_chunks() duration: {:?} generated {} chunks",
@@ -177,42 +163,6 @@ fn build_voxel(
     );
 
     Ok((1.0 / scale, sdf_chunks))
-}
-
-#[inline]
-/// Spawn off threads creating and processing chunks.
-/// Returns a Vec of processed chunks as (chunk_origin, SurfaceNetsBuffer).
-fn process_chunks(
-    chunks_extent: Extent3i,
-    unpadded_chunk_shape: IVec3,
-    vertices: &[Vec3A],
-    edges: &[(u32, u32)],
-    thickness: f32,
-    default_sdf_value: f32,
-) -> Vec<(Vec3A, SurfaceNetsBuffer)> {
-    let min = chunks_extent.minimum;
-    let max = chunks_extent.least_upper_bound();
-
-    // Could also do:
-    // (min.x..max.x).into_par_iter().flat_map(|x|
-    //     (min.y..max.y).into_par_iter().flat_map(|y|
-    //         (min.z..max.z).into_par_iter().map(|z| [x, y, z])))
-    itertools::iproduct!(min.x..max.x, min.y..max.y, min.z..max.z)
-        .par_bridge()
-        .filter_map(move |p| {
-            let chunk_min = IVec3::from(p) * unpadded_chunk_shape;
-            let unpadded_chunk_extent =
-                Extent3i::from_min_and_shape(chunk_min, unpadded_chunk_shape);
-
-            generate_and_process_sdf_chunk(
-                unpadded_chunk_extent,
-                vertices,
-                edges,
-                thickness,
-                default_sdf_value,
-            )
-        })
-        .collect()
 }
 
 /// Generate the data of a single chunk

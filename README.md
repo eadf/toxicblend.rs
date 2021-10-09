@@ -96,7 +96,7 @@ Runs the Voronoi sweep-line algorithm on 2D points and lines (geometry must be o
 Takes an edge-only 3D mesh, like the output of the Voronoi operation, and puts voxelized tubes along the edges.
 This operation does *not* require flat input.
 
-This operation uses [building-blocks](https://crates.io/crates/building-blocks) for voxel generation.
+This operation uses one of [building-blocks](https://crates.io/crates/building-blocks), [fast-surface-nets](https://crates.io/crates/fast-surface-nets) or [saft](https://crates.io/crates/saft) for voxel generation.
 
 ### Operation: Metavolume (object operation)
 Takes an edge-only mesh, like the output of the Voronoi operation, and puts metaballs along the edges.

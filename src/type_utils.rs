@@ -1,5 +1,10 @@
 use ilattice::glam::{IVec3, Vec3A /*Vec3*/};
 
+#[inline]
+pub(crate) fn to_ivec3([x, y, z]: [u32; 3]) -> IVec3 {
+    IVec3::new(x as i32, y as i32, z as i32)
+}
+
 pub(crate) trait ToInt<T> {
     fn to_int(self) -> IVec3;
 }

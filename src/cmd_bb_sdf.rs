@@ -14,6 +14,8 @@ use std::time;
 
 type Point3f = PointN<[f32; 3]>;
 
+const UNPADDED_CHUNK_SIDE: u32 = 16_u32;
+
 #[derive(Default)]
 struct GyroidParameters {
     cmd_arg_divisions: f32,
@@ -55,21 +57,29 @@ fn build_gyroid_voxel(
         let now = time::Instant::now();
 
         let builder = ChunkTreeBuilder3x1::new(ChunkTreeConfig {
-            chunk_shape: Point3i::fill(16),
-            //ambient_value:Sd16::from(99999.0),
-            ambient_value: Sd16::ONE,
+            chunk_shape: Point3i::fill(UNPADDED_CHUNK_SIDE as i32),
+            ambient_value: Sd16::from(99999.0),
             root_lod: 0,
         });
         let mut map = builder.build_with_hash_map_storage();
 
         let extent = {
-            let divisions_half = params.cmd_arg_divisions.abs() / 2.0;
-            let from_v = Point3f::fill(-divisions_half);
-            let to_v = Point3f::fill(divisions_half);
-            let extent_min = from_v.meet(to_v).round().into_int();
-            let extent_max = from_v.join(to_v).round().into_int();
-            Extent3i::from_min_and_max(extent_min, extent_max) //.padded(thickness.ceil() as i32)
+            let divisions_half = 1i32.max(params.cmd_arg_divisions as i32 / 2);
+            let from_v = Point3::fill(-divisions_half);
+            let to_v = Point3::fill(divisions_half);
+
+            println!(
+                "chunks_extent {:?} chunk_side:{}, scale:{}",
+                Extent3i::from_min_and_lub(
+                    from_v / (UNPADDED_CHUNK_SIDE as i32),
+                    to_v / (UNPADDED_CHUNK_SIDE as i32)
+                ),
+                UNPADDED_CHUNK_SIDE,
+                scale
+            );
+            Extent3i::from_min_and_lub(from_v, to_v)
         };
+
         let sdf = |p: Point3i| {
             let pa = Point3f::from(p) * scale;
             let sin_pa: Point3f = PointN([

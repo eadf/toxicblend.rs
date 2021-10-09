@@ -25,7 +25,7 @@ struct GyroidParameters {
 }
 
 // The un-padded chunk side, it will become 16*16*16
-const UNPADDED_CHUNK_SIDE: u32 = 14_u32;
+const UNPADDED_CHUNK_SIDE: u32 = 16_u32;
 
 type PaddedChunkShape = fast_surface_nets::ndshape::ConstShape3u32<
     { UNPADDED_CHUNK_SIDE + 2 },
@@ -37,7 +37,7 @@ type Extent3i = Extent<IVec3>;
 
 /// initialize the example sdf gyroid and generate the mesh buffers
 fn build_gyroid_voxel(
-    mut params: GyroidParameters,
+    params: GyroidParameters,
 ) -> Result<
     (
         f32, // <- voxel_size
@@ -45,90 +45,67 @@ fn build_gyroid_voxel(
     ),
     TBError,
 > {
-    let chunks_per_side = params.cmd_arg_divisions as i32 / UNPADDED_CHUNK_SIDE as i32;
-    params.cmd_arg_divisions = (UNPADDED_CHUNK_SIDE as i32 * chunks_per_side) as f32;
+    let now = time::Instant::now();
+    let default_sdf_value = 99999f32;
+    let (chunks_extent, world_extent) = {
+        let half_side = 2f32
+            .max(params.cmd_arg_divisions / (UNPADDED_CHUNK_SIDE as f32) / 2.0)
+            .ceil() as i32;
+        let world_side = 2.max(params.cmd_arg_divisions as i32 / 2) + 1;
+
+        (
+            Extent3i::from_min_and_lub(IVec3::from([-half_side; 3]), IVec3::from([half_side; 3])),
+            Extent3i::from_min_and_lub(IVec3::from([-world_side; 3]), IVec3::from([world_side; 3])),
+        )
+    };
 
     println!(
-        "Voxelizing gyroid using divisions={}, s={}, t={}, b={}",
+        "Voxelizing gyroid using divisions={}, s={}, t={}, b={}\n",
         params.cmd_arg_divisions,
         params.cmd_arg_s_param,
         params.cmd_arg_t_param,
         params.cmd_arg_b_param
     );
-    println!();
-
-    let chunks_extent = {
-        let half_side = 1.max(params.cmd_arg_divisions as i32 / (UNPADDED_CHUNK_SIDE as i32) / 2);
-        params.cmd_arg_divisions = UNPADDED_CHUNK_SIDE as f32 * half_side as f32 * 2.0;
-
-        let extent_min = IVec3::from([-half_side; 3]);
-        let extent_max = IVec3::from([half_side; 3]);
-        Extent3i::from_min_and_lub(extent_min, extent_max)
-    };
 
     // set scale so that extent.min*scale -> -pi, extent.max*scale -> pi
     // when cmd_arg_s_param is 1.0
     let scale = params.cmd_arg_s_param * f32::PI() / (params.cmd_arg_divisions.abs() / 2.0);
 
-    //let chunks_extent = Extent3i::from_min_and_lub(IVec3::new(-1,-1,-1), IVec3::new(0,0,0));
-    println!("chunks_extent {:?} scale:{}", chunks_extent, scale);
+    // scale the voxel so that the result is 3 'units' wide or so.
+    let voxel_size = 3.0 / params.cmd_arg_divisions;
 
-    let now = time::Instant::now();
+    let sdf_chunks: Vec<_> = {
+        let unpadded_chunk_shape = IVec3::from([UNPADDED_CHUNK_SIDE as i32; 3]);
+        let min = chunks_extent.minimum;
+        let max = chunks_extent.least_upper_bound();
 
-    let sdf_chunks = process_chunks(
-        &params,
-        scale,
-        chunks_extent,
-        IVec3::from([UNPADDED_CHUNK_SIDE as i32; 3]),
-        999999f32,
-        (chunks_extent * (UNPADDED_CHUNK_SIDE as i32)).padded(-1),
-    );
+        // Could also do:
+        // (min.x..max.x).into_par_iter().flat_map(|x|
+        //     (min.y..max.y).into_par_iter().flat_map(|y|
+        //         (min.z..max.z).into_par_iter().map(|z| [x, y, z])))
+        itertools::iproduct!(min.x..max.x, min.y..max.y, min.z..max.z)
+            .par_bridge()
+            .filter_map(move |p| {
+                let chunk_min = IVec3::from(p) * unpadded_chunk_shape;
+
+                generate_and_process_sdf_chunk(
+                    &params,
+                    scale,
+                    Extent3i::from_min_and_shape(chunk_min, unpadded_chunk_shape),
+                    default_sdf_value,
+                    &world_extent,
+                )
+            })
+            .collect()
+    };
 
     println!(
-        "process_chunks() duration: {:?} generated {} chunks",
+        "generate_and_process_sdf_chunk() duration: {:?}, generated {} chunks",
         now.elapsed(),
         sdf_chunks.len()
     );
 
-    // scale the voxel so that the result is 3 'units' wide or so.
-    let voxel_size = 3.0 / params.cmd_arg_divisions;
     Ok((voxel_size, sdf_chunks))
-}
-
-#[inline]
-/// Spawn off threads creating and processing chunks.
-/// Returns a Vec of processed chunks as (chunk_origin, SurfaceNetsBuffer).
-fn process_chunks(
-    params: &GyroidParameters,
-    scale: f32,
-    chunks_extent: Extent3i,
-    unpadded_chunk_shape: IVec3,
-    default_sdf_value: f32,
-    world_extent: Extent3i,
-) -> Vec<(Vec3A, SurfaceNetsBuffer)> {
-    let min = chunks_extent.minimum;
-    let max = chunks_extent.least_upper_bound();
-
-    // Could also do:
-    // (min.x..max.x).into_par_iter().flat_map(|x|
-    //     (min.y..max.y).into_par_iter().flat_map(|y|
-    //         (min.z..max.z).into_par_iter().map(|z| [x, y, z])))
-    itertools::iproduct!(min.x..max.x, min.y..max.y, min.z..max.z)
-        .par_bridge()
-        .filter_map(move |p| {
-            let chunk_min = IVec3::from(p) * unpadded_chunk_shape;
-            let unpadded_chunk_extent =
-                Extent3i::from_min_and_shape(chunk_min, unpadded_chunk_shape);
-
-            generate_and_process_sdf_chunk(
-                params,
-                scale,
-                unpadded_chunk_extent,
-                default_sdf_value,
-                &world_extent,
-            )
-        })
-        .collect()
 }
 
 /// Generate the data of a single chunk
@@ -171,13 +148,29 @@ fn generate_and_process_sdf_chunk(
         (sin_pa.dot(cos_pa_zxy) - params.cmd_arg_b_param).abs() - params.cmd_arg_t_param
     };
 
+    let world_min = world_extent.minimum;
+    let world_max = world_extent.least_upper_bound();
+
     for (i, v) in array.iter_mut().enumerate() {
         // Point With Offset from the un-padded extent minimum
-        let pwo = to_ivec(PaddedChunkShape::delinearize(i as u32)) + p_offset_min;
+        let pwo = to_ivec3(PaddedChunkShape::delinearize(i as u32)) + p_offset_min;
+
+        if pwo.x <= world_min.x
+            || pwo.y <= world_min.y
+            || pwo.z <= world_min.z
+            || pwo.x >= world_max.x
+            || pwo.y >= world_max.y
+            || pwo.z >= world_max.z
+        {
+            // cut off the sdf by using the default sdf value
+            some_pos_found = true;
+            continue;
+        }
+
         let pwof = pwo.to_float();
         #[cfg(feature = "display_chunks")]
         {
-            // todo: this could probably be optimized with PaddedChunkShape::linearize(corner_pos)
+            // todo: this could be optimized with PaddedChunkShape::linearize(corner_pos)
             let mut x = *v;
             for c in corners.iter() {
                 x = x.min(c.distance(pwof) - 1.);
@@ -188,18 +181,12 @@ fn generate_and_process_sdf_chunk(
 
         if *v <= 0.0 {
             some_neg_or_zero_found = true;
-            if *v < 0.0 && !world_extent.contains(pwo) {
-                // Cap off the sdf
-                *v = 0.0;
-                // and make sure this chunk is kept
-                some_pos_found = true;
-            }
         } else {
             some_pos_found = true;
         }
     }
     if some_pos_found && some_neg_or_zero_found {
-        // A combination of positive and negative surfaces found - process this chunk
+        // A combination of positive and negative values found - mesh this chunk
         let mut sn_buffer = SurfaceNetsBuffer::default();
 
         // do the voxel_size multiplication later, vertices pos. needs to match extent.
@@ -218,13 +205,9 @@ fn generate_and_process_sdf_chunk(
             Some((p_offset_min.to_float(), sn_buffer))
         }
     } else {
+        // Only positive or only negative values found - ignore this chunk
         None
     }
-}
-
-#[inline]
-fn to_ivec([x, y, z]: [u32; 3]) -> IVec3 {
-    IVec3::new(x as i32, y as i32, z as i32)
 }
 
 #[allow(clippy::field_reassign_with_default)]
