@@ -74,7 +74,7 @@ fn build_voxel(
 ) -> Result<
     (
         f32, // <- voxel_size
-        Vec<(PosNormMesh, Extent3i)>,
+        Vec<PosNormMesh>,
     ),
     TBError,
 > {
@@ -272,13 +272,13 @@ pub(crate) fn generate_mesh<T: 'static + Clone + Send + Sync + SignedDistance>(
 ) -> Result<
     (
         f32, // <- voxel_size
-        Vec<(PosNormMesh, Extent3i)>,
+        Vec<PosNormMesh>,
     ),
     TBError,
 > {
     let flat_shaded = true;
     let now = time::Instant::now();
-    let chunk_meshes: Vec<(PosNormMesh, Extent3i)> = map
+    let chunk_meshes: Vec<PosNormMesh> = map
         .lod_storage(0)
         .keys()
         .par_bridge()
@@ -302,7 +302,7 @@ pub(crate) fn generate_mesh<T: 'static + Clone + Send + Sync + SignedDistance>(
             if surface_nets_buffer.mesh.indices.is_empty() {
                 None
             } else {
-                Some((surface_nets_buffer.mesh, padded_chunk_extent))
+                Some(surface_nets_buffer.mesh)
             }
         })
         .collect();
@@ -316,13 +316,13 @@ pub(crate) fn build_output_bp_model(
     pb_model_name: String,
     pb_world: Option<PB_Matrix4x432>,
     voxel_size: f32,
-    meshes: Vec<(PosNormMesh, Extent3i)>,
+    meshes: Vec<PosNormMesh>,
 ) -> Result<PB_Model, TBError> {
     let (mut pb_vertices, mut pb_faces) = {
         // calculate the maximum required vertex & faces capacity
         let (vertex_capacity, face_capacity) =
             meshes.iter().fold((0_usize, 0_usize), |(v, f), chunk| {
-                (v + chunk.0.positions.len(), f + chunk.0.indices.len())
+                (v + chunk.positions.len(), f + chunk.indices.len())
             });
         if vertex_capacity >= u32::MAX as usize {
             return Err(TBError::Overflow(format!("Generated mesh contains too many vertices to be referenced by u32: {}. Reduce the resolution.", vertex_capacity)));

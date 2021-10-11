@@ -37,7 +37,7 @@ fn build_gyroid_voxel(
 ) -> Result<
     (
         f32, // <-voxel_size
-        Vec<(PosNormMesh, Extent3i)>,
+        Vec<PosNormMesh>,
     ),
     TBError,
 > {
