@@ -38,9 +38,9 @@ logos = "0.12"
 arrayvec = "0.7"
 building-blocks = { git="https://github.com/bonsairobo/building-blocks.git", rev="21165e0", default-features = false, features = ["mesh", "cgmath"]}
 #building-blocks = { path="../building-blocks", default-features = false, features = ["mesh", "cgmath"]}
-ilattice = { git="https://github.com/bonsairobo/ilattice-rs.git", rev="ab57886", default-features = false, features = ["glam", "morton-encoding"]}
-#ilattice = { path="../ilattice-rs", default-features = false, features = ["glam", "morton-encoding"]}
-fast-surface-nets = "0.1.0"
+ilattice = { git="https://github.com/bonsairobo/ilattice-rs.git", rev="7b8b723", default-features = false, features = ["glam"]}
+#ilattice = { path="../ilattice-rs", default-features = false, features = ["glam"]}
+fast-surface-nets = "0.1"
 saft_cr = { package="saft", version="0.20", optional = true, features = ["rayon", "with_rayon"]}
 # The glam version used by saft/macaw
 glam_saft = { package="glam", version="0.17", optional = true}

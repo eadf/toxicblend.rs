@@ -23,7 +23,7 @@ type PaddedChunkShape = fast_surface_nets::ndshape::ConstShape3u32<
     { UNPADDED_CHUNK_SIDE + 2 },
     { UNPADDED_CHUNK_SIDE + 2 },
 >;
-
+const DEFAULT_SDF_VALUE: f32 = 999.0;
 type Extent3i = Extent<IVec3>;
 
 /// unpack the input PB_Model
@@ -78,8 +78,6 @@ fn build_voxel(
     ),
     TBError,
 > {
-    let default_sdf = 99999f32;
-
     let dimensions = aabb.get_high().unwrap() - aabb.get_low().unwrap();
     let max_dimension = dimensions.x.max(dimensions.y).max(dimensions.z);
 
@@ -129,8 +127,6 @@ fn build_voxel(
     let now = time::Instant::now();
 
     let sdf_chunks: Vec<_> = {
-        let min = chunks_extent.minimum;
-        let max = chunks_extent.least_upper_bound();
         let radius = radius * scale;
         let unpadded_chunk_shape = IVec3::from([UNPADDED_CHUNK_SIDE as i32; 3]);
         // Spawn off threads creating and processing chunks.
@@ -138,20 +134,15 @@ fn build_voxel(
         // (min.x..max.x).into_par_iter().flat_map(|x|
         //     (min.y..max.y).into_par_iter().flat_map(|y|
         //         (min.z..max.z).into_par_iter().map(|z| [x, y, z])))
-        itertools::iproduct!(min.x..max.x, min.y..max.y, min.z..max.z)
+        chunks_extent
+            .iter3()
             .par_bridge()
             .filter_map(move |p| {
                 let chunk_min = IVec3::from(p) * unpadded_chunk_shape;
                 let unpadded_chunk_extent =
                     Extent3i::from_min_and_shape(chunk_min, unpadded_chunk_shape);
 
-                generate_and_process_sdf_chunk(
-                    unpadded_chunk_extent,
-                    &vertices,
-                    &edges,
-                    radius,
-                    default_sdf,
-                )
+                generate_and_process_sdf_chunk(unpadded_chunk_extent, &vertices, &edges, radius)
             })
             .collect()
     };
@@ -171,28 +162,20 @@ fn generate_and_process_sdf_chunk(
     vertices: &[Vec3A],
     edges: &[(u32, u32)],
     thickness: f32,
-    default_sdf_value: f32,
 ) -> Option<(Vec3A, SurfaceNetsBuffer)> {
     // the origin of this chunk, in voxel scale
-    let p_offset_min = unpadded_chunk_extent.minimum.to_float();
     let padded_chunk_extent = unpadded_chunk_extent.padded(1);
 
     // filter out the edges that does not affect this chunk
-    let edges: Vec<_> = edges
+    let filtered_edges: Vec<_> = edges
         .iter()
         .filter_map(|(e0, e1)| {
             let (e0, e1) = (*e0 as usize, *e1 as usize);
-            let tube_extent: Extent3i = {
-                let extent_min: IVec3 = (vertices[e0].min(vertices[e1])
-                    - Vec3A::from([thickness; 3]))
-                .floor()
-                .to_int();
-                let extent_max: IVec3 = (vertices[e0].max(vertices[e1])
-                    + Vec3A::from([thickness; 3]))
-                .ceil()
-                .to_int();
-                Extent3i::from_min_and_max(extent_min, extent_max)
-            };
+            let tube_extent = Extent::from_min_and_lub(
+                vertices[e0].min(vertices[e1]) - Vec3A::from([thickness; 3]),
+                vertices[e0].max(vertices[e1]) + Vec3A::from([thickness; 3]),
+            )
+            .containing_integer_extent();
             if !padded_chunk_extent.intersection(&tube_extent).is_empty() {
                 // The AABB of the edge tube intersected this chunk - keep it
                 Some((e0, e1))
@@ -203,17 +186,17 @@ fn generate_and_process_sdf_chunk(
         .collect();
 
     #[cfg(not(feature = "display_chunks"))]
-    if edges.is_empty() {
+    if filtered_edges.is_empty() {
         // no tubes intersected this chunk
         return None;
     }
 
-    let mut array = { [default_sdf_value; PaddedChunkShape::SIZE as usize] };
+    let mut array = { [DEFAULT_SDF_VALUE; PaddedChunkShape::SIZE as usize] };
 
     #[cfg(feature = "display_chunks")]
     // The corners of the un-padded chunk extent
     let corners: Vec<_> = unpadded_chunk_extent
-        .corners()
+        .corners3()
         .iter()
         .map(|p| p.to_float())
         .collect();
@@ -221,9 +204,14 @@ fn generate_and_process_sdf_chunk(
     let mut some_neg_or_zero_found = false;
     let mut some_pos_found = false;
 
-    for (i, v) in array.iter_mut().enumerate() {
+    padded_chunk_extent.for_each3(|pwo| {
+        let v = {
+            let p = pwo - unpadded_chunk_extent.minimum + 1;
+            &mut array[PaddedChunkShape::linearize([p.x as u32, p.y as u32, p.z as u32]) as usize]
+        };
+        let pwo = pwo.to_float();
         // Point With Offset from the un-padded extent minimum
-        let pwo = to_float(PaddedChunkShape::delinearize(i as u32)) + p_offset_min;
+        //let pwo = to_float(PaddedChunkShape::delinearize(i as u32)) + p_offset_min;
         #[cfg(feature = "display_chunks")]
         {
             // todo: this could probably be optimized with PaddedChunkShape::linearize(corner_pos)
@@ -233,7 +221,11 @@ fn generate_and_process_sdf_chunk(
             }
             *v = (*v).min(x);
         }
-        for (from_v, to_v) in edges.iter().map(|(e0, e1)| (vertices[*e0], vertices[*e1])) {
+        for (from_v, to_v) in filtered_edges
+            .iter()
+            .map(|(e0, e1)| (vertices[*e0], vertices[*e1]))
+        {
+            // This is the sdf formula of a capsule
             let pa = pwo - from_v;
             let ba = to_v - from_v;
             let t = pa.dot(ba) / ba.dot(ba);
@@ -245,7 +237,7 @@ fn generate_and_process_sdf_chunk(
         } else {
             some_neg_or_zero_found = true;
         }
-    }
+    });
     if some_pos_found && some_neg_or_zero_found {
         // A combination of positive and negative surfaces found - process this chunk
         let mut sn_buffer = SurfaceNetsBuffer::default();
@@ -263,16 +255,11 @@ fn generate_and_process_sdf_chunk(
             // No vertices were generated by this chunk, ignore it
             None
         } else {
-            Some((p_offset_min, sn_buffer))
+            Some((padded_chunk_extent.minimum.to_float(), sn_buffer))
         }
     } else {
         None
     }
-}
-
-#[inline]
-fn to_float([x, y, z]: [u32; 3]) -> Vec3A {
-    Vec3A::new(x as f32, y as f32, z as f32)
 }
 
 /// Build the return model

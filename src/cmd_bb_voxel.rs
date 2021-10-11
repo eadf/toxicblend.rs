@@ -339,7 +339,7 @@ pub(crate) fn build_output_bp_model(
     };
 
     let now = time::Instant::now();
-    for (mesh, _extent) in meshes.iter() {
+    for mesh in meshes.iter() {
         // each chunk starts counting vertices from zero
         let indices_offset = pb_vertices.len() as u32;
 

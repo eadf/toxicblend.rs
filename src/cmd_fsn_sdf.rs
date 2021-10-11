@@ -24,7 +24,7 @@ struct GyroidParameters {
     cmd_arg_z_param: f32,
 }
 
-// The un-padded chunk side, it will become 16*16*16
+// The un-padded chunk side, it will become 18*18*18 with padding
 const UNPADDED_CHUNK_SIDE: u32 = 16_u32;
 
 type PaddedChunkShape = fast_surface_nets::ndshape::ConstShape3u32<
@@ -124,7 +124,7 @@ fn generate_and_process_sdf_chunk(
     #[cfg(feature = "display_chunks")]
     // The corners of the un-padded chunk extent
     let corners: Vec<_> = unpadded_chunk_extent
-        .corners()
+        .corners3()
         .iter()
         .map(|p| p.to_float())
         .collect();
