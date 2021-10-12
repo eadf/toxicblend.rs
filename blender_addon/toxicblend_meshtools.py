@@ -71,7 +71,7 @@ import toxicblend.toxicblend_pb2 as toxicblend_pb2
 bl_info = {
     "name": "Toxicblend MeshTools",
     "author": "EADF",
-    "version": (0, 0, 17),
+    "version": (0, 0, 18),
     "blender": (2, 92, 0),
     "location": "View3D > Sidebar > Edit Tab / Edit Mode Context Menu",
     "warning": "Communicates with a gRPC server on localhost",
@@ -1045,11 +1045,11 @@ class Toxicblend_Voxel(Operator):
         subtype='FACTOR'
     )
 
-    backend_variant_items = (("_BB", "Building blocks", "use building blocks backend"),
+    backend_variant_items = (#("_BB", "Building blocks", "use building blocks backend"),
                              ("_SAFT", "Saft", "use saft backend"),
                              ("_FSN", "Fast surface nets", "use fast-surface-nets backend")
                              )
-    cmd_backend: bpy.props.EnumProperty(name="Backend", items=backend_variant_items, default="_BB")
+    cmd_backend: bpy.props.EnumProperty(name="Backend", items=backend_variant_items, default="_FSN")
 
     @classmethod
     def poll(cls, context):
@@ -1321,6 +1321,12 @@ class TB_MeshToolsProps(PropertyGroup):
         precision=1,
         subtype='FACTOR'
     )
+
+    voxel_backend_variant_items = (#("_BB", "Building blocks", "use building blocks backend"),
+                              ("_SAFT", "Saft", "use saft backend"),
+                              ("_FSN", "Fast surface nets", "use fast-surface-nets backend")
+                             )
+    voxel_cmd_backend: bpy.props.EnumProperty(name="Backend", items=voxel_backend_variant_items, default="_FSN")
 
 
 # draw function for integration in menus

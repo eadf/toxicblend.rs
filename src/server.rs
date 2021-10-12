@@ -18,8 +18,9 @@
 #[cfg(feature = "saft")]
 extern crate saft_cr as saft;
 mod cmd_2d_outline;
-mod cmd_bb_sdf;
-mod cmd_bb_voxel;
+// Replacing building_blocks with fast_surface_nets, but keeping the files for now
+//mod cmd_bb_sdf;
+//mod cmd_bb_voxel;
 mod cmd_centerline;
 mod cmd_fsn_sdf;
 mod cmd_fsn_voxel;
@@ -220,7 +221,7 @@ impl ToxicBlendService for TheToxicBlendService {
             "voxel" => Err(TBError::InCompatibleVersion(String::from(
                 "Please update your toxicblend blender addons",
             ))),
-            "voxel_bb" => cmd_bb_voxel::command(a_command, options_map),
+            //"voxel_bb" => cmd_bb_voxel::command(a_command, options_map),
             "voxel_fsn" => cmd_fsn_voxel::command(a_command, options_map),
             #[cfg(feature = "saft")]
             "voxel_saft" => cmd_saft_voxel::command(a_command, options_map),
@@ -232,7 +233,7 @@ impl ToxicBlendService for TheToxicBlendService {
             "sdf" => Err(TBError::InCompatibleVersion(String::from(
                 "Please update your toxicblend blender addons",
             ))),
-            "sdf_bb" => cmd_bb_sdf::command(a_command, options_map),
+            //"sdf_bb" => cmd_bb_sdf::command(a_command, options_map),
             "sdf_fsn" => cmd_fsn_sdf::command(a_command, options_map),
             "sdf_saft" => Err(TBError::NotImplemented(String::from(
                 "The sdf backend 'saft' is not implemented (yet)",
