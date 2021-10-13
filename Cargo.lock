@@ -321,18 +321,12 @@ dependencies = [
 
 [[package]]
 name = "glam"
-version = "0.17.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e01732b97afd8508eee3333a541b9f7610f454bb818669e66e90f5f57c93a776"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "glam"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "525a3e490ba77b8e326fb67d4b44b4bd2f920f44d4cc73ccec50adc68e3bee34"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "glam"
@@ -556,11 +550,11 @@ dependencies = [
 
 [[package]]
 name = "macaw"
-version = "0.11.2"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8560604df4dfebf3ec9ac630d72a5139c66131268252085e34720948bab2e5b0"
+checksum = "9bb0fe76942f94fc70646c26b61aaf26c2a4da08b5e84fbe59da0bab1d8e45bd"
 dependencies = [
- "glam 0.17.3",
+ "glam 0.18.0",
  "num-traits",
  "serde",
 ]
@@ -825,9 +819,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.29"
+version = "1.0.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9f5105d4fdaab20335ca9565e106a5d9b82b6219b5ba735731124ac6711d23d"
+checksum = "edc3358ebc67bc8b7fa0c007f945b0b18226f78437d61bec735a9eb96b61ee70"
 dependencies = [
  "unicode-xid",
 ]
@@ -1002,9 +996,9 @@ dependencies = [
 
 [[package]]
 name = "saft"
-version = "0.20.2"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d0b2e0492d4c65b69fe34dd2359d96ded3f4b62cb7b4348500b51e8061d3472"
+checksum = "31a4b842dad5b9b47c03ecee252f2bed1ec19f86ae8f77af727a7b38612a928e"
 dependencies = [
  "ahash",
  "macaw",
@@ -1060,9 +1054,9 @@ dependencies = [
 
 [[package]]
 name = "slab"
-version = "0.4.4"
+version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c307a32c1c5c437f38c7fd45d753050587732ba8628319fbdf12a7e289ccc590"
+checksum = "9def91fd1e018fe007022791f865d0ccc9b3a0d5001e01aabb8b40e46000afb5"
 
 [[package]]
 name = "smallvec"
@@ -1160,9 +1154,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-macros"
-version = "1.4.1"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "154794c8f499c2619acd19e839294703e9e32e7630ef5f46ea80d4ef0fbee5eb"
+checksum = "b2dd85aeaba7b68df939bd357c6afb36c87951be9e80bf9c859f2fc3e9fca0fd"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1289,7 +1283,7 @@ dependencies = [
  "centerline",
  "cgmath",
  "fast-surface-nets",
- "glam 0.17.3",
+ "glam 0.18.0",
  "glam 0.19.0",
  "ilattice",
  "itertools",

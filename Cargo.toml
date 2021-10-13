@@ -41,9 +41,9 @@ arrayvec = "0.7"
 ilattice = { git="https://github.com/bonsairobo/ilattice-rs.git", rev="7b8b723", default-features = false, features = ["glam"]}
 #ilattice = { path="../ilattice-rs", default-features = false, features = ["glam"]}
 fast-surface-nets = "0.1"
-saft_cr = { package="saft", version="0.20", optional = true, features = ["rayon", "with_rayon"]}
+saft_cr = { package="saft", version="0.22", optional = true, features = ["rayon", "with_rayon"]}
 # The glam version used by saft/macaw
-glam_saft = { package="glam", version="0.17", optional = true}
+glam_saft = { package="glam", version="0.18", optional = true}
 glam = "0.19"
 bytemuck = "1.7"
 
