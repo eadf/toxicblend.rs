@@ -1030,7 +1030,7 @@ class Toxicblend_Voxel(Operator):
         description="Voxel tube radius as a percentage of the total AABB",
         default=1.0,
         min=0.01,
-        max=9.9999,
+        max=19.9999,
         precision=6,
         subtype='PERCENTAGE'
     )
@@ -1307,7 +1307,7 @@ class TB_MeshToolsProps(PropertyGroup):
         description="Voxel tube radius as a percentage of the total AABB",
         default=1.0,
         min=0.01,
-        max=9.9999,
+        max=19.9999,
         precision=6,
         subtype='PERCENTAGE'
     )
