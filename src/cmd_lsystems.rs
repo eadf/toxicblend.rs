@@ -11,26 +11,39 @@ use crate::toxicblend_pb::Vertex as PB_Vertex;
 
 use cgmath::{EuclideanSpace, Rad};
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::time;
 
-/// converts to a private, comparable and hash-able format.
-/// Only use this for bit perfect float copies that are f64::is_finite()
-#[inline(always)]
-fn transmute_to_u64(p: &cgmath::Point3<f64>) -> (u64, u64, u64) {
-    let mut x = p.x;
-    let mut y = p.y;
-    let mut z = p.z;
+#[derive(PartialEq, Eq, Hash)]
+/// Converts a `cgmath::Point3<f64>` to a comparable and hash-able opaque.
+/// Only use this as a hashmap key for bit perfect Point3s that are `f64::is_finite()`
+struct F64Key {
+    x: u64,
+    y: u64,
+    z: u64,
+}
 
-    if x == -0.0 {
-        x = 0.0;
+impl F64Key {
+    fn new(p: &cgmath::Point3<f64>) -> Self {
+        let mut x = p.x;
+        let mut y = p.y;
+        let mut z = p.z;
+
+        if x == -0.0 {
+            x = 0.0;
+        }
+        if y == -0.0 {
+            y = 0.0;
+        }
+        if z == -0.0 {
+            z = 0.0;
+        }
+        Self {
+            x: x.to_bits(),
+            y: y.to_bits(),
+            z: z.to_bits(),
+        }
     }
-    if y == -0.0 {
-        y = 0.0;
-    }
-    if z == -0.0 {
-        z = 0.0;
-    }
-    (x.to_bits(), y.to_bits(), z.to_bits())
 }
 
 /// Algorithmic_botany, page 11 (http://algorithmicbotany.org/papers/#abop)
@@ -171,13 +184,20 @@ fn build_sierpinski_gasket_3d(
         .add_token('R', TurtleCommand::Forward(200.0))?
         .add_token('L', TurtleCommand::Forward(200.0))?
         .add_token('+', TurtleCommand::Yaw(Rad(60.0f64.to_radians())))?
-        .add_token('-', TurtleCommand::Pitch(Rad(-60.0f64.to_radians())))?
+        .add_token(
+            '-',
+            TurtleCommand::Rotate(
+                Rad(-61.0f64.to_radians()),
+                Rad(0.0f64.to_radians()),
+                Rad(4.0f64.to_radians()),
+            ),
+        )?
         .add_axiom("R".to_string())?
         .add_rule('R', " L - R - L".to_string())?
         .add_rule('L', " R + L + R".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!(
-        "build_sierpinski_gasket render() duration: {:?}",
+        "build_sierpinski_gasket_3d render() duration: {:?}",
         now.elapsed()
     );
     Ok(result)
@@ -195,28 +215,27 @@ fn build_gosper_curve(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>
         .add_rule('L', " L+R++R-L--LL-R+".to_string())?
         .add_rule('R', " -L+RR++R+L--L-R".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
-    println!(
-        "build_sierpinski_gasket render() duration: {:?}",
-        now.elapsed()
-    );
+    println!("build_gosper_curve render() duration: {:?}", now.elapsed());
     Ok(result)
 }
 
 fn build_gosper_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64>; 2]>, TBError> {
     let now = time::Instant::now();
+    let f = Box::new(move |mut p: cgmath::Point3<f64>| -> cgmath::Point3<f64> {
+        p.z = p.x.sin() + p.y.sin();
+        p
+    });
     let result = TurtleRules::default()
-        .add_token('R', TurtleCommand::Forward(1.0))?
-        .add_token('L', TurtleCommand::Forward(1.0))?
+        .add_token('R', TurtleCommand::ForwardF(1.0, f.clone()))?
+        .add_token('L', TurtleCommand::ForwardF(1.0, f))?
         .add_token('+', TurtleCommand::Yaw(Rad(60.0f64.to_radians())))?
         .add_token('-', TurtleCommand::Yaw(Rad(-60.0f64.to_radians())))?
-        .add_token('P', TurtleCommand::Roll(Rad(60.0f64.to_radians())))?
-        .add_token('p', TurtleCommand::Roll(Rad(-60.0f64.to_radians())))?
         .add_axiom("L".to_string())?
-        .add_rule('L', " L+R++R-L--LL-R+P".to_string())?
-        .add_rule('R', " -L+RR++R+L--L-Rp".to_string())?
+        .add_rule('L', "L+R++R-L--LL-R+".to_string())?
+        .add_rule('R', "-L+RR++R+L--L-R".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!(
-        "build_sierpinski_gasket render() duration: {:?}",
+        "build_gosper_curve_3d render() duration: {:?}",
         now.elapsed()
     );
     Ok(result)
@@ -240,8 +259,15 @@ fn build_koch_curve_3d(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64
     let now = time::Instant::now();
     let result = TurtleRules::default()
         .add_token('F', TurtleCommand::Forward(30.0))?
-        .add_token('+', TurtleCommand::Yaw(Rad(90.0f64.to_radians())))?
-        .add_token('-', TurtleCommand::Roll(Rad(-90.0f64.to_radians())))?
+        .add_token('+', TurtleCommand::Pitch(Rad(90.0f64.to_radians())))?
+        .add_token(
+            '-',
+            TurtleCommand::Rotate(
+                Rad(40.0f64.to_radians()),
+                Rad(-90.0f64.to_radians()),
+                Rad(0.0f64.to_radians()),
+            ),
+        )?
         .add_axiom("F".to_string())?
         .add_rule('F', " F + F - F - F + F".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
@@ -283,7 +309,7 @@ fn build_quadratic_koch_curve_island_3d(
         .add_rule('F', " F+FRFr-FRFr-F-F+F+FRFr-F-F+F+FRFr+FRFr-F".to_string())?
         .exec(cmd_arg_iterations, Turtle::default())?;
     println!(
-        "build_quadratic_koch_curve_island render() duration: {:?}",
+        "build_quadratic_koch_curve_island_3d render() duration: {:?}",
         now.elapsed()
     );
     Ok(result)
@@ -384,10 +410,7 @@ fn build_fractal_plant(cmd_arg_iterations: u8) -> Result<Vec<[cgmath::Point3<f64
         .rotate(Rad(70.0f64.to_radians()), Rad(0.0), Rad(0.0))?
         .exec(cmd_arg_iterations, Turtle::default())?;
 
-    println!(
-        "build_fractal_binary_tree render() duration: {:?}",
-        now.elapsed()
-    );
+    println!("build_fractal_plant render() duration: {:?}", now.elapsed());
     Ok(result)
 }
 
@@ -430,8 +453,7 @@ fn build_output_bp_model(
     lines: Vec<[cgmath::Point3<f64>; 2]>,
 ) -> Result<PB_Model, TBError> {
     // vertex de-duplication mechanism
-    // todo: this is broken since each vertex isn't rounded to int anymore
-    let mut vertices_map = ahash::AHashMap::<(u64, u64, u64), usize>::new();
+    let mut vertices_map = ahash::AHashMap::<F64Key, usize>::new();
     // make sure to not add the same edge twice, set key is sorted (lower,higher)
     let mut dup_edges = ahash::AHashSet::<(usize, usize)>::new();
 
@@ -441,7 +463,7 @@ fn build_output_bp_model(
     let mut src_aabb = linestring::linestring_3d::Aabb3::default();
 
     for [p0, p1] in lines.into_iter() {
-        let key = transmute_to_u64(&p0);
+        let key = F64Key::new(&p0);
         let i0 = *vertices_map.entry(key).or_insert_with(|| {
             let n = pb_vertices.len();
 
@@ -454,7 +476,7 @@ fn build_output_bp_model(
             n
         });
 
-        let key = transmute_to_u64(&p1);
+        let key = F64Key::new(&p1);
         let i1 = *vertices_map.entry(key).or_insert_with(|| {
             let n = pb_vertices.len();
 
@@ -466,9 +488,6 @@ fn build_output_bp_model(
             });
             n
         });
-
-        //println!("p0: {:?} is {}", p0, i0);
-        //println!("p1: {:?} is {}", p1, i1);
 
         let key = {
             if i0 < i1 {

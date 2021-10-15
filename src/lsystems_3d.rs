@@ -115,6 +115,19 @@ impl Turtle {
                     return Err(TBError::LSystems3D("Could not pop stack".to_string()));
                 }
             }
+            TurtleCommand::ForwardF(distance,f) => {
+                let l1 = self.position;
+                self.position += self.heading.heading * *distance;
+                if self.round {
+                    self.position.x = self.position.x.round();
+                    self.position.y = self.position.y.round();
+                    self.position.z = self.position.z.round();
+                }
+                self.position =f(self.position);
+                if !self.pen_up {
+                    self.result.push([l1, self.position]);
+                }
+            }
         };
         Ok(())
     }
@@ -127,12 +140,14 @@ pub enum TurtleCommand {
     Roll(Rad<f64>),
     Pitch(Rad<f64>),
     Yaw(Rad<f64>),
-    // yaw, pitch, roll
+    /// yaw, pitch, roll
     Rotate(Rad<f64>, Rad<f64>, Rad<f64>),
     PenUp,
     PenDown,
     Push,
     Pop,
+    /// Move forward, and based on the current coordinate - set a new coordinate
+    ForwardF(f64,Box<dyn Fn(cgmath::Point3<f64>)->cgmath::Point3<f64>>),
 }
 
 #[derive(Default)]
