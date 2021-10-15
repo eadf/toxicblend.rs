@@ -65,6 +65,7 @@ fn parse_input_pb_model(
     Ok((edges, aabb))
 }
 
+/// Build the chunk lattice and spawn off thread tasks for each chunk
 fn build_voxel(
     radius_multiplier: f32,
     divisions: f32,
@@ -106,8 +107,10 @@ fn build_voxel(
     let chunks_extent = {
         let min_p = aabb.get_low().unwrap().to_float();
         let max_p = aabb.get_high().unwrap().to_float();
+        // pad with the radius + one voxel
         (Extent::<Vec3A>::from_min_and_lub(min_p, max_p).padded(radius)
             * (scale / (UNPADDED_CHUNK_SIDE as f32)))
+            .padded(1.0 / (UNPADDED_CHUNK_SIDE as f32))
             .containing_integer_extent()
     };
 
@@ -125,9 +128,8 @@ fn build_voxel(
             .iter3()
             .par_bridge()
             .filter_map(move |p| {
-                let chunk_min = IVec3::from(p) * unpadded_chunk_shape;
                 let unpadded_chunk_extent =
-                    Extent3i::from_min_and_shape(chunk_min, unpadded_chunk_shape);
+                    Extent3i::from_min_and_shape(p * unpadded_chunk_shape, unpadded_chunk_shape);
 
                 generate_and_process_sdf_chunk(unpadded_chunk_extent, &vertices, &edges, radius)
             })
@@ -224,7 +226,7 @@ fn generate_and_process_sdf_chunk(
         } else {
             some_neg_or_zero_found = true;
         }
-    };
+    }
     if some_pos_found && some_neg_or_zero_found {
         // A combination of positive and negative surfaces found - process this chunk
         let mut sn_buffer = SurfaceNetsBuffer::default();
