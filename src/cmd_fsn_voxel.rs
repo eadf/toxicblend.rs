@@ -191,7 +191,7 @@ fn generate_and_process_sdf_chunk(
     let mut some_neg_or_zero_found = false;
     let mut some_pos_found = false;
 
-    padded_chunk_extent.for_each3(|pwo| {
+    for pwo in padded_chunk_extent.iter3() {
         let v = {
             let p = pwo - unpadded_chunk_extent.minimum + 1;
             &mut array[PaddedChunkShape::linearize([p.x as u32, p.y as u32, p.z as u32]) as usize]
@@ -224,7 +224,7 @@ fn generate_and_process_sdf_chunk(
         } else {
             some_neg_or_zero_found = true;
         }
-    });
+    };
     if some_pos_found && some_neg_or_zero_found {
         // A combination of positive and negative surfaces found - process this chunk
         let mut sn_buffer = SurfaceNetsBuffer::default();
