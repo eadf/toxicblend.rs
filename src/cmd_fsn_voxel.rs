@@ -98,38 +98,25 @@ fn build_voxel(
     );
     println!();
 
-    /*
-    println!("aabb.high:{:?}", aabb.get_high().unwrap());
-    println!("aabb.low:{:?}", aabb.get_low().unwrap());
-    println!(
-        "delta:{:?}",
-        aabb.get_high().unwrap() - aabb.get_low().unwrap()
-    );
-    */
     let vertices: Vec<Vec3A> = vertices
         .iter()
         .map(|v| Vec3A::new(v.x, v.y, v.z) * scale)
         .collect();
 
     let chunks_extent = {
-        let min_p = (aabb.get_low().unwrap().to_float() - Vec3A::from([radius; 3])) * scale;
-        let max_p = (aabb.get_high().unwrap().to_float() + Vec3A::from([radius; 3])) * scale;
-
-        let extent_min: IVec3 = (min_p / (UNPADDED_CHUNK_SIDE as f32)).floor().to_int();
-        let extent_max: IVec3 = (max_p / (UNPADDED_CHUNK_SIDE as f32)).ceil().to_int();
-        //let extent =
-        Extent3i::from_min_and_lub(extent_min, extent_max)
+        let min_p = aabb.get_low().unwrap().to_float();
+        let max_p = aabb.get_high().unwrap().to_float();
+        (Extent::<Vec3A>::from_min_and_lub(min_p, max_p).padded(radius)
+            * (scale / (UNPADDED_CHUNK_SIDE as f32)))
+            .containing_integer_extent()
     };
-
-    //let chunks_extent = Extent3i::from_min_and_lub(IVec3::new(-1,-1,-1), IVec3::new(0,0,0));
-    //println!("chunks_extent {:?}", chunks_extent);
 
     let now = time::Instant::now();
 
     let sdf_chunks: Vec<_> = {
         let radius = radius * scale;
         let unpadded_chunk_shape = IVec3::from([UNPADDED_CHUNK_SIDE as i32; 3]);
-        // Spawn off threads creating and processing chunks.
+        // Spawn off thread tasks creating and processing chunks.
         // Could also do:
         // (min.x..max.x).into_par_iter().flat_map(|x|
         //     (min.y..max.y).into_par_iter().flat_map(|y|
