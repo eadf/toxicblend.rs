@@ -20,12 +20,12 @@ A blender addon based on a client-server model using [grpc](https://grpc.io) and
 The blender addon is the client, and it only connects to `localhost`.
 The server binds to `localhost` as well; so it should not be reachable from any other computer (not thoroughly tested), run it with this command:
 ```
-cargo +nightly run --bin toxicblend_server --release
+cargo +nightly run --bin toxicblend_server --release --features saft
 ```
 
 or just 
 ```
-cargo +nightly run --release
+cargo run --release --features saft
 ```
 
 ### Saft backend
@@ -162,8 +162,20 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 
 ## Todo
 
-- [ ] Update to building-blocks 0.8 once released
 - [ ] Update to ilattice crate once released
 - [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
 - [ ] Port the rest of the operations.
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
+- [ ] Create docker release image
+
+## Changelog:
+# 0.0.18 (github release)
+- Replaced [building_blocks](https://crates.io/crates/building_blocks) with [fast_surface_nets](https://crates.io/crates/fast_surface_nets)
+- Refactoring of Lindenmayer Systems
+- Made sure there is one empty voxel surrounding geometry
+- Dependency updates
+# 0.0.17 (github release)
+- Added [fast_surface_nets](https://crates.io/crates/fast_surface_nets) & [saft](https://crates.io/crates/saft)
+- Replaced [yabf](https://crates.io/crates/yabf) with [vob](https://crates.io/crates/vob)
+# 0.0.16 (github release)
+- Updated [building_blocks](https://crates.io/crates/building_blocks) to 0.8.0 (github snapshot)
