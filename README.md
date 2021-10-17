@@ -6,7 +6,7 @@
 [![dependency status](https://deps.rs/crate/toxicblend/0.0.17/status.svg)](https://deps.rs/crate/toxicblend/0.0.17)
 ![license](https://img.shields.io/crates/l/toxicblend)
 
-It is a [client-server](https://grpc.io) based addon for [Blender](blender.org) written in Rust (and Python for the client side parts).  
+It is a [client-server](https://grpc.io) based addon for [Blender](https://www.blender.org/) written in Rust (and Python for the client side parts).  
 
 ## Blender addon installation
 Follow instructions in [install_as_blender_addon.md](blender_addon/install_as_blender_addon.md)
@@ -20,16 +20,16 @@ A blender addon based on a client-server model using [grpc](https://grpc.io) and
 The blender addon is the client, and it only connects to `localhost`.
 The server binds to `localhost` as well; so it should not be reachable from any other computer (not thoroughly tested), run it with this command:
 ```
-cargo +nightly run --bin toxicblend_server --release --features saft
+cargo +nightly run --bin toxicblend_server --release
 ```
 
 or just 
 ```
-cargo run --release --features saft
+cargo run --release
 ```
 
 ### Saft backend
-You can enable the [saft](https://crates.io/crates/saft) meshing backend like this:
+You can enable the [saft](https://crates.io/crates/saft) voxel meshing backend like this:
 ```
 cargo +nightly run --release --features saft
 ```
@@ -39,7 +39,7 @@ If the grpc server (for any unimaginable reason) would crash, blender will hang 
 This can easily be fixed if you run blender from the console. A `ctrl` - `C` will fix it.
 
 ## Development status
-Project is still in development, I will add more operations.
+Project is still in development, I will add more operations. The existing operations are pretty much usable as-is.
 
 ## Addon operations:
 
@@ -96,7 +96,7 @@ Runs the Voronoi sweep-line algorithm on 2D points and lines (geometry must be o
 Takes an edge-only 3D mesh, like the output of the Voronoi operation, and puts voxelized tubes along the edges.
 This operation does *not* require flat input.
 
-This operation uses one of [building-blocks](https://crates.io/crates/building-blocks), [fast-surface-nets](https://crates.io/crates/fast-surface-nets) or [saft](https://crates.io/crates/saft) for voxel generation.
+This operation uses [fast-surface-nets](https://crates.io/crates/fast-surface-nets) or [saft](https://crates.io/crates/saft) for voxel generation.
 
 ### Operation: Metavolume (object operation)
 Takes an edge-only mesh, like the output of the Voronoi operation, and puts metaballs along the edges.
@@ -162,20 +162,20 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 
 ## Todo
 
-- [ ] Update to ilattice crate once released
+- [ ] Update to [ilattice](https://github.com/bonsairobo/ilattice-rs) crate once it is published and make a proper crates.io release of this crate.
 - [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
 - [ ] Port the rest of the operations.
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
-- [ ] Create docker release image
+- [ ] Create docker release images
 
 ## Changelog:
-# 0.0.18 (github release)
+### 0.0.18 (GitHub release)
 - Replaced [building_blocks](https://crates.io/crates/building_blocks) with [fast_surface_nets](https://crates.io/crates/fast_surface_nets)
 - Refactoring of Lindenmayer Systems
 - Made sure there is one empty voxel surrounding geometry
 - Dependency updates
-# 0.0.17 (github release)
+### 0.0.17 (GitHub release)
 - Added [fast_surface_nets](https://crates.io/crates/fast_surface_nets) & [saft](https://crates.io/crates/saft)
 - Replaced [yabf](https://crates.io/crates/yabf) with [vob](https://crates.io/crates/vob)
-# 0.0.16 (github release)
-- Updated [building_blocks](https://crates.io/crates/building_blocks) to 0.8.0 (github snapshot)
+### 0.0.16 (GitHub release)
+- Updated [building_blocks](https://crates.io/crates/building_blocks) to 0.8.0 (GitHub snapshot)
