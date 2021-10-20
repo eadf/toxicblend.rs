@@ -167,6 +167,7 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 - [ ] Port the rest of the operations.
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
 - [ ] Create docker release images
+- [ ] When everything has stabilized, remove the gRPC layer and publish as a Python package containing the Rust binaries.  
 
 ## Changelog:
 ### 0.0.18 (GitHub release)

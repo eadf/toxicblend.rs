@@ -101,16 +101,15 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "boostvoronoi"
-version = "0.9.2"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba66a10feb6417b41fbe02904123a2165d74c0d48faa2d391dbc542b49cc65d8"
+checksum = "bcfd45daeb677140ee334a062f1204debdb4a6d5e6972edf34ac03bb1b832c15"
 dependencies = [
  "ahash",
  "approx 0.5.0",
  "bitflags",
  "cpp_map",
  "itertools",
- "lazy_static",
  "libm",
  "num",
  "num-traits",
@@ -118,7 +117,7 @@ dependencies = [
  "smallvec",
  "thiserror",
  "version_check",
- "yabf",
+ "vob",
 ]
 
 [[package]]
@@ -141,9 +140,9 @@ checksum = "c4872d67bab6358e59559027aa3b9157c53d9358c51423c17554809a8858e0f8"
 
 [[package]]
 name = "centerline"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ecb5dd3584501f3cf11d176278b85a63432143c98972a29a2759b5a96633075"
+checksum = "ed39d056cb995441149705573fb39f1cee85df701dd6d27687afc68cfba22557"
 dependencies = [
  "ahash",
  "approx 0.5.0",
@@ -157,7 +156,7 @@ dependencies = [
  "rayon",
  "thiserror",
  "version_check",
- "yabf",
+ "vob",
 ]
 
 [[package]]
@@ -488,9 +487,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.103"
+version = "0.2.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd8f7255a17a627354f321ef0055d63b898c6fb27eff628af4d1b66b7331edf6"
+checksum = "7b2f96d100e1cf1929e7719b7edb3b90ab5298072638fccd77be9ce942ecdfce"
 
 [[package]]
 name = "libm"
@@ -500,9 +499,9 @@ checksum = "c7d73b3f436185384286bd8098d17ec07c9a7d2388a6599f824d8502b529702a"
 
 [[package]]
 name = "linestring"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a22e1ab2fbba3172c787c2bd67baa49e02408f3f19f35a52ad51536bec93d4a1"
+checksum = "fd2d93dd7ca0eb361464cbcef2d34ddf0d830040590de32e3bb18b02bf2ecb3f"
 dependencies = [
  "ahash",
  "approx 0.5.0",
@@ -512,7 +511,7 @@ dependencies = [
  "rayon",
  "thiserror",
  "version_check",
- "yabf",
+ "vob",
 ]
 
 [[package]]
@@ -550,9 +549,9 @@ dependencies = [
 
 [[package]]
 name = "macaw"
-version = "0.13.0"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bb0fe76942f94fc70646c26b61aaf26c2a4da08b5e84fbe59da0bab1d8e45bd"
+checksum = "2cee8421c24a2a53624e44b1c8fdbf75863121cb94f58a5a75fc51673f3e5054"
 dependencies = [
  "glam 0.18.0",
  "num-traits",
@@ -576,9 +575,9 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "0.7.13"
+version = "0.7.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c2bdb6314ec10835cd3293dd268473a835c02b7b352e788be788b3c6ca6bb16"
+checksum = "8067b404fe97c70829f082dec8bcf4f71225d7eaea1d8645349cb76fa06205cc"
 dependencies = [
  "libc",
  "log",
@@ -996,9 +995,9 @@ dependencies = [
 
 [[package]]
 name = "saft"
-version = "0.22.0"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31a4b842dad5b9b47c03ecee252f2bed1ec19f86ae8f77af727a7b38612a928e"
+checksum = "c0c429075ca4846f2a728c0f50c53ed1fdb46e65755dd70956d4cb2aa9be8cf7"
 dependencies = [
  "ahash",
  "macaw",
@@ -1242,9 +1241,9 @@ dependencies = [
 
 [[package]]
 name = "tower"
-version = "0.4.9"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d15a6b60cdff0cb039d81d3b37f8bc3d7e53dca09069aae3ef2502ca4834fe30"
+checksum = "c00e500fff5fa1131c866b246041a6bf96da9c965f8fe4128cb1421f23e93c00"
 dependencies = [
  "futures-core",
  "futures-util",
@@ -1439,12 +1438,3 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
-
-[[package]]
-name = "yabf"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7c8230d9a1564c21554dbb57b3cad3866a7af4ee0275c9fd54acb64ebf54055"
-dependencies = [
- "smallvec",
-]

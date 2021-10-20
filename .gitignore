@@ -5,7 +5,7 @@
 **/.cproject
 **/.proj
 .project
-/.idea/
+.idea
 
 /target/
 /proto/pip/build
