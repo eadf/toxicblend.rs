@@ -12,6 +12,7 @@ It is a [client-server](https://grpc.io) based addon for [Blender](https://www.b
 Follow instructions in [install_as_blender_addon.md](blender_addon/install_as_blender_addon.md)
 
 ## Rust requirement
+Rust 1.56+
 
 Will automatically make use of the fast(er) features `hash_drain_filter` and `map_first_last` if run on `rust +nightly`
 
