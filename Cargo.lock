@@ -449,7 +449,8 @@ dependencies = [
 [[package]]
 name = "ilattice"
 version = "0.1.0"
-source = "git+https://github.com/bonsairobo/ilattice-rs.git?rev=390097b#390097b39a1591b169873db5679bc0d83ded7a1d"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3db9046391c0e0658a18e23877706d16e48cc8b4711702b9f703776410c2b84"
 dependencies = [
  "glam 0.19.0",
 ]

@@ -38,6 +38,13 @@ and click 'Install Add-on'. Same thing for the `blender_addon/toxicblend_metavol
 
 Don't forget to enable the addons in the Blender addon list.
 
+# Update
+
+Usually you do not need to update the python pip package, the addons checks the version of the toxicblend pip package and will display an error message if it needs to be updated.
+
+The addon-files needs to be updated for each version: remove them from the Blender addon screen and re-install them.
+
+
 # Uninstall
 From blender script tab:
 ```
