@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/toxicblend.svg)](https://crates.io/crates/toxicblend)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)
-[![dependency status](https://deps.rs/crate/toxicblend/0.0.17/status.svg)](https://deps.rs/crate/toxicblend/0.0.17)
+[![dependency status](https://deps.rs/crate/toxicblend/0.0.18/status.svg)](https://deps.rs/crate/toxicblend/0.0.18)
 ![license](https://img.shields.io/crates/l/toxicblend)
 
 It is a [client-server](https://grpc.io) based addon for [Blender](https://www.blender.org/) written in Rust (and Python for the client side parts).  
@@ -171,10 +171,11 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 - [ ] When everything has stabilized, remove the gRPC layer and publish as a Python package containing the Rust binaries.  
 
 ## Changelog:
-### 0.0.18 (GitHub release)
+### 0.0.18 
 - Replaced [building_blocks](https://crates.io/crates/building_blocks) with [fast_surface_nets](https://crates.io/crates/fast_surface_nets)
 - Refactoring of Lindenmayer Systems
 - Made sure there is one empty voxel surrounding geometry
+- Rust 1.56.0 and 2021 Edition
 - Dependency updates
 ### 0.0.17 (GitHub release)
 - Added [fast_surface_nets](https://crates.io/crates/fast_surface_nets) & [saft](https://crates.io/crates/saft)

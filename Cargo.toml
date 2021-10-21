@@ -1,6 +1,6 @@
 [package]
 name = "toxicblend"
-version = "0.0.17"
+version = "0.0.18"
 authors = ["eadf"]
 edition = "2021"
 description = "gRPC based Blender-addons. WIP"
