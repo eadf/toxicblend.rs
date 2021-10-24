@@ -163,7 +163,7 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 
 ## Todo
 
-- [ ] Update to [ilattice](https://github.com/bonsairobo/ilattice-rs) crate once it is published and make a proper crates.io release of this crate.
+- [x] Update to [ilattice](https://github.com/bonsairobo/ilattice-rs) crate once it is published and make a proper crates.io release of this crate.
 - [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
 - [ ] Port the rest of the operations.
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
