@@ -96,11 +96,6 @@ impl DiagramHelperRw {
                 y: transformed_v.y,
                 z: transformed_v.z,
             });
-            /*println!(
-                "Found a new vertex:{:.12}, {:.12} named it {}",
-                vertex[0], vertex[1], n
-            );
-            */
             n
         });
 
@@ -312,25 +307,6 @@ impl DiagramHelperRo {
                 samples.push([end_point.x, end_point.y, z_comp]);
             }
         }
-        /*{
-            let external = if self.rejected_edges.bit(edge_id.0) {
-                "e"
-            } else {
-                "i"
-            };
-            let curved = if edge.is_curved() { "c" } else { "s" };
-            let secondary = if edge.is_secondary() {
-                "secondary"
-            } else {
-                "  primary"
-            };
-            print!(
-                "{} eid:{:2}, {}{}, samples:{:?}",
-                secondary, edge_id.0, external, curved, samples
-            );
-        }*/
-
-        //println!(" : {:?}", rv);
         Ok(samples)
     }
 
@@ -429,11 +405,6 @@ impl DiagramHelperRo {
         let mut samples = Vec::<[f64; 3]>::new();
 
         if edge.is_curved() {
-            // push the generating cell point on the sample, it will be removed first of all
-            //if cell.contains_point() {
-            //    samples.push([cell_point.x, cell_point.y, 0.0]);
-            //}
-
             let arc = VoronoiParabolicArc::new(
                 segment,
                 cell_point,
@@ -446,7 +417,6 @@ impl DiagramHelperRo {
                     y: end_point.y,
                 },
             );
-            //println!("made new arc");
 
             for p in arc.discretise_3d(discretization_dist).points().iter() {
                 samples.push([p.x, p.y, p.z]);
@@ -508,25 +478,7 @@ impl DiagramHelperRo {
                 }
             }
         }
-        /*{
-            let external = if self.rejected_edges.bit(edge_id.0) {
-                "e"
-            } else {
-                "i"
-            };
-            let curved = if edge.is_curved() { "c" } else { "s" };
-            let secondary = if edge.is_secondary() {
-                "secondary"
-            } else {
-                "  primary"
-            };
-            print!(
-                "{} eid:{:2}, {}{}, samples:{:?}",
-                secondary, edge_id.0, external, curved, samples
-            );
-        }*/
 
-        //println!(" : {:?}", rv);
         Ok(samples)
     }
 
@@ -539,7 +491,7 @@ impl DiagramHelperRo {
         let mut rv = ahash::AHashMap::<usize, Vec<usize>>::new();
 
         // this block is not really needed, just makes it convenient to debug
-        {
+        /*{
             for v in self.vertices.iter() {
                 let _ = hrw.place_new_pb_vertex_dup_check(
                     &[v.x as f64, v.y as f64, 0.0],
@@ -556,7 +508,7 @@ impl DiagramHelperRo {
                     &self.inverted_transform,
                 );
             }
-        }
+        }*/
 
         for edge in self.diagram.edges() {
             let edge = edge.get();
@@ -588,17 +540,8 @@ impl DiagramHelperRo {
                 let _ = rv.insert(edge_id.0, pb_edge);
             } else {
                 // ignore edge because the twin is already processed
-                //println!("did not store edge:{}, twin:{}", edge_id.0, twin_id.0);
             }
         }
-        /*for (e_id, v) in rv.iter() {
-            let t_id = self
-                .diagram
-                .edge_get_twin(Some(VD::VoronoiEdgeIndex(*e_id)))
-                .unwrap();
-
-            println!("eid:{:2},tid:{:2}, v:{:?}", e_id, t_id.0, v);
-        }*/
         Ok((hrw, rv))
     }
 
@@ -612,12 +555,7 @@ impl DiagramHelperRo {
     ) -> Result<Option<(PB_Face, PB_Face)>, TBError> {
         if let Some(v0i) = pb_face.vertices.iter().position(|x| x == &v0n) {
             if let Some(v1i) = pb_face.vertices.iter().position(|x| x == &v1n) {
-                /*if pb_face.vertices.contains(&v0n) && pb_face.vertices.contains(&v1n) {
-                    println!(
-                        "COULD SPLIT v0n:{} v0i:{} v1n:{} v1i:{}",
-                        v0n, v0i, v1n, v1i
-                    );
-                }*/
+
                 let mut a = Vec::<u64>::new();
                 let mut b = Vec::<u64>::new();
                 if v0i < v1i {
@@ -628,9 +566,6 @@ impl DiagramHelperRo {
                     for i in v0i..=v1i {
                         b.push(pb_face.vertices[i]);
                     }
-                    //println!("v:{:?}", pb_face.vertices);
-                    //println!("a:{:?}", a);
-                    //println!("b:{:?}", b);
                 } else {
                     // todo, could this be made into a direct .collect() ?
                     for i in (0..=v1i).chain(v0i..pb_face.vertices.len()) {
@@ -639,9 +574,6 @@ impl DiagramHelperRo {
                     for i in v1i..=v0i {
                         b.push(pb_face.vertices[i]);
                     }
-                    //println!("v:{:?}", pb_face.vertices);
-                    //println!("a:{:?}", a);
-                    //println!("b:{:?}", b);
                 };
                 return Ok(Some((PB_Face { vertices: a }, PB_Face { vertices: b })));
             }
@@ -669,20 +601,14 @@ impl DiagramHelperRo {
                         &self.inverted_transform,
                     ) as u64
                 };
-                //print!("PCell:{} cp:{} ", cell_id.0, cell_point);
 
                 for edge_id in self.diagram.cell_edge_iterator(cell_id) {
                     let edge = self.diagram.get_edge(edge_id)?.get();
                     let twin_id = edge.twin()?;
 
                     if self.rejected_edges.get_f(edge_id.0) && !edge.is_secondary() {
-                        //print!("secondary edge ignored {}", edge_id.0);
                         continue;
                     }
-                    //if edge.is_secondary() {
-                    //    println!("using secondary edge");
-                    //}
-                    //print! {"{}:{:?},", edgeid.0, edge_map.get(&edgeid.0)};
                     let mod_edge: Box<dyn ExactSizeIterator<Item = &usize>> = {
                         if let Some(e) = edge_map.get(&edge_id.0) {
                             Box::new(e.iter())
@@ -752,7 +678,6 @@ impl DiagramHelperRo {
                             Box::new(None.iter())
                         }
                     };
-                    //print! {" e:{}:", edge_id.0};
 
                     for v in mod_edge.map(|x| *x as u64) {
                         //print! {"{:?},", v};
@@ -761,7 +686,6 @@ impl DiagramHelperRo {
                         }
                     }
                 }
-                //print! {" {:?}", new_face};
                 if let Some((split_a, split_b)) =
                     self.split_pb_face_by_segment(v0n as u64, v1n as u64, &new_face)?
                 {
@@ -774,11 +698,8 @@ impl DiagramHelperRo {
                 } else if new_face.vertices.len() > 2 {
                     pb_faces.push(new_face);
                 }
-
-                //println!();
             }
         }
-        //println!("pb_faces:{:?}", pb_faces);
         Ok((pb_faces, dhrw.pb_vertices))
     }
 }
@@ -865,10 +786,6 @@ fn parse_input(
         .filter(|x| !used_vertices.get_f(x.0))
         .map(|x| x.1)
         .collect();
-    drop(used_vertices);
-
-    //println!("lines_2d.len():{:?}", vor_lines.len());
-    //println!("vertices_2d.len():{:?}", vor_vertices.len());
     Ok((vor_vertices, vor_lines, vor_aabb, invers_transform))
 }
 
@@ -918,8 +835,6 @@ fn voronoi_mesh(
     vb.with_vertices(vor_vertices.iter())?;
     vb.with_segments(vor_lines.iter())?;
     let vor_diagram = vb.build()?;
-    //println!("diagram:{:?}", vor_diagram);
-    //println!("aabb2:{:?}", vor_aabb2);
     let discretization_dist = {
         let max_dist = vor_aabb2.get_high().unwrap() - vor_aabb2.get_low().unwrap();
         let max_dist = max_dist.x.max(max_dist.y);
@@ -932,9 +847,7 @@ fn voronoi_mesh(
         vertices: vor_vertices,
         segments: vor_lines,
         diagram: vor_diagram,
-        //aabb: vor_aabb2,
         rejected_edges: reject_edges,
-        //discrete_distance: cmd_discrete_distance,
         internal_vertices,
         inverted_transform,
     };
@@ -942,7 +855,6 @@ fn voronoi_mesh(
     let (dhrw, mod_edges) = diagram_helper.convert_edges(discretization_dist)?;
     let (pb_faces, pb_vertices) = diagram_helper.iterate_cells(dhrw, mod_edges)?;
 
-    //build_output(false, input_pb_model, diagram_helper, inverted_transform)
     Ok(PB_Model {
         name: input_pb_model.name.clone(),
         world_orientation: input_pb_model.world_orientation.clone(),
