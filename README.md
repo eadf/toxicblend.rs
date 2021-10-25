@@ -163,14 +163,17 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 
 ## Todo
 
-- [x] Update to [ilattice](https://github.com/bonsairobo/ilattice-rs) crate once it is published and make a proper crates.io release of this crate.
 - [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
 - [ ] Port the rest of the operations.
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
 - [ ] Create docker release images
-- [ ] When everything has stabilized, remove the gRPC layer and publish as a Python package containing the Rust binaries.  
+- [ ] When everything has stabilized, remove the gRPC layer and publish as a Python package using the Rust binaries directly.  
 
 ## Changelog:
+### 0.0.19
+- saft 0.24
+- tonic 0.6
+- prost 0.9
 ### 0.0.18 
 - Replaced [building_blocks](https://crates.io/crates/building_blocks) with [fast_surface_nets](https://crates.io/crates/fast_surface_nets)
 - Refactoring of Lindenmayer Systems
