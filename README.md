@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/toxicblend.svg)](https://crates.io/crates/toxicblend)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)
-[![dependency status](https://deps.rs/crate/toxicblend/0.0.18/status.svg)](https://deps.rs/crate/toxicblend/0.0.18)
+[![dependency status](https://deps.rs/crate/toxicblend/0.0.19/status.svg)](https://deps.rs/crate/toxicblend/0.0.19)
 ![license](https://img.shields.io/crates/l/toxicblend)
 
 It is a [client-server](https://grpc.io) based addon for [Blender](https://www.blender.org/) written in Rust (and Python for the client side parts).  
@@ -166,7 +166,7 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 - [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
 - [ ] Port the rest of the operations.
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
-- [ ] Create docker release images
+- [ ] Create docker release image
 - [ ] When everything has stabilized, remove the gRPC layer and publish as a Python package using the Rust binaries directly.  
 
 ## Changelog:
@@ -174,6 +174,7 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 - saft 0.24
 - tonic 0.6
 - prost 0.9
+- smallvec 1.7
 ### 0.0.18 
 - Replaced [building_blocks](https://crates.io/crates/building_blocks) with [fast_surface_nets](https://crates.io/crates/fast_surface_nets)
 - Refactoring of Lindenmayer Systems
