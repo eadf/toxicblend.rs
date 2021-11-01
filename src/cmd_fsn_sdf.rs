@@ -1,8 +1,7 @@
-use super::TBError;
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Reply as PB_Reply;
-use crate::type_utils::*;
+use crate::{type_utils::*, TBError};
 use cgmath::num_traits::FloatConst;
 use fast_surface_nets::ndshape::ConstShape;
 use fast_surface_nets::{surface_nets, SurfaceNetsBuffer};

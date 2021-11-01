@@ -1,11 +1,10 @@
-use super::TBError;
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::Face as PB_Face;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
-use crate::GrowingVob;
+use crate::{GrowingVob, TBError};
 use cgmath::EuclideanSpace;
 use cgmath::UlpsEq;
 use itertools::Itertools;

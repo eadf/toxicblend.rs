@@ -1,18 +1,16 @@
-use super::TBError;
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::Face as PB_Face;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Model as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
-use crate::GrowingVob;
+use crate::{GrowingVob, TBError};
 use boostvoronoi::builder as VB;
 use boostvoronoi::diagram as VD;
 use boostvoronoi::geometry;
 use cgmath::{EuclideanSpace, SquareMatrix, Transform, UlpsEq};
 use itertools::Itertools;
-use linestring::linestring_2d::Aabb2;
-use linestring::linestring_2d::VoronoiParabolicArc;
+use linestring::linestring_2d::{Aabb2, VoronoiParabolicArc};
 use std::collections::HashMap;
 
 /// converts from a private, comparable and hash-able format
@@ -555,7 +553,6 @@ impl DiagramHelperRo {
     ) -> Result<Option<(PB_Face, PB_Face)>, TBError> {
         if let Some(v0i) = pb_face.vertices.iter().position(|x| x == &v0n) {
             if let Some(v1i) = pb_face.vertices.iter().position(|x| x == &v1n) {
-
                 let mut a = Vec::<u64>::new();
                 let mut b = Vec::<u64>::new();
                 if v0i < v1i {

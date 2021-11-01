@@ -1,5 +1,4 @@
-use super::TBError;
-use crate::GrowingVob;
+use crate::{GrowingVob, TBError};
 use boostvoronoi::diagram as VD;
 use std::collections::VecDeque;
 

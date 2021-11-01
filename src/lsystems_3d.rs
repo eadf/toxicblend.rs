@@ -1,4 +1,4 @@
-use super::TBError;
+use crate::TBError;
 use cgmath::Vector3;
 use cgmath::{relative_ne, Basis3, InnerSpace, Rad, Rotation, Rotation3};
 use logos::Logos;

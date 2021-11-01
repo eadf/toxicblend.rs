@@ -18,7 +18,7 @@
 #[cfg(feature = "saft")]
 extern crate saft_cr as saft;
 mod cmd_2d_outline;
-// Replacing building_blocks with fast_surface_nets, but keeping the files for now
+// Replacing building_blocks with fast_surface_nets, but keeping the bb files for now
 //mod cmd_bb_sdf;
 //mod cmd_bb_voxel;
 mod cmd_centerline;
@@ -28,7 +28,7 @@ mod cmd_knife_intersect;
 mod cmd_lsystems;
 #[cfg(feature = "saft")]
 mod cmd_saft_voxel;
-//#[cfg(feature = "saft")]
+//#[cfg(feature = "saft")] // not implemented yet
 //mod cmd_saft_sdf;
 mod cmd_simplify;
 mod cmd_voronoi;

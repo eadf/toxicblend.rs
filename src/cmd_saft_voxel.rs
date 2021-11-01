@@ -1,4 +1,3 @@
-use super::TBError;
 use crate::toxicblend_pb::Command as PB_Command;
 use crate::toxicblend_pb::Face32 as PB_Face;
 use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
@@ -6,6 +5,7 @@ use crate::toxicblend_pb::Matrix4x432 as PB_Matrix4x432;
 use crate::toxicblend_pb::Model32 as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex32 as PB_Vertex;
+use crate::TBError;
 use glam_saft::Vec3;
 use saft::BoundingBox;
 use std::collections::HashMap;
