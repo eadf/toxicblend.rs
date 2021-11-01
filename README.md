@@ -67,9 +67,7 @@ This percentage change makes it possible to simplify tiny objects without having
 ### Operation: Voronoi mesh
 Runs the Voronoi sweep-line algorithm on loops of 2D lines and builds a 2½D mesh (input geometry must be on a plane crossing origin).
 
-Important: You must encircle the input lines in one or more closed perimeters.
-
-Even more important: Edges may *only* intersect at their end points, use the `Knife intersect` operation to make it so.
+Note: Edges may *only* intersect at their end points, use the `Knife intersect` operation to make it so.
 
 ![from](img/voronoi_mesh.png)
 
