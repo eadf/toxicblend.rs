@@ -6,11 +6,9 @@ use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex as PB_Vertex;
 use crate::TBError;
 use boostvoronoi::geometry;
-use cgmath::{Angle, EuclideanSpace, SquareMatrix};
-use cgmath::{Transform, UlpsEq};
+use cgmath::{Angle, EuclideanSpace, SquareMatrix, Transform, UlpsEq};
 use itertools::Itertools;
-use linestring::linestring_3d;
-use linestring::linestring_3d::Plane;
+use linestring::{linestring_3d, linestring_3d::Plane};
 use rayon::prelude::*;
 use std::collections::HashMap;
 

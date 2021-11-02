@@ -1,8 +1,6 @@
 use crate::TBError;
-use cgmath::Vector3;
-use cgmath::{relative_ne, Basis3, InnerSpace, Rad, Rotation, Rotation3};
+use cgmath::{relative_ne, Basis3, InnerSpace, Rad, Rotation, Rotation3, Vector3};
 use logos::Logos;
-use std::f64;
 
 #[derive(Debug, Clone)]
 /// A structure defining the 3D heading of a turtle

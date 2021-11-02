@@ -1,5 +1,4 @@
-use toxicblend::toxic_blend_service_client::ToxicBlendServiceClient;
-use toxicblend::{KeyValuePair, Model};
+use toxicblend::{toxic_blend_service_client::ToxicBlendServiceClient, KeyValuePair, Model};
 
 pub mod toxicblend {
     tonic::include_proto!("toxicblend");

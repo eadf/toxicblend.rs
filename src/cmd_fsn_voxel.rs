@@ -6,8 +6,7 @@ use crate::toxicblend_pb::Model32 as PB_Model;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::toxicblend_pb::Vertex32 as PB_Vertex;
 use crate::{type_utils::*, TBError};
-use fast_surface_nets::ndshape::ConstShape;
-use fast_surface_nets::{surface_nets, SurfaceNetsBuffer};
+use fast_surface_nets::{ndshape::ConstShape, surface_nets, SurfaceNetsBuffer};
 use ilattice::glam::{IVec3, Vec3A};
 use ilattice::prelude::*;
 

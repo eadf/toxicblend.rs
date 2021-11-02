@@ -3,8 +3,7 @@ use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
 use crate::toxicblend_pb::Reply as PB_Reply;
 use crate::{type_utils::*, TBError};
 use cgmath::num_traits::FloatConst;
-use fast_surface_nets::ndshape::ConstShape;
-use fast_surface_nets::{surface_nets, SurfaceNetsBuffer};
+use fast_surface_nets::{ndshape::ConstShape, surface_nets, SurfaceNetsBuffer};
 use ilattice::glam::{IVec3, Vec3A};
 use ilattice::prelude::*;
 
