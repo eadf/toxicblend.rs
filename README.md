@@ -162,12 +162,14 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 ## Todo
 
 - [ ] Add command line options to the server, setting bind address and port. Possibly feature gated for security reasons.
-- [ ] Port the rest of the operations.
+- [ ] Port the rest of the operations from [my old scala project](https://github.com/toxicblend/toxicblend)
 - [ ] Lift the 'flatness' restriction, it should be enough with flat in any plane.
 - [ ] Create docker release image
 - [ ] When everything has stabilized, remove the gRPC layer and publish as a Python package using the Rust binaries directly.  
 
 ## Changelog:
+### 0.0.20
+- tokio 1.13
 ### 0.0.19
 - saft 0.24
 - tonic 0.6

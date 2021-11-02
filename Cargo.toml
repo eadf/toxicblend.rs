@@ -24,7 +24,7 @@ saft = ["saft_cr", "glam_saft"]
 tonic = "0.6"
 prost = "0.9"
 ahash = "0.7"
-tokio = { version = "1.11", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.13", features = ["macros", "rt-multi-thread"] }
 thiserror = "1.0"
 linestring = "0.7"
 centerline = "0.6"
@@ -38,10 +38,9 @@ logos = "0.12"
 arrayvec = "0.7"
 ilattice = { version="0.1", default-features = false, features = ["glam"]}
 fast-surface-nets = "0.1"
-glam = "0.19"
 bytemuck = "1.7"
 saft_cr = { package="saft", version="0.24", optional = true, features = ["with_rayon"]}
-# The glam version used by saft/macaw
+# The glam version used by saft/macaw (the glam version used by ilattice is "pub use", and picked up from there)
 glam_saft = { package="glam", version="0.18", optional = true}
 
 [[bin]]
