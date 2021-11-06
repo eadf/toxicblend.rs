@@ -48,7 +48,7 @@ name = "toxicblend_server"
 path = "src/server.rs"
 
 [build-dependencies]
-tonic-build = "0.5"
+tonic-build = "0.6"
 version_check = "0.9"
 
 [profile.release]
