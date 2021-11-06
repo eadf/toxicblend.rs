@@ -210,7 +210,7 @@ fn generate_and_process_sdf_chunk(
 
 #[allow(clippy::field_reassign_with_default)]
 pub fn command(
-    a_command: &PB_Command,
+    a_command: PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
     let now = time::Instant::now();

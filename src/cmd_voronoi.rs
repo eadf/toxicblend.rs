@@ -572,7 +572,7 @@ fn build_output(
 }
 
 pub fn command(
-    a_command: &PB_Command,
+    a_command: PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
     println!(

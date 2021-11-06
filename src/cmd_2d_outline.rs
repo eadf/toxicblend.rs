@@ -168,7 +168,7 @@ pub fn remove_internal_edges(
 }
 
 pub fn command(
-    a_command: &PB_Command,
+    a_command: PB_Command,
     _options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
     println!(

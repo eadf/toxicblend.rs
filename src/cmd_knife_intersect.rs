@@ -209,7 +209,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
 }
 
 pub fn command(
-    a_command: &PB_Command,
+    a_command: PB_Command,
     _options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
     println!(

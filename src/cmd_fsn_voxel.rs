@@ -309,7 +309,7 @@ pub(crate) fn build_output_bp_model(
 }
 
 pub fn command(
-    a_command: &PB_Command,
+    a_command: PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
     let now = time::Instant::now();

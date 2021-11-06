@@ -289,7 +289,7 @@ pub fn build_output_bp_model(
 }
 
 pub fn command(
-    a_command: &PB_Command,
+    a_command: PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
     println!(
@@ -525,7 +525,7 @@ pub fn command(
         >>()?;
     //println!("<-build_voronoi");
 
-    let model = build_output_bp_model(a_command, shapes, cmd_arg_weld, inverted_transform)?;
+    let model = build_output_bp_model(&a_command, shapes, cmd_arg_weld, inverted_transform)?;
 
     //println!("<-build_bp_model");
     let mut reply = PB_Reply {

@@ -208,7 +208,7 @@ impl ToxicBlendService for TheToxicBlendService {
         &self,
         request: PB_Request<PB_Command>,
     ) -> Result<PB_Response<PB_Reply>, PB_Status> {
-        let a_command = request.get_ref();
+        let a_command = request.into_inner();
         let options_map = options_to_map(&a_command.options);
 
         let rv = match a_command.command.as_str() {
@@ -238,7 +238,7 @@ impl ToxicBlendService for TheToxicBlendService {
             "sdf_saft" => Err(TBError::NotImplemented(String::from(
                 "The sdf backend 'saft' is not implemented (yet)",
             ))),
-            _ => Err(TBError::UnknownCommand(a_command.command.clone())),
+            _ => Err(TBError::UnknownCommand(a_command.command)),
         };
         // convert TBError to a valid Error message
         if let Err(err) = rv {
