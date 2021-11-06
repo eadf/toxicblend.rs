@@ -39,7 +39,7 @@ arrayvec = "0.7"
 ilattice = { version="0.1", default-features = false, features = ["glam"]}
 fast-surface-nets = "0.1"
 bytemuck = "1.7"
-saft_cr = { package="saft", version="0.24", optional = true, features = ["with_rayon"]}
+saft_cr = { package="saft", version="0.25", optional = true, features = ["with_rayon"]}
 # The glam version used by saft/macaw (the glam version used by ilattice is "pub use", and picked up from there)
 glam_saft = { package="glam", version="0.18", optional = true}
 

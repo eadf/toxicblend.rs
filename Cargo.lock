@@ -15,9 +15,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.44"
+version = "1.0.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61604a8f862e1d5c3229fdd78f8b02c68dcf73a4c4b05fd636d12240aaa242c1"
+checksum = "ee10e43ae4a853c0a3591d4e2ada1719e553be18199d9da9d4a83f5927c2f5c7"
 
 [[package]]
 name = "approx"
@@ -550,9 +550,9 @@ dependencies = [
 
 [[package]]
 name = "macaw"
-version = "0.14.1"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cee8421c24a2a53624e44b1c8fdbf75863121cb94f58a5a75fc51673f3e5054"
+checksum = "96ea524ece39c817dc5478897fceec1fb389eaaed9516813f1e51b21cb272239"
 dependencies = [
  "glam 0.18.0",
  "num-traits",
@@ -636,9 +636,9 @@ dependencies = [
 
 [[package]]
 name = "num-bigint"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74e768dff5fb39a41b3bcd30bb25cf989706c90d028d1ad71971987aa309d535"
+checksum = "f93ab6289c7b344a8a9f60f88d80aa20032336fe78da341afc91c8a2341fc75f"
 dependencies = [
  "autocfg",
  "num-integer",
@@ -902,9 +902,9 @@ dependencies = [
 
 [[package]]
 name = "puffin"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "828f6bdc5edbbb9b2bfa603a29015bc0f09ee67cd30ed22621e675a171a54fe2"
+checksum = "7d55aa42bdcc200394f970f3c386c31dae30dedcc0b2f1efebfddce249cbbbe9"
 dependencies = [
  "byteorder",
  "once_cell",
@@ -1019,9 +1019,9 @@ dependencies = [
 
 [[package]]
 name = "saft"
-version = "0.24.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa5561ddcc7dd6259f56614cc3db44942a6e2ddf9c364f5a2edd619a8b0d8908"
+checksum = "c1b4de924ffcd674157773ff952c44c86fa3cacf05e8d0506280c8d286c00682"
 dependencies = [
  "ahash",
  "macaw",
