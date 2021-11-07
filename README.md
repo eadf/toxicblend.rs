@@ -97,6 +97,18 @@ This operation does *not* require flat input.
 
 This operation uses [fast-surface-nets](https://crates.io/crates/fast-surface-nets) or [saft](https://crates.io/crates/saft) for voxel generation.
 
+### Operation: Median Axis Voxel (MaVoxel)
+Takes an edge-only 3D mesh where one of the axis represents a distance. 
+The operation puts voxelized rounded cones along the edges. 
+The third axis represents the radius of the end points of the rounded cones.
+
+Start with any closed loop 2d shape: ![metavolume](img/baloon_rust_1.png)
+
+Calculate the median axis of that shape with the **centerline** operation: ![metavolume](img/baloon_rust_2.png)
+
+Then run the **mavoxel** operation on that centerline/median axis:
+![metavolume](img/baloon_rust_3.png)
+
 ### Operation: Metavolume (object operation)
 Takes an edge-only mesh, like the output of the Voronoi operation, and puts metaballs along the edges.
 This operation does *not* require flat input.
@@ -170,6 +182,8 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 ## Changelog:
 ### 0.0.20
 - tokio 1.13
+- Added the median-axis-voxel (mavoxel) operation
+- Added some parameters to the centerline operation
 ### 0.0.19
 - saft 0.24
 - tonic 0.6
