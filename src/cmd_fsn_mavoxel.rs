@@ -226,18 +226,6 @@ struct RoundedCone {
 }
 
 /// Generate the data of a single chunk.
-/// Using this sdf for a rounded cone:
-/// ´´´ìgnore
-/// float sdRoundCone( Vec3A p, float r1, float r2, float h ) {
-///   vec2 q = vec2( length(p.xz), p.y );
-///   float b = (r1-r2)/h;
-///   float a = sqrt(1.0-b*b);
-///   float k = dot(q,vec2(-b,a));
-///   if( k < 0.0 ) return length(q) - r1;
-///   if( k > a*h ) return length(q-vec2(0.0,h)) - r2;
-///   return dot(q, vec2(a,b) ) - r1;
-/// }
-/// ´´´
 fn generate_and_process_sdf_chunk(
     un_padded_chunk_extent: Extent3i,
     rounded_cones: &[(RoundedCone, Extent3i)],
@@ -282,8 +270,9 @@ fn generate_and_process_sdf_chunk(
             let p = pwo - un_padded_chunk_extent.minimum + 1;
             &mut array[PaddedChunkShape::linearize([p.x as u32, p.y as u32, p.z as u32]) as usize]
         };
-        let pwo = pwo.to_float();
         // Point With Offset from the un-padded extent minimum
+        let pwo = pwo.to_float();
+
         #[cfg(feature = "display_chunks")]
         {
             // todo: this could probably be optimized with PaddedChunkShape::linearize(corner_pos)

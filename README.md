@@ -104,9 +104,13 @@ The third axis represents the radius of the end points of the rounded cones.
 
 Start with any closed loop 2d shape: ![metavolume](img/baloon_rust_1.png)
 
-Calculate the median axis of that shape with the **centerline** operation: ![metavolume](img/baloon_rust_2.png)
+Calculate the median axis of that shape with the **centerline** operation.
+(Unselect the "negative radius" and "keep input edges" options):
+
+![metavolume](img/baloon_rust_2.png)
 
 Then run the **mavoxel** operation on that centerline/median axis:
+
 ![metavolume](img/baloon_rust_3.png)
 
 ### Operation: Metavolume (object operation)
