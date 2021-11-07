@@ -9,7 +9,6 @@ use crate::{type_utils::*, TBError};
 use fast_surface_nets::{ndshape::ConstShape, surface_nets, SurfaceNetsBuffer};
 use ilattice::glam::{f32::Affine3A, IVec3, Mat3, Vec2, Vec3, Vec3A};
 use ilattice::prelude::*;
-use linestring::linestring_3d::Plane;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::{borrow::Borrow, time};
@@ -24,11 +23,19 @@ type PaddedChunkShape = fast_surface_nets::ndshape::ConstShape3u32<
 const DEFAULT_SDF_VALUE: f32 = 999.0;
 type Extent3i = Extent<IVec3>;
 
+#[allow(clippy::upper_case_acronyms)]
+#[derive(Debug, Copy, Clone)]
+pub enum Plane {
+    XY,
+    XZ,
+    YZ,
+}
+
 struct UnpackedModel {
     vertices: Vec<(Vec2, f32)>,
     edges: Vec<(u32, u32)>,
     aabb: Extent<Vec3A>,
-    world_orientation: ::core::option::Option<PB_Matrix4x432>,
+    world_orientation: Option<PB_Matrix4x432>,
     model_name: String,
 }
 
@@ -55,9 +62,9 @@ fn parse_input_pb_model(
         .into_iter()
         .map(|vertex| {
             let (point2, radius) = match cmd_arg_radius_dimension {
-                linestring::linestring_3d::Plane::ZY => (Vec2::new(vertex.y, vertex.z), vertex.x),
-                linestring::linestring_3d::Plane::XZ => (Vec2::new(vertex.x, vertex.z), vertex.y),
-                linestring::linestring_3d::Plane::XY => (Vec2::new(vertex.x, vertex.y), vertex.z),
+                Plane::YZ => (Vec2::new(vertex.y, vertex.z), vertex.x),
+                Plane::XZ => (Vec2::new(vertex.x, vertex.z), vertex.y),
+                Plane::XY => (Vec2::new(vertex.x, vertex.y), vertex.z),
             };
             let v_aabb =
                 Extent::from_min_and_shape(Vec3A::new(point2.x, point2.y, 0.0), Vec3A::splat(0.0))
@@ -98,6 +105,7 @@ fn parse_input_pb_model(
     })
 }
 
+#[allow(clippy::many_single_char_names)]
 /// Build the chunk lattice and spawn off thread tasks for each chunk
 fn build_voxel(
     _voxel_dimension: Plane,
@@ -237,7 +245,7 @@ fn generate_and_process_sdf_chunk(
     // the origin of this chunk, in voxel scale
     let padded_chunk_extent = un_padded_chunk_extent.padded(1);
 
-    // filter out the edges that does not affect this chunk, we also don't need the Extent3i anymore
+    // filter out the edges that does not affect this chunk
     let filtered_cones: Vec<_> = rounded_cones
         .iter()
         .enumerate()
@@ -389,7 +397,7 @@ pub(crate) fn build_output_bp_model(
                     });
                 }
             }
-            Plane::ZY =>
+            Plane::YZ =>
             // X axis is the radius dimension, swap X,Y,Z to Y,Z,X
             // todo: something is wrong with this combo
             {
@@ -447,12 +455,12 @@ pub fn command(
         .ok_or_else(|| TBError::InvalidInputData("Missing the RADIUS_AXIS parameter".to_string()))?
         .as_str()
     {
-        "XY" => Ok(linestring::linestring_3d::Plane::XY),
-        "XZ" => Ok(linestring::linestring_3d::Plane::XZ),
-        "YZ" => Ok(linestring::linestring_3d::Plane::ZY),
-        something => Err(TBError::InvalidInputData(format!(
+        "XY" => Ok(Plane::XY),
+        "XZ" => Ok(Plane::XZ),
+        "YZ" => Ok(Plane::YZ),
+        something_else => Err(TBError::InvalidInputData(format!(
             "Invalid RADIUS_AXIS parameter: {}",
-            something
+            something_else
         ))),
     }?;
 

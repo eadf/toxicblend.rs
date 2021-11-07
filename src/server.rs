@@ -22,9 +22,9 @@ mod cmd_2d_outline;
 //mod cmd_bb_sdf;
 //mod cmd_bb_voxel;
 mod cmd_centerline;
+mod cmd_fsn_mavoxel;
 mod cmd_fsn_sdf;
 mod cmd_fsn_voxel;
-mod cmd_fsn_mavoxel;
 mod cmd_knife_intersect;
 mod cmd_lsystems;
 #[cfg(feature = "saft")]
