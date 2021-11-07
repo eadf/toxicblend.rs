@@ -24,6 +24,7 @@ mod cmd_2d_outline;
 mod cmd_centerline;
 mod cmd_fsn_sdf;
 mod cmd_fsn_voxel;
+mod cmd_fsn_mavoxel;
 mod cmd_knife_intersect;
 mod cmd_lsystems;
 #[cfg(feature = "saft")]
@@ -223,6 +224,7 @@ impl ToxicBlendService for TheToxicBlendService {
             ))),
             //"voxel_bb" => cmd_bb_voxel::command(a_command, options_map),
             "voxel_fsn" => cmd_fsn_voxel::command(a_command, options_map),
+            "mavoxel_fsn" => cmd_fsn_mavoxel::command(a_command, options_map),
             #[cfg(feature = "saft")]
             "voxel_saft" => cmd_saft_voxel::command(a_command, options_map),
             #[cfg(not(feature = "saft"))]

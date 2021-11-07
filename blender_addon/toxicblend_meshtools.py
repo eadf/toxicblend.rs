@@ -1045,11 +1045,11 @@ class Toxicblend_Voxel(Operator):
         subtype='FACTOR'
     )
 
-    backend_variant_items = (#("_BB", "Building blocks", "use building blocks backend"),
+    vxl_backend_variant_items = (#("_BB", "Building blocks", "use building blocks backend"),
                              ("_SAFT", "Saft", "use saft backend"),
                              ("_FSN", "Fast surface nets", "use fast-surface-nets backend")
                              )
-    cmd_backend: bpy.props.EnumProperty(name="Backend", items=backend_variant_items, default="_FSN")
+    vxl_cmd_backend: bpy.props.EnumProperty(name="Backend", items=vxl_backend_variant_items, default="_FSN")
 
     @classmethod
     def poll(cls, context):
@@ -1072,7 +1072,7 @@ class Toxicblend_Voxel(Operator):
                            ('grpc.max_receive_message_length', 512 * 1024 * 1024)]
             with grpc.insecure_channel(SERVER_URL, options=channel_opt) as channel:
                 stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
-                command = toxicblend_pb2.Command(command='voxel' + str(self.cmd_backend).lower())
+                command = toxicblend_pb2.Command(command='voxel' + str(self.vxl_cmd_backend).lower())
                 build_pb_model(active_object, active_mesh, command.models32.add())
 
                 opt = command.options.add()
@@ -1100,6 +1100,93 @@ class Toxicblend_Voxel(Operator):
         except grpc._channel._InactiveRpcError as e:
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
+
+# Median Axis Voxel operator
+# This operation will 'fill in' a median axis skeleton using the third axis as the radius parameter.
+class Toxicblend_MAVoxel(Operator):
+    bl_idname = "mesh.toxicblend_meshtools_mavoxel"
+    bl_label = "MAVoxel"
+    bl_description = "Fill a median axis skeleton with voxels. The third axis is the radius"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    divisions: FloatProperty(
+        name="Voxel Divisions",
+        description="The longest axis of the model will be divided up into this number of voxels, the other axes will have proportionally number of voxels",
+        default=100.0,
+        min=50,
+        max=400,
+        precision=1,
+        subtype='FACTOR'
+    )
+
+    mav_backend_variant_items = (#("_BB", "Building blocks", "use building blocks backend"),
+                             ("_SAFT", "Saft", "use saft backend"),
+                             ("_FSN", "Fast surface nets", "use fast-surface-nets backend")
+                             )
+    mav_cmd_backend: bpy.props.EnumProperty(name="Backend", items=mav_backend_variant_items, default="_FSN")
+
+    radius_axis_items = (
+        ('YZ', "X", "The value of the X coordinate is used as radius"),
+        ('XZ', "Y", "The value of the Y coordinate is used as radius"),
+        ('XY', "Z", "The value of the Z coordinate is used as radius")
+    )
+
+    radius_axis: bpy.props.EnumProperty(
+        name="The axis that will be interpreted as the radius",
+        items=radius_axis_items,
+        default='XY'
+    )
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        return ob and ob.type == 'MESH' and context.mode == 'EDIT_MESH'
+
+    def invoke(self, context, event):
+        # load custom settings
+        settings_load(self)
+        return self.execute(context)
+
+    def execute(self, context):
+
+        check_toxicblend_version()
+        # initialise
+        active_object, active_mesh = initialise()
+        settings_write(self)
+        try:
+            channel_opt = [('grpc.max_send_message_length', 512 * 1024 * 1024),
+                           ('grpc.max_receive_message_length', 512 * 1024 * 1024)]
+            with grpc.insecure_channel(SERVER_URL, options=channel_opt) as channel:
+                stub = toxicblend_pb2_grpc.ToxicBlendServiceStub(channel)
+                command = toxicblend_pb2.Command(command='mavoxel' + str(self.mav_cmd_backend).lower())
+                build_pb_model(active_object, active_mesh, command.models32.add())
+
+                opt = command.options.add()
+                opt.key = "RADIUS_AXIS"
+                opt.value = str(self.radius_axis)
+
+                opt = command.options.add()
+                opt.key = "DIVISIONS"
+                opt.value = str(self.divisions)
+
+                response = stub.execute(command)
+                handle_response(response)
+                if len(response.models) > 0 or len(response.models32) > 0:
+                    print("client received options: ", len(response.options), " models64:", len(response.models),
+                          " models32:", len(response.models32))
+                    handle_received_object(active_object, response)
+
+            # cleaning up
+            terminate()
+
+            return {'FINISHED'}
+        except ToxicblendException as e:
+            self.report({'ERROR'}, e.message)
+            return {'CANCELLED'}
+        except grpc._channel._InactiveRpcError as e:
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
+
 
 
 # 2d_outline operator
@@ -1180,6 +1267,7 @@ class VIEW3D_MT_edit_mesh_toxicblend_meshtools(Menu):
         layout.operator("mesh.toxicblend_meshtools_voronoi_mesh")
         layout.operator("mesh.toxicblend_meshtools_voronoi")
         layout.operator("mesh.toxicblend_meshtools_voxel")
+        layout.operator("mesh.toxicblend_meshtools_mavoxel")
         layout.operator("mesh.toxicblend_meshtools_select_end_vertices")
         layout.operator("mesh.toxicblend_meshtools_select_collinear_edges")
         layout.operator("mesh.toxicblend_meshtools_select_vertices_until_intersection")
@@ -1322,12 +1410,39 @@ class TB_MeshToolsProps(PropertyGroup):
         subtype='FACTOR'
     )
 
-    voxel_backend_variant_items = (#("_BB", "Building blocks", "use building blocks backend"),
+    voxel_vxl_backend_variant_items = (#("_BB", "Building blocks", "use building blocks backend"),
                               ("_SAFT", "Saft", "use saft backend"),
                               ("_FSN", "Fast surface nets", "use fast-surface-nets backend")
                              )
-    voxel_cmd_backend: bpy.props.EnumProperty(name="Backend", items=voxel_backend_variant_items, default="_FSN")
+    voxel_vxl_cmd_backend: bpy.props.EnumProperty(name="Backend", items=voxel_vxl_backend_variant_items, default="_FSN")
 
+    mavoxel_divisions: FloatProperty(
+        name="Voxel Divisions",
+        description="The longest axis of the model will be divided up into this number of voxels, the other axes will have proportionally number of voxels",
+        default=100.0,
+        min=50,
+        max=400,
+        precision=1,
+        subtype='FACTOR'
+    )
+
+    mavoxel_axis_radius_items = (
+        ("YZ", "X", "The value of the X coordinate is used as radius"),
+        ("XZ", "Y", "The value of the Y coordinate is used as radius"),
+        ("XY", "Z", "The value of the Z coordinate is used as radius")
+    )
+
+    mavoxel_radius_axis: bpy.props.EnumProperty(
+        name="Radius axis",
+        items=mavoxel_axis_radius_items,
+        default='XY'
+    )
+
+    mavoxel_mav_backend_variant_items = (#("_BB", "Building blocks", "use building blocks backend"),
+                              ("_SAFT", "Saft", "use saft backend"),
+                              ("_FSN", "Fast surface nets", "use fast-surface-nets backend")
+                             )
+    mavoxel_mav_cmd_backend: bpy.props.EnumProperty(name="Backend", items=mavoxel_mav_backend_variant_items, default="_FSN")
 
 # draw function for integration in menus
 def menu_func(self, context):
@@ -1346,6 +1461,7 @@ classes = (
     Toxicblend_Voronoi_Mesh,
     Toxicblend_Voronoi,
     Toxicblend_Voxel,
+    Toxicblend_MAVoxel,
     ToxicBlend_SelectEndVertices,
     ToxicBlend_SelectIntersectionVertices,
     ToxicBlend_SelectVerticesUntilIntersection,
