@@ -238,7 +238,7 @@ def handle_response(pb_message):
 def handle_received_object(active_object, pb_message, remove_doubles_threshold=None, set_origin_to_cursor=False):
     only_edges = False
     packed_faces = False
-    remove_doubles = ( remove_doubles_threshold is not None ) and remove_doubles_threshold > 0
+    remove_doubles = (remove_doubles_threshold is not None) and remove_doubles_threshold > 0
 
     for option in pb_message.options:
         if option.key == "ERROR":
@@ -878,6 +878,18 @@ class Toxicblend_Centerline(Operator):
         default=True
     )
 
+    keep_input: BoolProperty(
+        name="Keep input edges",
+        description="Will keep the input edges in the output, will override the weld property if inactive",
+        default=True
+    )
+
+    negative_radius: BoolProperty(
+        name="Negative radius",
+        description="Represent the radius distance as a negative value",
+        default=True
+    )
+
     remove_internals: BoolProperty(
         name="Remove internal edges",
         description="Remove edges internal to islands in the geometry",
@@ -928,6 +940,12 @@ class Toxicblend_Centerline(Operator):
                 opt.key = "REMOVE_INTERNALS"
                 opt.value = str(self.remove_internals).lower()
                 opt = command.options.add()
+                opt.key = "KEEP_INPUT"
+                opt.value = str(self.keep_input).lower()
+                opt = command.options.add()
+                opt.key = "NEGATIVE_RADIUS"
+                opt.value = str(self.negative_radius).lower()
+                opt = command.options.add()
                 opt.key = "DISTANCE"
                 opt.value = str(self.distance)
                 opt = command.options.add()
@@ -956,7 +974,7 @@ class Toxicblend_Centerline(Operator):
             return {'CANCELLED'}
 
 
-# Centerline operator
+# Voronoi mesh operator
 class Toxicblend_Voronoi_Mesh(Operator):
     bl_idname = "mesh.toxicblend_meshtools_voronoi_mesh"
     bl_label = "Voronoi Mesh"
@@ -1045,10 +1063,10 @@ class Toxicblend_Voxel(Operator):
         subtype='FACTOR'
     )
 
-    vxl_backend_variant_items = (#("_BB", "Building blocks", "use building blocks backend"),
-                             ("_SAFT", "Saft", "use saft backend"),
-                             ("_FSN", "Fast surface nets", "use fast-surface-nets backend")
-                             )
+    vxl_backend_variant_items = (  # ("_BB", "Building blocks", "use building blocks backend"),
+        ("_SAFT", "Saft", "use saft backend"),
+        ("_FSN", "Fast surface nets", "use fast-surface-nets backend")
+    )
     vxl_cmd_backend: bpy.props.EnumProperty(name="Backend", items=vxl_backend_variant_items, default="_FSN")
 
     @classmethod
@@ -1101,6 +1119,7 @@ class Toxicblend_Voxel(Operator):
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
 
+
 # Median Axis Voxel operator
 # This operation will 'fill in' a median axis skeleton using the third axis as the radius parameter.
 class Toxicblend_MAVoxel(Operator):
@@ -1119,10 +1138,10 @@ class Toxicblend_MAVoxel(Operator):
         subtype='FACTOR'
     )
 
-    mav_backend_variant_items = (#("_BB", "Building blocks", "use building blocks backend"),
-                             ("_SAFT", "Saft", "use saft backend"),
-                             ("_FSN", "Fast surface nets", "use fast-surface-nets backend")
-                             )
+    mav_backend_variant_items = (  # ("_BB", "Building blocks", "use building blocks backend"),
+        # ("_SAFT", "Saft", "use saft backend"),
+        ("_FSN", "Fast surface nets", "use fast-surface-nets backend"),
+    )
     mav_cmd_backend: bpy.props.EnumProperty(name="Backend", items=mav_backend_variant_items, default="_FSN")
 
     radius_axis_items = (
@@ -1186,7 +1205,6 @@ class Toxicblend_MAVoxel(Operator):
         except grpc._channel._InactiveRpcError as e:
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
-
 
 
 # 2d_outline operator
@@ -1348,6 +1366,18 @@ class TB_MeshToolsProps(PropertyGroup):
         default=True
     )
 
+    centerline_keep_input: BoolProperty(
+        name="Keep input edges",
+        description="Will keep the input edges in the output, will override the weld property if inactive",
+        default=True
+    )
+
+    negative_radius: BoolProperty(
+        name="Negative radius",
+        description="Represent the radius distance as a negative value",
+        default=True
+    )
+
     voronoi_mesh_distance: FloatProperty(
         name="Distance",
         description="Discrete distance as a percentage of the AABB. This value is used when sampling parabolic arc edges.",
@@ -1410,10 +1440,10 @@ class TB_MeshToolsProps(PropertyGroup):
         subtype='FACTOR'
     )
 
-    voxel_vxl_backend_variant_items = (#("_BB", "Building blocks", "use building blocks backend"),
-                              ("_SAFT", "Saft", "use saft backend"),
-                              ("_FSN", "Fast surface nets", "use fast-surface-nets backend")
-                             )
+    voxel_vxl_backend_variant_items = (  # ("_BB", "Building blocks", "use building blocks backend"),
+        ("_SAFT", "Saft", "use saft backend"),
+        ("_FSN", "Fast surface nets", "use fast-surface-nets backend"),
+    )
     voxel_vxl_cmd_backend: bpy.props.EnumProperty(name="Backend", items=voxel_vxl_backend_variant_items, default="_FSN")
 
     mavoxel_divisions: FloatProperty(
@@ -1438,11 +1468,13 @@ class TB_MeshToolsProps(PropertyGroup):
         default='XY'
     )
 
-    mavoxel_mav_backend_variant_items = (#("_BB", "Building blocks", "use building blocks backend"),
-                              ("_SAFT", "Saft", "use saft backend"),
-                              ("_FSN", "Fast surface nets", "use fast-surface-nets backend")
-                             )
-    mavoxel_mav_cmd_backend: bpy.props.EnumProperty(name="Backend", items=mavoxel_mav_backend_variant_items, default="_FSN")
+    mavoxel_mav_backend_variant_items = (  # ("_BB", "Building blocks", "use building blocks backend"),
+        # ("_SAFT", "Saft", "use saft backend"),
+        ("_FSN", "Fast surface nets", "use fast-surface-nets backend"),
+    )
+    mavoxel_mav_cmd_backend: bpy.props.EnumProperty(name="Backend", items=mavoxel_mav_backend_variant_items,
+                                                    default="_FSN")
+
 
 # draw function for integration in menus
 def menu_func(self, context):

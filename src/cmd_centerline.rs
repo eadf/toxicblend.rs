@@ -105,7 +105,22 @@ pub fn build_output_bp_model(
     )>,
     cmd_arg_weld: bool,
     inverted_transform: cgmath::Matrix4<f64>,
+    cmd_arg_negative_radius: bool,
+    cmd_arg_keep_input: bool,
 ) -> Result<PB_Model, TBError> {
+    let transform_point = |point: cgmath::Point3<f64>| -> cgmath::Point3<f64> {
+        if cmd_arg_negative_radius {
+            inverted_transform.transform_point(point)
+        } else {
+            let point = inverted_transform.transform_point(point);
+            cgmath::Point3 {
+                x: point.x,
+                y: point.y,
+                z: -point.z,
+            }
+        }
+    };
+
     let input_pb_model = &a_command.models[0];
 
     let estimated_capacity: usize = (shapes
@@ -132,58 +147,60 @@ pub fn build_output_bp_model(
 
     for shape in shapes.into_iter() {
         // Draw the input segments
-        // todo: should this be optional?
-        for linestring in shape.0.set().iter() {
-            if linestring.points().len() < 2 {
-                return Err(TBError::InternalError(
-                    "Linestring with less than 2 points found".to_string(),
-                ));
-            }
-            // unwrap of first and last is safe now that we know there are at least 2 vertices in the list
-            let v0 = super::xy_to_3d(linestring.points().first().unwrap());
-            let v1 = super::xy_to_3d(linestring.points().last().unwrap());
-            let v0_key = transmute_to_u64(&v0);
-            let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
-                let new_index = output_pb_model_vertices.len();
-                output_pb_model_vertices
-                    .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
-                //println!("i0 pushed ({},{},{})", v0.x, v0.y, v0.z);
-                new_index
-            });
-            let v1_key = transmute_to_u64(&v1);
-            let v1_index = *v_map.entry(v1_key).or_insert_with(|| {
-                let new_index = output_pb_model_vertices.len();
-                output_pb_model_vertices
-                    .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
-                //println!("i1 pushed ({},{},{})", v1.x, v1.y, v1.z);
-                new_index
-            });
-            let vertex_index_iterator = Some(v0_index)
-                .into_iter()
-                .chain(
-                    linestring
-                        .points()
-                        .iter()
-                        .skip(1)
-                        .take(linestring.points().len() - 2)
-                        .map(|p| {
-                            let v2 = super::xy_to_3d(p);
-                            let v2_key = transmute_to_u64(&v2);
-                            let v2_index = *v_map.entry(v2_key).or_insert_with(|| {
-                                let new_index = output_pb_model_vertices.len();
-                                output_pb_model_vertices
-                                    .push(PB_Vertex::from(inverted_transform.transform_point(v2)));
-                                //println!("i2 pushed ({},{},{})", v2.x, v2.y, v2.z);
-                                new_index
-                            });
-                            v2_index
-                        }),
-                )
-                .chain(Some(v1_index).into_iter());
-            for p in vertex_index_iterator.tuple_windows::<(_, _)>() {
-                output_pb_model_faces.push(PB_Face {
-                    vertices: vec![p.0 as u64, p.1 as u64],
+        if cmd_arg_keep_input {
+            for linestring in shape.0.set().iter() {
+                if linestring.points().len() < 2 {
+                    return Err(TBError::InternalError(
+                        "Linestring with less than 2 points found".to_string(),
+                    ));
+                }
+                // unwrap of first and last is safe now that we know there are at least 2 vertices in the list
+                let v0 = super::xy_to_3d(linestring.points().first().unwrap());
+                let v1 = super::xy_to_3d(linestring.points().last().unwrap());
+                let v0_key = transmute_to_u64(&v0);
+                let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
+                    let new_index = output_pb_model_vertices.len();
+                    output_pb_model_vertices
+                        .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
+                    //println!("i0 pushed ({},{},{})", v0.x, v0.y, v0.z);
+                    new_index
                 });
+                let v1_key = transmute_to_u64(&v1);
+                let v1_index = *v_map.entry(v1_key).or_insert_with(|| {
+                    let new_index = output_pb_model_vertices.len();
+                    output_pb_model_vertices
+                        .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
+                    //println!("i1 pushed ({},{},{})", v1.x, v1.y, v1.z);
+                    new_index
+                });
+                let vertex_index_iterator = Some(v0_index)
+                    .into_iter()
+                    .chain(
+                        linestring
+                            .points()
+                            .iter()
+                            .skip(1)
+                            .take(linestring.points().len() - 2)
+                            .map(|p| {
+                                let v2 = super::xy_to_3d(p);
+                                let v2_key = transmute_to_u64(&v2);
+                                let v2_index = *v_map.entry(v2_key).or_insert_with(|| {
+                                    let new_index = output_pb_model_vertices.len();
+                                    output_pb_model_vertices.push(PB_Vertex::from(
+                                        inverted_transform.transform_point(v2),
+                                    ));
+                                    //println!("i2 pushed ({},{},{})", v2.x, v2.y, v2.z);
+                                    new_index
+                                });
+                                v2_index
+                            }),
+                    )
+                    .chain(Some(v1_index).into_iter());
+                for p in vertex_index_iterator.tuple_windows::<(_, _)>() {
+                    output_pb_model_faces.push(PB_Face {
+                        vertices: vec![p.0 as u64, p.1 as u64],
+                    });
+                }
             }
         }
 
@@ -202,8 +219,7 @@ pub fn build_output_bp_model(
             let v0_key = transmute_to_u64(&v0);
             let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
                 let new_index = output_pb_model_vertices.len();
-                output_pb_model_vertices
-                    .push(PB_Vertex::from(inverted_transform.transform_point(v0)));
+                output_pb_model_vertices.push(PB_Vertex::from(transform_point(v0)));
                 //println!("s0 pushed ({},{},{})", v0.x, v0.y, v0.z);
                 new_index
             });
@@ -211,8 +227,8 @@ pub fn build_output_bp_model(
             let v1_key = transmute_to_u64(&v1);
             let v1_index = *v_map.entry(v1_key).or_insert_with(|| {
                 let new_index = output_pb_model_vertices.len();
-                output_pb_model_vertices
-                    .push(PB_Vertex::from(inverted_transform.transform_point(v1)));
+
+                output_pb_model_vertices.push(PB_Vertex::from(transform_point(v1)));
                 //println!("s1 pushed ({},{},{})", v1.x, v1.y, v1.z);
                 new_index
             });
@@ -242,17 +258,15 @@ pub fn build_output_bp_model(
             let v0_key = transmute_to_u64(v0);
             let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
                 let new_index = output_pb_model_vertices.len();
-                output_pb_model_vertices
-                    .push(PB_Vertex::from(inverted_transform.transform_point(*v0)));
+                output_pb_model_vertices.push(PB_Vertex::from(transform_point(*v0)));
                 //println!("ls0 pushed ({},{},{})", v0.x, v0.y, v0.z);
                 new_index
             });
             let v1_key = transmute_to_u64(v1);
             let v1_index = *v_map.entry(v1_key).or_insert_with(|| {
                 let new_index = output_pb_model_vertices.len();
-                output_pb_model_vertices
-                    .push(PB_Vertex::from(inverted_transform.transform_point(*v1)));
-                //println!("ls1 pushed ({},{},{})", v1.x, v1.y, v1.z);
+
+                output_pb_model_vertices.push(PB_Vertex::from(transform_point(*v1)));
                 new_index
             });
             // we only need to lookup the start and end points for vertex duplication
@@ -266,8 +280,7 @@ pub fn build_output_bp_model(
                         .take(linestring.points().len() - 2)
                         .map(|p| {
                             let new_index = output_pb_model_vertices.len();
-                            output_pb_model_vertices
-                                .push(PB_Vertex::from(inverted_transform.transform_point(*p)));
+                            output_pb_model_vertices.push(PB_Vertex::from(transform_point(*p)));
                             new_index
                         }),
                 )
@@ -371,11 +384,37 @@ pub fn command(
             ))
         })?
     };
-    let cmd_arg_weld = {
+
+    let (cmd_arg_weld, cmd_arg_keep_input) = {
         let tmp_true = "true".to_string();
+        let value = options.get("KEEP_INPUT").unwrap_or(&tmp_true);
+        let cmd_arg_keep_input = value.parse::<bool>().map_err(|_| {
+            TBError::InvalidInputData(format!(
+                "Could not parse the KEEP_INPUT parameter {:?}",
+                value
+            ))
+        })?;
+
         let value = options.get("WELD").unwrap_or(&tmp_true);
-        value.parse::<bool>().map_err(|_| {
+        let mut cmd_arg_weld = value.parse::<bool>().map_err(|_| {
             TBError::InvalidInputData(format!("Could not parse the WELD parameter {:?}", value))
+        })?;
+
+        if !cmd_arg_keep_input {
+            // cmd_arg_keep_input overrides cmd_arg_weld
+            cmd_arg_weld = false;
+        }
+        (cmd_arg_weld, cmd_arg_keep_input)
+    };
+
+    let cmd_arg_negative_radius = {
+        let tmp_true = "true".to_string();
+        let value = options.get("NEGATIVE_RADIUS").unwrap_or(&tmp_true);
+        value.parse::<bool>().map_err(|_| {
+            TBError::InvalidInputData(format!(
+                "Could not parse the NEGATIVE_RADIUS parameter {:?}",
+                value
+            ))
         })?
     };
 
@@ -411,7 +450,9 @@ pub fn command(
         println!("REMOVE_INTERNALS:{:?}", cmd_arg_remove_internals);
         println!("SIMPLIFY:{:?}", cmd_arg_simplify);
         println!("WELD:{:?}", cmd_arg_weld);
+        println!("KEEP_INPUT:{:?}", cmd_arg_keep_input);
         println!("DISTANCE:{:?}%", cmd_arg_discrete_distance);
+        println!("NEGATIVE_RADIUS:{:?}", cmd_arg_negative_radius);
         println!("MAX_VORONOI_DIMENSION:{:?}", cmd_arg_max_voronoi_dimension);
         println!("max_distance:{:?}", max_distance);
         println!();
@@ -525,7 +566,14 @@ pub fn command(
         >>()?;
     //println!("<-build_voronoi");
 
-    let model = build_output_bp_model(&a_command, shapes, cmd_arg_weld, inverted_transform)?;
+    let model = build_output_bp_model(
+        &a_command,
+        shapes,
+        cmd_arg_weld,
+        inverted_transform,
+        cmd_arg_negative_radius,
+        cmd_arg_keep_input,
+    )?;
 
     //println!("<-build_bp_model");
     let mut reply = PB_Reply {
