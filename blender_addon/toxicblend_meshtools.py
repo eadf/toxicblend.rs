@@ -71,7 +71,7 @@ import toxicblend.toxicblend_pb2 as toxicblend_pb2
 bl_info = {
     "name": "Toxicblend MeshTools",
     "author": "EADF",
-    "version": (0, 0, 19),
+    "version": (0, 0, 20),
     "blender": (2, 92, 0),
     "location": "View3D > Sidebar > Edit Tab / Edit Mode Context Menu",
     "warning": "Communicates with a gRPC server on localhost",
