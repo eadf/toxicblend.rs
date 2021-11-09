@@ -108,7 +108,6 @@ fn parse_input_pb_model(
 #[allow(clippy::many_single_char_names)]
 /// Build the chunk lattice and spawn off thread tasks for each chunk
 fn build_voxel(
-    _voxel_dimension: Plane,
     divisions: f32,
     vertices: Vec<(Vec2, f32)>,
     edges: Vec<(u32, u32)>,
@@ -388,13 +387,12 @@ pub(crate) fn build_output_bp_model(
             }
             Plane::YZ =>
             // X axis is the radius dimension, swap X,Y,Z to Y,Z,X
-            // todo: something is wrong with this combo
             {
                 for pv in mesh_buffer.positions.iter() {
                     pb_vertices.push(PB_Vertex {
-                        x: (voxel_size * (pv[1] + vertex_offset.y)),
-                        y: (voxel_size * (pv[2] + vertex_offset.z)),
-                        z: (voxel_size * (pv[0] + vertex_offset.x)),
+                        x: (voxel_size * (pv[2] + vertex_offset.z)),
+                        y: (voxel_size * (pv[0] + vertex_offset.x)),
+                        z: (voxel_size * (pv[1] + vertex_offset.y)),
                     });
                 }
             }
@@ -485,7 +483,6 @@ pub fn command(
 
     let unpacked = parse_input_pb_model(a_command, cmd_arg_radius_axis)?;
     let (voxel_size, mesh) = build_voxel(
-        cmd_arg_radius_axis,
         cmd_arg_divisions,
         unpacked.vertices,
         unpacked.edges,
