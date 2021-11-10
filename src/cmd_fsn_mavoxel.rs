@@ -108,6 +108,7 @@ fn build_voxel(
     vertices: Vec<(Vec2, f32)>,
     edges: Vec<(u32, u32)>,
     aabb: Extent<Vec3A>,
+    verbose: bool,
 ) -> Result<
     (
         f32, // <- voxel_size
@@ -122,14 +123,16 @@ fn build_voxel(
 
     let scale = (divisions / max_dimension) as f32;
 
-    println!(
-        "Voxelizing using divisions = {}, max dimension = {}, scale factor={} (max_dimension*scale={})",
-        divisions,
-        max_dimension,
-        scale,
-        (max_dimension as f32) * scale
-    );
-    println!();
+    if verbose {
+        println!(
+            "Voxelizing using divisions = {}, max dimension = {}, scale factor={} (max_dimension*scale={})",
+            divisions,
+            max_dimension,
+            scale,
+            (max_dimension as f32) * scale
+        );
+        println!();
+    }
 
     let rounded_cones: Vec<(RoundedCone, Extent3i)> = edges
         .into_par_iter()
@@ -191,13 +194,13 @@ fn build_voxel(
             })
             .collect()
     };
-
-    println!(
-        "process_chunks() duration: {:?} generated {} chunks",
-        now.elapsed(),
-        sdf_chunks.len()
-    );
-
+    if verbose {
+        println!(
+            "process_chunks() duration: {:?} generated {} chunks",
+            now.elapsed(),
+            sdf_chunks.len()
+        );
+    }
     Ok((1.0 / scale, sdf_chunks))
 }
 
@@ -330,6 +333,7 @@ pub(crate) fn build_output_bp_model(
     voxel_size: f32,
     mesh_buffers: Vec<(Vec3A, SurfaceNetsBuffer)>,
     cmd_arg_radius_axis: Plane,
+    verbose: bool,
 ) -> Result<PB_Model32, TBError> {
     let now = time::Instant::now();
 
@@ -398,11 +402,12 @@ pub(crate) fn build_output_bp_model(
         }
     }
 
-    println!(
-        "Vertex return model packaging duration: {:?}",
-        now.elapsed()
-    );
-
+    if verbose {
+        println!(
+            "Vertex return model packaging duration: {:?}",
+            now.elapsed()
+        );
+    }
     Ok(PB_Model32 {
         name: pb_model_name,
         world_orientation: pb_world,
@@ -414,18 +419,19 @@ pub(crate) fn build_output_bp_model(
 pub fn command(
     a_command: PB_Command,
     options: HashMap<String, String>,
+    verbose: bool,
 ) -> Result<PB_Reply, TBError> {
     let now = time::Instant::now();
-
-    println!(
-        r#"___________                _____     _____  ____   ___                     __
+    if verbose {
+        println!(
+            r#"___________                _____     _____  ____   ___                     __
 \_   _____/ ______ ____   /     \   /  _  \ \   \ /  / ____ ___  ___ ____ |  |
   |  ___)  /  ___//    \ /  \ /  \ /  /_\  \ \   \  / / __ \\  \/  // __ \|  |
   |  \__   \___ \|   |  \    \    \    |    \ \    / (  \_\ )\    /\  ___/_  |__
  /___  /  /____  \___|  /____/\_  /____|__  /  \  /   \____//__/\_ \\___  /____/
      \/        \/     \/        \/        \/    \/                \/    \/      "#
-    );
-
+        );
+    }
     if a_command.models32.len() > 1 {
         return Err(TBError::InvalidInputData(format!(
             "This operation only supports one model as input:{}",
@@ -461,20 +467,22 @@ pub fn command(
         )));
     }
 
-    for model in a_command.models32.iter() {
-        println!("model.name:{:?}, ", model.name);
-        println!("model.vertices:{:?}, ", model.vertices.len());
-        println!("model.faces:{:?}, ", model.faces.len());
-        println!(
-            "model.world_orientation:{:?}, ",
-            model.world_orientation.as_ref().map_or(0, |_| 16)
-        );
-        println!("Voxel divisions:{:?} ", cmd_arg_divisions);
-        println!(
-            "2d point axis:{:?}. Radius is the third axis",
-            cmd_arg_radius_axis
-        );
-        println!();
+    if verbose {
+        for model in a_command.models32.iter() {
+            println!("model.name:{:?}, ", model.name);
+            println!("model.vertices:{:?}, ", model.vertices.len());
+            println!("model.faces:{:?}, ", model.faces.len());
+            println!(
+                "model.world_orientation:{:?}, ",
+                model.world_orientation.as_ref().map_or(0, |_| 16)
+            );
+            println!("Voxel divisions:{:?} ", cmd_arg_divisions);
+            println!(
+                "2d point axis:{:?}. Radius is the third axis",
+                cmd_arg_radius_axis
+            );
+            println!();
+        }
     }
 
     let unpacked = parse_input_pb_model(a_command, cmd_arg_radius_axis)?;
@@ -483,6 +491,7 @@ pub fn command(
         unpacked.vertices,
         unpacked.edges,
         unpacked.aabb,
+        verbose,
     )?;
     let packed_faces_model = build_output_bp_model(
         unpacked.model_name,
@@ -490,22 +499,24 @@ pub fn command(
         voxel_size,
         mesh,
         cmd_arg_radius_axis,
+        verbose,
     )?;
-    println!(
-        "Total number of vertices: {}",
-        packed_faces_model.vertices.len()
-    );
+    if verbose {
+        println!(
+            "Total number of vertices: {}",
+            packed_faces_model.vertices.len()
+        );
 
-    println!(
-        "Total number of triangles: {}",
-        packed_faces_model
-            .faces
-            .iter()
-            .map(|x| x.vertices.len())
-            .sum::<usize>()
-            / 3
-    );
-
+        println!(
+            "Total number of triangles: {}",
+            packed_faces_model
+                .faces
+                .iter()
+                .map(|x| x.vertices.len())
+                .sum::<usize>()
+                / 3
+        );
+    }
     let reply = PB_Reply {
         options: vec![
             PB_KeyValuePair {
@@ -525,6 +536,8 @@ pub fn command(
         models: Vec::default(),
         models32: vec![packed_faces_model],
     };
-    println!("total duration: {:?}", now.elapsed());
+    if verbose {
+        println!("total duration: {:?}", now.elapsed());
+    }
     Ok(reply)
 }
