@@ -152,7 +152,7 @@ fn options_to_map(options: &[PB_KeyValuePair]) -> HashMap<String, String> {
     rv
 }
 
-#[inline]
+/// Executes a PB_Command
 pub fn execute_command(a_command: PB_Command, verbose: bool) -> Result<PB_Reply, TBError> {
     let options_map = options_to_map(&a_command.options);
 
@@ -168,7 +168,7 @@ pub fn execute_command(a_command: PB_Command, verbose: bool) -> Result<PB_Reply,
         ))),
         //"voxel_bb" => cmd_bb_voxel::command(a_command, options_map),
         "voxel_fsn" => cmd_fsn_voxel::command(a_command, options_map, verbose),
-        "mavoxel_fsn" => cmd_fsn_mavoxel::command(a_command, options_map),
+        "mavoxel_fsn" => cmd_fsn_mavoxel::command(a_command, options_map, verbose),
         #[cfg(feature = "saft")]
         "voxel_saft" => cmd_saft_voxel::command(a_command, options_map, verbose),
         #[cfg(not(feature = "saft"))]
@@ -186,4 +186,41 @@ pub fn execute_command(a_command: PB_Command, verbose: bool) -> Result<PB_Reply,
         ))),
         _ => Err(TBError::UnknownCommand(a_command.command)),
     }
+}
+
+/// Dumps a command to stdout. Useful when creating test cases
+pub fn print_command(a_command: &PB_Command) {
+    println!("PB_Command {{");
+    println!("   command:\"{}\".to_string(),", a_command.command);
+    println!("   options: vec!(");
+    for o in a_command.options.iter() {
+        println!("   PB_KeyValuePair {{");
+        println!("       key: \"{}\".to_string(),", o.key);
+        println!("       value: \"{}\".to_string(),", o.value);
+        println!("   }},");
+    }
+    println!("   ),");
+    println!("   models: vec![],");
+    println!("   models32: vec!(");
+    for m in a_command.models32.iter() {
+        println!("    PB_Model32 {{");
+        println!("       name: \"{}\".to_string(),", m.name);
+        println!("    world_orientation:None,");
+        println!("    vertices: vec!(");
+        for v in m.vertices.iter() {
+            println!(
+                "        PB_Vertex32::from([{:.12},{:.12},{:.12}]),",
+                v.x, v.y, v.z
+            );
+        }
+        println!("),");
+        println!("   faces: vec!(");
+        for f in m.faces.iter() {
+            println!("        PB_Face32::from({:?}),", f.vertices);
+        }
+        println!("     ),");
+    }
+    println!("    }}),");
+    println!("}};");
+    println!();
 }
