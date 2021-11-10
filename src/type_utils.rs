@@ -1,4 +1,4 @@
-use crate::PB_Vertex;
+use crate::{PB_Face32, PB_Vertex, PB_Vertex32};
 use cgmath::Zero;
 use ilattice::glam::{IVec3, Vec3A};
 
@@ -34,11 +34,29 @@ impl ToFloat for cgmath::Point3<f32> {
 }
 
 impl From<cgmath::Point3<f64>> for PB_Vertex {
-    fn from(other: cgmath::Point3<f64>) -> PB_Vertex {
-        PB_Vertex {
+    fn from(other: cgmath::Point3<f64>) -> Self {
+        Self {
             x: other.x,
             y: other.y,
             z: other.z,
+        }
+    }
+}
+
+impl From<[f32; 3]> for PB_Vertex32 {
+    fn from(other: [f32; 3]) -> Self {
+        Self {
+            x: other[0],
+            y: other[1],
+            z: other[2],
+        }
+    }
+}
+
+impl From<[u32; 2]> for PB_Face32 {
+    fn from(other: [u32; 2]) -> Self {
+        Self {
+            vertices: vec![other[0], other[1]],
         }
     }
 }

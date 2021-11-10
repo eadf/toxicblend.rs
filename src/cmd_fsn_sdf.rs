@@ -210,6 +210,7 @@ fn generate_and_process_sdf_chunk(
 pub fn command(
     a_command: PB_Command,
     options: HashMap<String, String>,
+    verbose: bool,
 ) -> Result<PB_Reply, TBError> {
     let now = time::Instant::now();
     println!(
@@ -295,8 +296,13 @@ pub fn command(
     println!();
 
     let (voxel_size, mesh) = build_gyroid_voxel(params)?;
-    let packed_faces_model =
-        crate::cmd_fsn_voxel::build_output_bp_model("gyroid".to_string(), None, voxel_size, mesh)?;
+    let packed_faces_model = crate::cmd_fsn_voxel::build_output_bp_model(
+        "gyroid".to_string(),
+        None,
+        voxel_size,
+        mesh,
+        verbose,
+    )?;
     println!(
         "Total number of vertices: {}",
         packed_faces_model.vertices.len()

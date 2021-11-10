@@ -153,7 +153,7 @@ fn options_to_map(options: &[PB_KeyValuePair]) -> HashMap<String, String> {
 }
 
 #[inline]
-pub fn execute_command(a_command: PB_Command) -> Result<PB_Reply, TBError> {
+pub fn execute_command(a_command: PB_Command, verbose: bool) -> Result<PB_Reply, TBError> {
     let options_map = options_to_map(&a_command.options);
 
     match a_command.command.as_str() {
@@ -167,10 +167,10 @@ pub fn execute_command(a_command: PB_Command) -> Result<PB_Reply, TBError> {
             "Please update your toxicblend blender addons",
         ))),
         //"voxel_bb" => cmd_bb_voxel::command(a_command, options_map),
-        "voxel_fsn" => cmd_fsn_voxel::command(a_command, options_map),
+        "voxel_fsn" => cmd_fsn_voxel::command(a_command, options_map, verbose),
         "mavoxel_fsn" => cmd_fsn_mavoxel::command(a_command, options_map),
         #[cfg(feature = "saft")]
-        "voxel_saft" => cmd_saft_voxel::command(a_command, options_map),
+        "voxel_saft" => cmd_saft_voxel::command(a_command, options_map, verbose),
         #[cfg(not(feature = "saft"))]
         "voxel_saft" => Err(TBError::DisabledFeature(String::from(
             "The feature 'saft' is not enabled in the server",
@@ -180,7 +180,7 @@ pub fn execute_command(a_command: PB_Command) -> Result<PB_Reply, TBError> {
             "Please update your toxicblend blender addons",
         ))),
         //"sdf_bb" => cmd_bb_sdf::command(a_command, options_map),
-        "sdf_fsn" => cmd_fsn_sdf::command(a_command, options_map),
+        "sdf_fsn" => cmd_fsn_sdf::command(a_command, options_map, verbose),
         "sdf_saft" => Err(TBError::NotImplemented(String::from(
             "The sdf backend 'saft' is not implemented (yet)",
         ))),

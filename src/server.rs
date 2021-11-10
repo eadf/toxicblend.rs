@@ -15,7 +15,7 @@ impl ToxicBlendService for ToxicBlendServiceImpl {
         &self,
         request: PB_Request<PB_Command>,
     ) -> Result<PB_Response<PB_Reply>, PB_Status> {
-        let rv = execute_command(request.into_inner());
+        let rv = execute_command(request.into_inner(), true);
 
         // convert TBError to a valid Error message
         if let Err(err) = rv {
