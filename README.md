@@ -102,10 +102,12 @@ Takes an edge-only 3D mesh where one of the axis represents a distance.
 The operation puts voxelized rounded cones along the edges. 
 The third axis represents the radius of the end points of the rounded cones.
 
-Start with any closed loop 2d shape: ![metavolume](img/baloon_rust_1.png)
+Start with any closed loop 2d shape: 
+
+![metavolume](img/baloon_rust_1.png)
 
 Calculate the median axis of that shape with the **centerline** operation.
-(Unselect the "negative radius" and "keep input edges" options):
+(deselect the "negative radius" and "keep input edges" options):
 
 ![metavolume](img/baloon_rust_2.png)
 

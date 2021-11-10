@@ -47,12 +47,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arrayvec"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
-
-[[package]]
 name = "async-stream"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1300,7 +1294,6 @@ name = "toxicblend"
 version = "0.0.20"
 dependencies = [
  "ahash",
- "arrayvec",
  "boostvoronoi",
  "bytemuck",
  "centerline",
