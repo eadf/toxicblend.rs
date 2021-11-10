@@ -1,11 +1,8 @@
-use crate::toxicblend_pb::Command as PB_Command;
-use crate::toxicblend_pb::Face32 as PB_Face;
-use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend_pb::Matrix4x432 as PB_Matrix4x432;
-use crate::toxicblend_pb::Model32 as PB_Model;
-use crate::toxicblend_pb::Reply as PB_Reply;
-use crate::toxicblend_pb::Vertex32 as PB_Vertex;
-use crate::{type_utils::*, TBError};
+use crate::{
+    type_utils::*, PB_Command, PB_Face32, PB_KeyValuePair, PB_Matrix4x432, PB_Model32, PB_Reply,
+    PB_Vertex32, TBError,
+};
+
 use fast_surface_nets::{ndshape::ConstShape, surface_nets, SurfaceNetsBuffer};
 use ilattice::glam::{IVec3, Vec3A};
 use ilattice::prelude::*;
@@ -27,7 +24,7 @@ type Extent3i = Extent<IVec3>;
 /// unpack the input PB_Model
 #[allow(clippy::type_complexity)]
 fn parse_input_pb_model(
-    obj: &PB_Model,
+    obj: &PB_Model32,
 ) -> Result<(Vec<(u32, u32)>, linestring::linestring_3d::Aabb3<f32>), TBError> {
     let mut aabb = linestring::linestring_3d::Aabb3::<f32>::default();
     if obj.vertices.len() >= u32::MAX as usize {
@@ -67,7 +64,7 @@ fn parse_input_pb_model(
 fn build_voxel(
     radius_multiplier: f32,
     divisions: f32,
-    vertices: &[PB_Vertex],
+    vertices: &[PB_Vertex32],
     edges: Vec<(u32, u32)>,
     aabb: linestring::linestring_3d::Aabb3<f32>,
 ) -> Result<
@@ -255,7 +252,7 @@ pub(crate) fn build_output_bp_model(
     pb_world: Option<PB_Matrix4x432>,
     voxel_size: f32,
     mesh_buffers: Vec<(Vec3A, SurfaceNetsBuffer)>,
-) -> Result<PB_Model, TBError> {
+) -> Result<PB_Model32, TBError> {
     let now = time::Instant::now();
 
     let (mut pb_vertices, mut pb_faces) = {
@@ -284,7 +281,7 @@ pub(crate) fn build_output_bp_model(
 
         // vertices this far inside a chunk should (probably?) not be used outside this chunk.
         for pv in mesh_buffer.positions.iter() {
-            pb_vertices.push(PB_Vertex {
+            pb_vertices.push(PB_Vertex32 {
                 x: (voxel_size * (pv[0] + vertex_offset.x)),
                 y: (voxel_size * (pv[1] + vertex_offset.y)),
                 z: (voxel_size * (pv[2] + vertex_offset.z)),
@@ -300,11 +297,11 @@ pub(crate) fn build_output_bp_model(
         now.elapsed()
     );
 
-    Ok(PB_Model {
+    Ok(PB_Model32 {
         name: pb_model_name,
         world_orientation: pb_world,
         vertices: pb_vertices,
-        faces: vec![PB_Face { vertices: pb_faces }],
+        faces: vec![PB_Face32 { vertices: pb_faces }],
     })
 }
 

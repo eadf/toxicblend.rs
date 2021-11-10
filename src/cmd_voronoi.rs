@@ -1,10 +1,8 @@
-use crate::toxicblend_pb::Command as PB_Command;
-use crate::toxicblend_pb::Face as PB_Face;
-use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend_pb::Model as PB_Model;
-use crate::toxicblend_pb::Reply as PB_Reply;
-use crate::toxicblend_pb::Vertex as PB_Vertex;
-use crate::{GrowingVob, TBError};
+use crate::{
+    type_utils, GrowingVob, PB_Command, PB_Face, PB_KeyValuePair, PB_Model, PB_Reply, PB_Vertex,
+    TBError,
+};
+
 use boostvoronoi::builder as VB;
 use boostvoronoi::diagram as VD;
 use boostvoronoi::geometry;
@@ -384,7 +382,7 @@ fn parse_input(
         .vertices
         .iter()
         .map(|vertex| {
-            let p = super::xy_to_2d(&transform.transform_point(cgmath::Point3 {
+            let p = type_utils::xy_to_2d(&transform.transform_point(cgmath::Point3 {
                 x: vertex.x,
                 y: vertex.y,
                 z: vertex.z,
@@ -487,7 +485,7 @@ fn build_output(
                 };
                 let key = transmute_to_u64(&v0);
                 let _ = new_vertex_map.entry(key).or_insert_with(|| p.0);
-                let v = inverted_transform.transform_point(super::xy_to_3d(&cgmath::Point2 {
+                let v = inverted_transform.transform_point(type_utils::xy_to_3d(&cgmath::Point2 {
                     x: p.1.x as f64,
                     y: p.1.y as f64,
                 }));
@@ -517,7 +515,7 @@ fn build_output(
                 y: v0.y as f64,
             };
             let key = transmute_to_u64(&v0);
-            let v0 = inverted_transform.transform_point(super::xy_to_3d(&v0));
+            let v0 = inverted_transform.transform_point(type_utils::xy_to_3d(&v0));
             let n = new_vertex_map.entry(key).or_insert_with(|| {
                 let rv = vertices_2d.len();
                 vertices_2d.push(PB_Vertex {
@@ -535,7 +533,7 @@ fn build_output(
                 y: v1.y as f64,
             };
             let key = transmute_to_u64(&v1);
-            let v1 = inverted_transform.transform_point(super::xy_to_3d(&v1));
+            let v1 = inverted_transform.transform_point(type_utils::xy_to_3d(&v1));
             let n = new_vertex_map.entry(key).or_insert_with(|| {
                 let rv = vertices_2d.len();
                 vertices_2d.push(PB_Vertex {

@@ -1,11 +1,8 @@
-use crate::toxicblend_pb::Command as PB_Command;
-use crate::toxicblend_pb::Face32 as PB_Face;
-use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend_pb::Matrix4x432 as PB_Matrix4x432;
-use crate::toxicblend_pb::Model32 as PB_Model;
-use crate::toxicblend_pb::Reply as PB_Reply;
-use crate::toxicblend_pb::Vertex32 as PB_Vertex;
-use crate::TBError;
+use crate::{
+    PB_Command, PB_Face32, PB_KeyValuePair, PB_Matrix4x432, PB_Model32, PB_Reply, PB_Vertex32,
+    TBError,
+};
+
 use glam_saft::Vec3;
 use saft::BoundingBox;
 use std::collections::HashMap;
@@ -13,7 +10,7 @@ use std::time;
 
 /// unpack the input PB_Model
 #[allow(clippy::type_complexity)]
-pub fn parse_input_pb_model(obj: &PB_Model) -> Result<(Vec<(u32, u32)>, BoundingBox), TBError> {
+pub fn parse_input_pb_model(obj: &PB_Model32) -> Result<(Vec<(u32, u32)>, BoundingBox), TBError> {
     if obj.vertices.len() >= u32::MAX as usize {
         return Err(TBError::Overflow(format!(
             "Input data contains too many vertices. {}",
@@ -49,7 +46,7 @@ pub fn parse_input_pb_model(obj: &PB_Model) -> Result<(Vec<(u32, u32)>, Bounding
 fn build_voxel(
     radius_multiplier: f32,
     divisions: f32,
-    vertices: &[PB_Vertex],
+    vertices: &[PB_Vertex32],
     edges: Vec<(u32, u32)>,
     aabb: BoundingBox,
 ) -> Result<
@@ -121,22 +118,22 @@ pub(crate) fn build_output_bp_model(
     pb_world: Option<PB_Matrix4x432>,
     voxel_size: f32,
     mesh: saft::TriangleMesh,
-) -> Result<PB_Model, TBError> {
-    let pb_vertices: Vec<PB_Vertex> = mesh
+) -> Result<PB_Model32, TBError> {
+    let pb_vertices: Vec<PB_Vertex32> = mesh
         .positions
         .iter()
-        .map(|v| PB_Vertex {
+        .map(|v| PB_Vertex32 {
             x: (voxel_size * v[0]),
             y: (voxel_size * v[1]),
             z: (voxel_size * v[2]),
         })
         .collect();
 
-    Ok(PB_Model {
+    Ok(PB_Model32 {
         name: pb_model_name,
         world_orientation: pb_world,
         vertices: pb_vertices,
-        faces: vec![PB_Face {
+        faces: vec![PB_Face32 {
             vertices: mesh.indices,
         }],
     })

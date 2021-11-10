@@ -1,10 +1,5 @@
-use crate::toxicblend_pb::Command as PB_Command;
-use crate::toxicblend_pb::Face as PB_Face;
-use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend_pb::Model as PB_Model;
-use crate::toxicblend_pb::Reply as PB_Reply;
-use crate::toxicblend_pb::Vertex as PB_Vertex;
-use crate::TBError;
+use crate::{PB_Command, PB_Face, PB_KeyValuePair, PB_Model, PB_Reply, PB_Vertex, TBError};
+
 use itertools::Itertools;
 use linestring::linestring_3d;
 use rayon::prelude::*;

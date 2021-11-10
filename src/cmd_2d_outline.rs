@@ -1,10 +1,4 @@
-use crate::toxicblend_pb::Command as PB_Command;
-use crate::toxicblend_pb::Face as PB_Face;
-use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend_pb::Model as PB_Model;
-use crate::toxicblend_pb::Reply as PB_Reply;
-use crate::toxicblend_pb::Vertex as PB_Vertex;
-use crate::TBError;
+use crate::{PB_Command, PB_Face, PB_KeyValuePair, PB_Model, PB_Reply, PB_Vertex, TBError};
 use cgmath::{EuclideanSpace, UlpsEq};
 use itertools::Itertools;
 use linestring::linestring_3d;
@@ -35,7 +29,7 @@ pub fn remove_internal_edges(
         aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
     let plane =
-        linestring_3d::Plane::get_plane_relaxed(&aabb, super::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
+        linestring_3d::Plane::get_plane_relaxed(&aabb, crate::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
             let aabbe_d = aabb.get_high().unwrap() - aabb.get_low().unwrap();
             let aabbe_c = (aabb.get_high().unwrap().to_vec() + aabb.get_low().unwrap().to_vec())/2.0;
             TBError::InputNotPLane(format!(

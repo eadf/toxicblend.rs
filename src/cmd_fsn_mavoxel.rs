@@ -1,11 +1,7 @@
-use crate::toxicblend_pb::Command as PB_Command;
-use crate::toxicblend_pb::Face32 as PB_Face;
-use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend_pb::Matrix4x432 as PB_Matrix4x432;
-use crate::toxicblend_pb::Model32 as PB_Model;
-use crate::toxicblend_pb::Reply as PB_Reply;
-use crate::toxicblend_pb::Vertex32 as PB_Vertex;
-use crate::{type_utils::*, TBError};
+use crate::{
+    type_utils::*, PB_Command, PB_Face32, PB_KeyValuePair, PB_Matrix4x432, PB_Model32, PB_Reply,
+    PB_Vertex32, TBError,
+};
 use fast_surface_nets::{ndshape::ConstShape, surface_nets, SurfaceNetsBuffer};
 use ilattice::glam::{f32::Affine3A, IVec3, Mat3, Vec2, Vec3, Vec3A};
 use ilattice::prelude::*;
@@ -334,7 +330,7 @@ pub(crate) fn build_output_bp_model(
     voxel_size: f32,
     mesh_buffers: Vec<(Vec3A, SurfaceNetsBuffer)>,
     cmd_arg_radius_axis: Plane,
-) -> Result<PB_Model, TBError> {
+) -> Result<PB_Model32, TBError> {
     let now = time::Instant::now();
 
     let (mut pb_vertices, mut pb_faces) = {
@@ -367,7 +363,7 @@ pub(crate) fn build_output_bp_model(
             // Z axis is the radius dimension, no swap
             {
                 for pv in mesh_buffer.positions.iter() {
-                    pb_vertices.push(PB_Vertex {
+                    pb_vertices.push(PB_Vertex32 {
                         x: (voxel_size * (pv[0] + vertex_offset.x)),
                         y: (voxel_size * (pv[1] + vertex_offset.y)),
                         z: (voxel_size * (pv[2] + vertex_offset.z)),
@@ -378,7 +374,7 @@ pub(crate) fn build_output_bp_model(
             // Y axis is the radius dimension, swap X,Y,Z to X,Z,Y
             {
                 for pv in mesh_buffer.positions.iter() {
-                    pb_vertices.push(PB_Vertex {
+                    pb_vertices.push(PB_Vertex32 {
                         x: (voxel_size * (pv[0] + vertex_offset.x)),
                         y: (voxel_size * (pv[2] + vertex_offset.z)),
                         z: (voxel_size * (pv[1] + vertex_offset.y)),
@@ -389,7 +385,7 @@ pub(crate) fn build_output_bp_model(
             // X axis is the radius dimension, swap X,Y,Z to Y,Z,X
             {
                 for pv in mesh_buffer.positions.iter() {
-                    pb_vertices.push(PB_Vertex {
+                    pb_vertices.push(PB_Vertex32 {
                         x: (voxel_size * (pv[2] + vertex_offset.z)),
                         y: (voxel_size * (pv[0] + vertex_offset.x)),
                         z: (voxel_size * (pv[1] + vertex_offset.y)),
@@ -407,11 +403,11 @@ pub(crate) fn build_output_bp_model(
         now.elapsed()
     );
 
-    Ok(PB_Model {
+    Ok(PB_Model32 {
         name: pb_model_name,
         world_orientation: pb_world,
         vertices: pb_vertices,
-        faces: vec![PB_Face { vertices: pb_faces }],
+        faces: vec![PB_Face32 { vertices: pb_faces }],
     })
 }
 
@@ -526,7 +522,7 @@ pub fn command(
                 value: "True".to_string(),
             },
         ],
-        models: Vec::with_capacity(0),
+        models: Vec::default(),
         models32: vec![packed_faces_model],
     };
     println!("total duration: {:?}", now.elapsed());

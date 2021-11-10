@@ -1,10 +1,6 @@
-use crate::toxicblend_pb::Command as PB_Command;
-use crate::toxicblend_pb::Face as PB_Face;
-use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend_pb::Model as PB_Model;
-use crate::toxicblend_pb::Reply as PB_Reply;
-use crate::toxicblend_pb::Vertex as PB_Vertex;
-use crate::TBError;
+use crate::{
+    type_utils, PB_Command, PB_Face, PB_KeyValuePair, PB_Model, PB_Reply, PB_Vertex, TBError,
+};
 use boostvoronoi::geometry;
 use cgmath::{Angle, EuclideanSpace, SquareMatrix, Transform, UlpsEq};
 use itertools::Itertools;
@@ -155,8 +151,8 @@ pub fn build_output_bp_model(
                     ));
                 }
                 // unwrap of first and last is safe now that we know there are at least 2 vertices in the list
-                let v0 = super::xy_to_3d(linestring.points().first().unwrap());
-                let v1 = super::xy_to_3d(linestring.points().last().unwrap());
+                let v0 = type_utils::xy_to_3d(linestring.points().first().unwrap());
+                let v1 = type_utils::xy_to_3d(linestring.points().last().unwrap());
                 let v0_key = transmute_to_u64(&v0);
                 let v0_index = *v_map.entry(v0_key).or_insert_with(|| {
                     let new_index = output_pb_model_vertices.len();
@@ -182,7 +178,7 @@ pub fn build_output_bp_model(
                             .skip(1)
                             .take(linestring.points().len() - 2)
                             .map(|p| {
-                                let v2 = super::xy_to_3d(p);
+                                let v2 = type_utils::xy_to_3d(p);
                                 let v2_key = transmute_to_u64(&v2);
                                 let v2_index = *v_map.entry(v2_key).or_insert_with(|| {
                                     let new_index = output_pb_model_vertices.len();

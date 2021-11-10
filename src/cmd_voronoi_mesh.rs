@@ -1,10 +1,8 @@
-use crate::toxicblend_pb::Command as PB_Command;
-use crate::toxicblend_pb::Face as PB_Face;
-use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend_pb::Model as PB_Model;
-use crate::toxicblend_pb::Reply as PB_Reply;
-use crate::toxicblend_pb::Vertex as PB_Vertex;
-use crate::{GrowingVob, TBError};
+use crate::{
+    type_utils, GrowingVob, PB_Command, PB_Face, PB_KeyValuePair, PB_Model, PB_Reply, PB_Vertex,
+    TBError,
+};
+
 use boostvoronoi::builder as VB;
 use boostvoronoi::diagram as VD;
 use boostvoronoi::geometry;
@@ -744,7 +742,7 @@ fn parse_input(
         .vertices
         .iter()
         .map(|vertex| {
-            let p = super::xy_to_2d(&transform.transform_point(cgmath::Point3 {
+            let p = type_utils::xy_to_2d(&transform.transform_point(cgmath::Point3 {
                 x: vertex.x,
                 y: vertex.y,
                 z: vertex.z,

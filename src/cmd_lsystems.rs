@@ -1,13 +1,6 @@
-use crate::toxicblend_pb::Command as PB_Command;
-use crate::toxicblend_pb::Face as PB_Face;
-use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend_pb::Model as PB_Model;
-use crate::toxicblend_pb::Reply as PB_Reply;
-use crate::toxicblend_pb::Vertex as PB_Vertex;
-use crate::{
-    lsystems_3d::{Turtle, TurtleCommand, TurtleRules},
-    TBError,
-};
+use crate::{PB_Command, PB_Face, PB_KeyValuePair, PB_Model, PB_Reply, PB_Vertex, TBError};
+
+use crate::lsystems_3d::{Turtle, TurtleCommand, TurtleRules};
 
 use cgmath::{EuclideanSpace, Rad};
 use std::collections::HashMap;

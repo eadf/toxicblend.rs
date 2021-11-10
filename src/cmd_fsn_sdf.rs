@@ -1,7 +1,5 @@
-use crate::toxicblend_pb::Command as PB_Command;
-use crate::toxicblend_pb::KeyValuePair as PB_KeyValuePair;
-use crate::toxicblend_pb::Reply as PB_Reply;
-use crate::{type_utils::*, TBError};
+use crate::{type_utils, type_utils::ToFloat, PB_Command, PB_KeyValuePair, PB_Reply, TBError};
+
 use cgmath::num_traits::FloatConst;
 use fast_surface_nets::{ndshape::ConstShape, surface_nets, SurfaceNetsBuffer};
 use ilattice::glam::{IVec3, Vec3A};
@@ -151,7 +149,7 @@ fn generate_and_process_sdf_chunk(
 
     for (i, v) in array.iter_mut().enumerate() {
         // Point With Offset from the un-padded extent minimum
-        let pwo = to_ivec3(PaddedChunkShape::delinearize(i as u32)) + p_offset_min;
+        let pwo = type_utils::to_ivec3(PaddedChunkShape::delinearize(i as u32)) + p_offset_min;
 
         if pwo.x <= world_min.x
             || pwo.y <= world_min.y
