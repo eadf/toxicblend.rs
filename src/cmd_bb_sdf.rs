@@ -111,7 +111,7 @@ fn build_gyroid_voxel(
 }
 
 #[allow(clippy::field_reassign_with_default)]
-pub fn command(
+pub(crate) fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {

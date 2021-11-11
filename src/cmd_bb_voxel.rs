@@ -13,7 +13,7 @@ use std::time;
 
 /// unpack the input PB_Model
 #[allow(clippy::type_complexity)]
-pub fn parse_input_pb_model(
+pub (crate) fn parse_input_pb_model(
     obj: &PB_Model,
 ) -> Result<
     (
@@ -161,7 +161,7 @@ fn build_voxel(
 
 /// Spawn off threads creating the chunks, returns a vec of chunks.
 /// One thread task per chunk
-pub fn generate_sdf_chunks3(
+fn generate_sdf_chunks3(
     total_extent: ChunkUnits<Extent3i>,
     chunk_shape: Point3i,
     vertices: &[Point3f],
@@ -182,7 +182,7 @@ pub fn generate_sdf_chunks3(
 }
 
 /// Generate the data of a single chunk
-pub fn generate_sdf_chunk3(
+fn generate_sdf_chunk3(
     chunk_extent: Extent3i,
     vertices: &[Point3f],
     edges: &[(u32, u32)],
@@ -256,7 +256,7 @@ pub fn generate_sdf_chunk3(
 }
 
 #[inline(always)]
-pub fn create_chunk_array(extent: Extent3i, default_sdf_value: Sd16) -> Array3x1<Sd16> {
+fn create_chunk_array(extent: Extent3i, default_sdf_value: Sd16) -> Array3x1<Sd16> {
     let size = (extent.shape.x() * extent.shape.y() * extent.shape.z()) as usize;
     let chunk: Vec<Sd16> = vec![default_sdf_value; size];
     Array3x1::new_one_channel(extent, chunk.into_boxed_slice())
@@ -365,7 +365,7 @@ pub(crate) fn build_output_bp_model(
     })
 }
 
-pub fn command(
+pub (crate) fn command(
     a_command: &PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {

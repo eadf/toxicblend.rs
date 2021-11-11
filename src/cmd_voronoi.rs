@@ -569,7 +569,8 @@ fn build_output(
     Ok(model)
 }
 
-pub fn command(
+/// Run the voronoi command
+pub(crate) fn command(
     a_command: PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {

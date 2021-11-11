@@ -14,11 +14,9 @@ fn make_edge_key(v0: usize, v1: usize) -> (usize, usize) {
     }
 }
 
-#[allow(clippy::type_complexity)]
+//#[allow(clippy::type_complexity)]
 /// remove internal edges from the input model
-pub fn remove_internal_edges(
-    obj: &PB_Model,
-) -> Result<(Vec<(usize, usize)>, Vec<PB_Vertex>), TBError> {
+fn remove_internal_edges(obj: &PB_Model) -> Result<(Vec<(usize, usize)>, Vec<PB_Vertex>), TBError> {
     let mut all_edges = ahash::AHashSet::<(usize, usize)>::default();
     let mut single_edges = ahash::AHashSet::<(usize, usize)>::default();
     let mut internal_edges = ahash::AHashSet::<(usize, usize)>::default();
@@ -161,7 +159,8 @@ pub fn remove_internal_edges(
     Ok((rv_lines, rv_vertices))
 }
 
-pub fn command(
+/// Run the 2d_outline command
+pub(crate) fn command(
     a_command: PB_Command,
     _options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {

@@ -858,7 +858,8 @@ fn voronoi_mesh(
     })
 }
 
-pub fn command(
+/// Run the voronoi_mesh command
+pub(crate) fn command(
     a_command: PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {

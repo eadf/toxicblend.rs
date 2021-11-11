@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 /// Simplify the model into a sequence of connected vertices.
 /// The end and start points has duplicate-checked vertex numbers, the 'in the middle' vertexes do not.
-pub fn find_linestrings(
+fn find_linestrings(
     obj: &PB_Model,
 ) -> Result<Vec<(usize, linestring_3d::LineString3<f64>, usize)>, TBError> {
     let mut linestrings = Vec::<(usize, linestring_3d::LineString3<f64>, usize)>::new();
@@ -406,7 +406,8 @@ fn build_bp_model(
     //return Err(TBError::InvalidData(format!("not implemented")));
 }
 
-pub fn command(
+/// Run the simplify command
+pub(crate) fn command(
     a_command: PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {

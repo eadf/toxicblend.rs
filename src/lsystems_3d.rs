@@ -53,7 +53,7 @@ impl Heading {
     }
 }
 
-pub struct Turtle {
+pub(crate) struct Turtle {
     heading: Heading,
     position: cgmath::Point3<f64>,
     stack: Vec<(Heading, cgmath::Point3<f64>)>,
@@ -132,7 +132,7 @@ impl Turtle {
 }
 
 #[allow(dead_code)]
-pub enum TurtleCommand {
+pub(crate) enum TurtleCommand {
     Nop,
     Forward(f64),
     Roll(Rad<f64>),
@@ -149,7 +149,7 @@ pub enum TurtleCommand {
 }
 
 #[derive(Default)]
-pub struct TurtleRules {
+pub(crate) struct TurtleRules {
     rules: ahash::AHashMap<char, String>,
     axiom: String,
     tokens: ahash::AHashMap<char, TurtleCommand>,

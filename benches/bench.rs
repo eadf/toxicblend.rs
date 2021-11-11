@@ -226,7 +226,7 @@ fn generate_voxel_command(command_variant: String, divisions: f64) -> PB_Command
 }
 
 #[cfg(test)]
-pub fn bench_fsn_voxel(c: &mut Criterion) {
+fn bench_fsn_voxel(c: &mut Criterion) {
     c.bench_function("bench_fsn_voxel", |b| {
         let command = generate_voxel_command("voxel_fsn".to_string(), 300.0);
         b.iter(|| {
@@ -236,7 +236,7 @@ pub fn bench_fsn_voxel(c: &mut Criterion) {
 }
 
 #[cfg(test)]
-pub fn bench_saft_voxel(c: &mut Criterion) {
+fn bench_saft_voxel(c: &mut Criterion) {
     c.bench_function("bench_saft_voxel", |b| {
         let command = generate_voxel_command("voxel_saft".to_string(), 300.0);
         b.iter(|| {
@@ -246,7 +246,7 @@ pub fn bench_saft_voxel(c: &mut Criterion) {
 }
 
 #[cfg(test)]
-pub fn bench_fsn_mavoxel(c: &mut Criterion) {
+fn bench_fsn_mavoxel(c: &mut Criterion) {
     c.bench_function("bench_fsn_mavoxel", |b| {
         let command = generate_voxel_command("mavoxel_fsn".to_string(), 600.0);
         b.iter(|| {

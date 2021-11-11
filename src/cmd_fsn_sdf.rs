@@ -207,7 +207,8 @@ fn generate_and_process_sdf_chunk(
 }
 
 #[allow(clippy::field_reassign_with_default)]
-pub fn command(
+/// Run the fsn_sdf command
+pub(crate) fn command(
     a_command: PB_Command,
     options: HashMap<String, String>,
     verbose: bool,

@@ -312,7 +312,8 @@ pub(crate) fn build_output_bp_model(
     })
 }
 
-pub fn command(
+/// Run the fsn_voxel command
+pub(crate) fn command(
     a_command: PB_Command,
     options: HashMap<String, String>,
     verbose: bool,
@@ -328,6 +329,7 @@ pub fn command(
  \___  //____  >___|  /\___/ \____/__/\_ \\___  >____/
      \/      \/     \/                  \/    \/"#
         );
+        //crate::print_command(&a_command);
     }
     if a_command.models32.len() > 1 {
         return Err(TBError::InvalidInputData(format!(

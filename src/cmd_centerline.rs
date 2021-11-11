@@ -30,7 +30,7 @@ fn transmute_to_u64(a: &cgmath::Point3<f64>) -> (u64, u64) {
 
 /// reformat the input into a useful structure
 #[allow(clippy::type_complexity)]
-pub fn parse_input(
+fn parse_input(
     input_pb_model: &PB_Model,
 ) -> Result<
     (
@@ -93,7 +93,7 @@ pub fn parse_input(
 }
 
 /// Build the return model
-pub fn build_output_bp_model(
+fn build_output_bp_model(
     a_command: &PB_Command,
     shapes: Vec<(
         linestring::linestring_2d::LineStringSet2<f64>,
@@ -297,7 +297,8 @@ pub fn build_output_bp_model(
     })
 }
 
-pub fn command(
+/// Run the centerline command
+pub(crate) fn command(
     a_command: PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {

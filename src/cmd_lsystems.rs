@@ -528,7 +528,8 @@ fn build_output_bp_model(
     })
 }
 
-pub fn command(
+/// Run the lsystems command
+pub(crate) fn command(
     a_command: PB_Command,
     options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {

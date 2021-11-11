@@ -21,7 +21,7 @@ type Extent3i = Extent<IVec3>;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Copy, Clone)]
-pub enum Plane {
+pub(crate) enum Plane {
     XY,
     XZ,
     YZ,
@@ -416,7 +416,8 @@ pub(crate) fn build_output_bp_model(
     })
 }
 
-pub fn command(
+/// Run the fsn_mavoxel command
+pub(crate) fn command(
     a_command: PB_Command,
     options: HashMap<String, String>,
     verbose: bool,
@@ -431,6 +432,7 @@ pub fn command(
  /___  /  /____  \___|  /____/\_  /____|__  /  \  /   \____//__/\_ \\___  /____/
      \/        \/     \/        \/        \/    \/                \/    \/      "#
         );
+        //crate::print_command(&a_command);
     }
     if a_command.models32.len() > 1 {
         return Err(TBError::InvalidInputData(format!(

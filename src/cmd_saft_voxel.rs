@@ -10,7 +10,7 @@ use std::time;
 
 /// unpack the input PB_Model
 #[allow(clippy::type_complexity)]
-pub fn parse_input_pb_model(obj: &PB_Model32) -> Result<(Vec<(u32, u32)>, BoundingBox), TBError> {
+fn parse_input_pb_model(obj: &PB_Model32) -> Result<(Vec<(u32, u32)>, BoundingBox), TBError> {
     if obj.vertices.len() >= u32::MAX as usize {
         return Err(TBError::Overflow(format!(
             "Input data contains too many vertices. {}",
@@ -143,7 +143,8 @@ pub(crate) fn build_output_bp_model(
     })
 }
 
-pub fn command(
+/// Run the saft_voxel command
+pub(crate) fn command(
     a_command: PB_Command,
     options: HashMap<String, String>,
     verbose: bool,

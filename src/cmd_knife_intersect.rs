@@ -204,7 +204,8 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
     Ok(output_pb_model)
 }
 
-pub fn command(
+/// Run the knife_intersect command
+pub(crate) fn command(
     a_command: PB_Command,
     _options: HashMap<String, String>,
 ) -> Result<PB_Reply, TBError> {
