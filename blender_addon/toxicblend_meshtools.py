@@ -1133,7 +1133,7 @@ class Toxicblend_MAVoxel(Operator):
         description="The longest axis of the model will be divided up into this number of voxels, the other axes will have proportionally number of voxels",
         default=100.0,
         min=50,
-        max=400,
+        max=600,
         precision=1,
         subtype='FACTOR'
     )
@@ -1451,7 +1451,7 @@ class TB_MeshToolsProps(PropertyGroup):
         description="The longest axis of the model will be divided up into this number of voxels, the other axes will have proportionally number of voxels",
         default=100.0,
         min=50,
-        max=400,
+        max=600,
         precision=1,
         subtype='FACTOR'
     )

@@ -460,10 +460,10 @@ pub fn command(
         .map_err(|_| {
             TBError::InvalidInputData("Could not parse the DIVISIONS parameter".to_string())
         })?;
-    if !(9.9..400.1).contains(&cmd_arg_divisions) {
+    if !(9.9..600.1).contains(&cmd_arg_divisions) {
         return Err(TBError::InvalidInputData(format!(
             "The valid range of DIVISIONS is [{}..{}[% :({})",
-            10, 400, cmd_arg_divisions
+            10, 600, cmd_arg_divisions
         )));
     }
 
