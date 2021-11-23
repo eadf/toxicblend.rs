@@ -1,7 +1,7 @@
 use crate::{
     type_utils, PB_Command, PB_Face, PB_KeyValuePair, PB_Model, PB_Reply, PB_Vertex, TBError,
 };
-use boostvoronoi::geometry;
+use boostvoronoi as BV;
 use cgmath::{Angle, EuclideanSpace, SquareMatrix, Transform, UlpsEq};
 use itertools::Itertools;
 use linestring::{linestring_3d, linestring_3d::Plane};
@@ -502,18 +502,17 @@ pub(crate) fn command(
     let shapes = raw_data
         .into_par_iter()
         .map(|shape| {
-            let mut segments = Vec::<geometry::Line<i64>>::with_capacity(
-                shape.set().iter().map(|x| x.len()).sum(),
-            );
+            let mut segments =
+                Vec::<BV::Line<i64>>::with_capacity(shape.set().iter().map(|x| x.len()).sum());
             for lines in shape.set().iter() {
                 for lineseq in lines.as_lines_iter() {
-                    segments.push(geometry::Line::new(
+                    segments.push(BV::Line::new(
                         // boost voronoi only accepts integers as coordinates
-                        geometry::Point {
+                        BV::Point {
                             x: lineseq.start.x as i64,
                             y: lineseq.start.y as i64,
                         },
-                        geometry::Point {
+                        BV::Point {
                             x: lineseq.end.x as i64,
                             y: lineseq.end.y as i64,
                         },

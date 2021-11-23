@@ -17,7 +17,7 @@ impl ToxicBlendService for ToxicBlendServiceImpl {
     ) -> Result<PB_Response<PB_Reply>, PB_Status> {
         let rv = execute_command(request.into_inner(), true);
 
-        // convert TBError to a valid Error message
+        // convert TBError to a valid Error message and send response back to client
         if let Err(err) = rv {
             eprintln!("Detected error {:?}", err);
             Ok(PB_Response::new(PB_Reply {
@@ -25,8 +25,8 @@ impl ToxicBlendService for ToxicBlendServiceImpl {
                     key: "ERROR".to_string(),
                     value: format!("{:?}", err),
                 }],
-                models: Vec::with_capacity(0),
-                models32: Vec::with_capacity(0),
+                models: Vec::default(),
+                models32: Vec::default(),
             }))
         } else {
             // unwrap is safe now

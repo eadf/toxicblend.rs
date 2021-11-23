@@ -3,9 +3,7 @@ use crate::{
     TBError,
 };
 
-use boostvoronoi::builder as VB;
-use boostvoronoi::diagram as VD;
-use boostvoronoi::geometry;
+use boostvoronoi as BV;
 use cgmath::{EuclideanSpace, SquareMatrix, Transform, UlpsEq};
 use itertools::Itertools;
 use linestring::linestring_2d::{Aabb2, VoronoiParabolicArc};
@@ -126,9 +124,9 @@ impl DiagramHelperRw {
 /// Helper structs that build PB buffer from Diagram
 /// This construct contains the read-only items
 struct DiagramHelperRo {
-    diagram: VD::Diagram<i64, f64>,
-    vertices: Vec<geometry::Point<i64>>,
-    segments: Vec<geometry::Line<i64>>,
+    diagram: BV::Diagram<f64>,
+    vertices: Vec<BV::Point<i64>>,
+    segments: Vec<BV::Line<i64>>,
     //aabb: Aabb2<f64>,
     // this list uses the diagram::Edge id as index
     rejected_edges: vob::Vob<u32>,
@@ -142,12 +140,12 @@ impl DiagramHelperRo {
     /// Retrieves a point from the voronoi input in the order it was presented to
     /// the voronoi builder
     #[inline(always)]
-    fn retrieve_point(&self, cell_id: VD::CellIndex) -> Result<geometry::Point<i64>, TBError> {
+    fn retrieve_point(&self, cell_id: BV::CellIndex) -> Result<BV::Point<i64>, TBError> {
         let (index, cat) = self.diagram.get_cell(cell_id)?.get().source_index_2();
         Ok(match cat {
-            VD::SourceCategory::SinglePoint => self.vertices[index],
-            VD::SourceCategory::SegmentStart => self.segments[index - self.vertices.len()].start,
-            VD::SourceCategory::Segment | VD::SourceCategory::SegmentEnd => {
+            BV::SourceCategory::SinglePoint => self.vertices[index],
+            BV::SourceCategory::SegmentStart => self.segments[index - self.vertices.len()].start,
+            BV::SourceCategory::Segment | BV::SourceCategory::SegmentEnd => {
                 self.segments[index - self.vertices.len()].end
             }
         })
@@ -156,7 +154,7 @@ impl DiagramHelperRo {
     /// Retrieves a segment from the voronoi input in the order it was presented to
     /// the voronoi builder
     #[inline(always)]
-    fn retrieve_segment(&self, cell_id: VD::CellIndex) -> Result<&geometry::Line<i64>, TBError> {
+    fn retrieve_segment(&self, cell_id: BV::CellIndex) -> Result<&BV::Line<i64>, TBError> {
         let cell = self.diagram.get_cell(cell_id)?.get();
         let index = cell.source_index() - self.vertices.len();
         Ok(&self.segments[index])
@@ -168,7 +166,7 @@ impl DiagramHelperRo {
     /// intersect with the segment that created the edge. So we need to re-create it.
     /// Secondary edges can also be half internal and half external i.e. the two vertices may
     /// be on opposite sides of the inside/outside boundary.
-    fn convert_secondary_edge(&self, edge: &VD::Edge<i64, f64>) -> Result<Vec<[f64; 3]>, TBError> {
+    fn convert_secondary_edge(&self, edge: &BV::Edge) -> Result<Vec<[f64; 3]>, TBError> {
         let edge_id = edge.id();
         let edge_twin_id = self.diagram.edge_get_twin(edge_id)?;
         let cell_id = self.diagram.edge_get_cell(edge_id)?;
@@ -312,7 +310,7 @@ impl DiagramHelperRo {
     /// todo: try to consolidate code with convert_secondary_edge()
     fn convert_edge(
         &self,
-        edge: &VD::Edge<i64, f64>,
+        edge: &BV::Edge,
         discretization_dist: f64,
     ) -> Result<Vec<[f64; 3]>, TBError> {
         let edge_id = edge.id();
@@ -705,8 +703,8 @@ fn parse_input(
     cmd_arg_max_voronoi_dimension: f64,
 ) -> Result<
     (
-        Vec<geometry::Point<i64>>,
-        Vec<geometry::Line<i64>>,
+        Vec<BV::Point<i64>>,
+        Vec<BV::Line<i64>>,
         Aabb2<f64>,
         cgmath::Matrix4<f64>,
     ),
@@ -737,8 +735,8 @@ fn parse_input(
     println!("voronoi: data was in plane:{:?} aabb:{:?}", plane, aabb);
     //println!("input Lines:{:?}", input_pb_model.vertices);
 
-    let mut vor_lines = Vec::<geometry::Line<i64>>::with_capacity(input_pb_model.faces.len());
-    let vor_vertices: Vec<geometry::Point<i64>> = input_pb_model
+    let mut vor_lines = Vec::<BV::Line<i64>>::with_capacity(input_pb_model.faces.len());
+    let vor_vertices: Vec<BV::Point<i64>> = input_pb_model
         .vertices
         .iter()
         .map(|vertex| {
@@ -747,7 +745,7 @@ fn parse_input(
                 y: vertex.y,
                 z: vertex.z,
             }));
-            geometry::Point {
+            BV::Point {
                 x: p.x as i64,
                 y: p.y as i64,
             }
@@ -762,7 +760,7 @@ fn parse_input(
                 let v0 = face.vertices[0] as usize;
                 let v1 = face.vertices[1] as usize;
 
-                vor_lines.push(geometry::Line {
+                vor_lines.push(BV::Line {
                     start: vor_vertices[v0],
                     end: vor_vertices[v1],
                 });
@@ -775,7 +773,7 @@ fn parse_input(
         }
     }
     // save the unused vertices as points
-    let vor_vertices: Vec<geometry::Point<i64>> = vor_vertices
+    let vor_vertices: Vec<BV::Point<i64>> = vor_vertices
         .into_iter()
         .enumerate()
         .filter(|x| !used_vertices.get_f(x.0))
@@ -786,7 +784,7 @@ fn parse_input(
 
 /// from the list of rejected edges, find a list of internal (non-rejected) vertices.
 fn find_internal_vertices(
-    diagram: &VD::Diagram<i64, f64>,
+    diagram: &BV::Diagram<f64>,
     rejected_edges: &vob::Vob<u32>,
 ) -> Result<vob::Vob<u32>, TBError> {
     let mut internal_vertices = vob::Vob::<u32>::fill(diagram.vertices().len());
@@ -826,10 +824,12 @@ fn voronoi_mesh(
 ) -> Result<PB_Model, TBError> {
     let (vor_vertices, vor_lines, vor_aabb2, inverted_transform) =
         parse_input(input_pb_model, cmd_arg_max_voronoi_dimension)?;
-    let mut vb = VB::Builder::default();
-    vb.with_vertices(vor_vertices.iter())?;
-    vb.with_segments(vor_lines.iter())?;
-    let vor_diagram = vb.build()?;
+    let vor_diagram = {
+        BV::Builder::default()
+            .with_vertices(vor_vertices.iter())?
+            .with_segments(vor_lines.iter())?
+            .build()?
+    };
     let discretization_dist = {
         let max_dist = vor_aabb2.get_high().unwrap() - vor_aabb2.get_low().unwrap();
         let max_dist = max_dist.x.max(max_dist.y);

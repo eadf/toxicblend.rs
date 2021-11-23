@@ -26,10 +26,13 @@ prost = "0.9"
 ahash = "0.7"
 tokio = { version = "1.13", features = ["macros", "rt-multi-thread"] }
 thiserror = "1.0"
-linestring = "0.7"
-centerline = "0.6"
+#linestring = "0.7"
+#centerline = "0.6"
+centerline = {path="../centerline.rs"}
 vob = "3.0"
-boostvoronoi = "0.9.3"
+#boostvoronoi = "0.9.3"
+boostvoronoi = {path="../boostvoronoi.rs"}
+linestring = {path="../linestring.rs"}
 rayon = "1.5"
 smallvec = "1.7"
 cgmath = "0.18"

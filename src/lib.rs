@@ -58,7 +58,7 @@ pub enum TBError {
     Overflow(String),
 
     #[error("Feature not active: {0}")]
-    DisabledFeature(String),
+    FeatureError(String),
 
     #[error("Unknown command received: {0}")]
     UnknownCommand(String),
@@ -172,7 +172,7 @@ pub fn execute_command(a_command: PB_Command, verbose: bool) -> Result<PB_Reply,
         #[cfg(feature = "saft")]
         "voxel_saft" => cmd_saft_voxel::command(a_command, options_map, verbose),
         #[cfg(not(feature = "saft"))]
-        "voxel_saft" => Err(TBError::DisabledFeature(String::from(
+        "voxel_saft" => Err(TBError::FeatureError(String::from(
             "The feature 'saft' is not enabled in the server",
         ))),
         "lsystems" => cmd_lsystems::command(a_command, options_map),

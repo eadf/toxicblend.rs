@@ -1,11 +1,9 @@
 use crate::{GrowingVob, TBError};
-use boostvoronoi::diagram as VD;
+use boostvoronoi as BV;
 use std::collections::VecDeque;
 
 /// Mark infinite edges and their adjacent edges as EXTERNAL.
-pub(crate) fn reject_external_edges(
-    diagram: &VD::Diagram<i64, f64>,
-) -> Result<vob::Vob<u32>, TBError> {
+pub(crate) fn reject_external_edges(diagram: &BV::Diagram<f64>) -> Result<vob::Vob<u32>, TBError> {
     let mut rejected_edges = vob::Vob::<u32>::fill(diagram.edges().len());
 
     for edge in diagram.edges().iter() {
@@ -25,12 +23,12 @@ pub(crate) fn reject_external_edges(
 /// 'initial' will be set to false when going past the first edge
 /// Note that this is not a recursive function (as it is in boostvoronoi)
 pub(crate) fn mark_connected_edges(
-    diagram: &VD::Diagram<i64, f64>,
-    edge_id: VD::EdgeIndex,
+    diagram: &BV::Diagram<f64>,
+    edge_id: BV::EdgeIndex,
     marked_edges: &mut vob::Vob<u32>,
 ) -> Result<(), TBError> {
     let mut initial = true;
-    let mut queue = VecDeque::<VD::EdgeIndex>::new();
+    let mut queue = VecDeque::<BV::EdgeIndex>::new();
     queue.push_front(edge_id);
 
     'outer: while !queue.is_empty() {

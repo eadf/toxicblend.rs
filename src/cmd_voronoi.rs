@@ -3,10 +3,7 @@ use crate::{
     TBError,
 };
 
-use boostvoronoi::builder as VB;
-use boostvoronoi::diagram as VD;
-use boostvoronoi::geometry;
-use boostvoronoi::visual_utils as VU;
+use boostvoronoi as BV;
 use cgmath::{ulps_eq, EuclideanSpace, SquareMatrix, Transform, UlpsEq};
 use itertools::Itertools;
 use linestring::linestring_2d::Aabb2;
@@ -32,9 +29,9 @@ fn transmute_to_u64(a: &cgmath::Point2<f64>) -> (u64, u64) {
 
 /// Helper structs that build PB buffer from Diagram
 struct DiagramHelper {
-    diagram: VD::Diagram<i64, f64>,
-    vertices: Vec<geometry::Point<i64>>,
-    segments: Vec<geometry::Line<i64>>,
+    diagram: BV::Diagram<f64>,
+    vertices: Vec<BV::Point<i64>>,
+    segments: Vec<BV::Line<i64>>,
     aabb: Aabb2<f64>,
     rejected_edges: Option<vob::Vob<u32>>,
     discrete_distance: f64,
@@ -107,7 +104,7 @@ impl DiagramHelper {
         let max_dist = max_dist.x.max(max_dist.y);
         let max_dist = self.discrete_distance * max_dist;
         //println!("max distance = {}",max_dist);
-        let dummy_affine = boostvoronoi::visual_utils::SimpleAffine::default();
+        let dummy_affine = BV::SimpleAffine::default();
 
         let mut already_drawn: vob::Vob<u32> = vob::Vob::<u32>::fill(self.diagram.edges().len());
 
@@ -117,7 +114,7 @@ impl DiagramHelper {
             .unwrap_or_else(|| vob::Vob::<u32>::fill(self.diagram.edges().len()));
 
         for it in self.diagram.edges().iter().enumerate() {
-            let edge_id = VD::EdgeIndex(it.0);
+            let edge_id = BV::EdgeIndex(it.0);
             let edge = it.1.get();
             if (self.remove_secondary_edges && edge.is_secondary())
                 || already_drawn.get_f(edge_id.0)
@@ -149,7 +146,7 @@ impl DiagramHelper {
                     self.sample_curved_edge(
                         max_dist,
                         &dummy_affine,
-                        VD::EdgeIndex(it.0),
+                        BV::EdgeIndex(it.0),
                         &mut samples,
                     )?;
                 }
@@ -207,8 +204,8 @@ impl DiagramHelper {
     fn sample_curved_edge(
         &self,
         max_dist: f64,
-        dummy_affine: &VU::SimpleAffine<i64, f64>,
-        edge_id: VD::EdgeIndex,
+        dummy_affine: &BV::SimpleAffine<f64>,
+        edge_id: BV::EdgeIndex,
         sampled_edge: &mut Vec<[f64; 2]>,
     ) -> Result<(), TBError> {
         let cell_id = self.diagram.edge_get_cell(edge_id)?;
@@ -226,25 +223,19 @@ impl DiagramHelper {
         } else {
             self.retrieve_segment(cell_id)?
         };
-        VU::VoronoiVisualUtils::<i64, f64>::discretize(
-            &point,
-            segment,
-            max_dist,
-            dummy_affine,
-            sampled_edge,
-        );
+        BV::VoronoiVisualUtils::discretize(&point, segment, max_dist, dummy_affine, sampled_edge);
         Ok(())
     }
 
     /// Retrieves a point from the voronoi input in the order it was presented to
     /// the voronoi builder
     #[inline(always)]
-    fn retrieve_point(&self, cell_id: VD::CellIndex) -> Result<geometry::Point<i64>, TBError> {
+    fn retrieve_point(&self, cell_id: BV::CellIndex) -> Result<BV::Point<i64>, TBError> {
         let (index, cat) = self.diagram.get_cell(cell_id)?.get().source_index_2();
         Ok(match cat {
-            VD::SourceCategory::SinglePoint => self.vertices[index],
-            VD::SourceCategory::SegmentStart => self.segments[index - self.vertices.len()].start,
-            VD::SourceCategory::Segment | VD::SourceCategory::SegmentEnd => {
+            BV::SourceCategory::SinglePoint => self.vertices[index],
+            BV::SourceCategory::SegmentStart => self.segments[index - self.vertices.len()].start,
+            BV::SourceCategory::Segment | BV::SourceCategory::SegmentEnd => {
                 self.segments[index - self.vertices.len()].end
             }
         })
@@ -253,7 +244,7 @@ impl DiagramHelper {
     /// Retrieves a segment from the voronoi input in the order it was presented to
     /// the voronoi builder
     #[inline(always)]
-    fn retrieve_segment(&self, cell_id: VD::CellIndex) -> Result<&geometry::Line<i64>, TBError> {
+    fn retrieve_segment(&self, cell_id: BV::CellIndex) -> Result<&BV::Line<i64>, TBError> {
         let cell = self.diagram.get_cell(cell_id)?.get();
         let index = cell.source_index() - self.vertices.len();
         Ok(&self.segments[index])
@@ -261,7 +252,7 @@ impl DiagramHelper {
 
     fn clip_infinite_edge(
         &self,
-        edge_id: VD::EdgeIndex,
+        edge_id: BV::EdgeIndex,
         clipped_edge: &mut Vec<[f64; 2]>,
     ) -> Result<(), TBError> {
         let edge = self.diagram.get_edge(edge_id)?;
@@ -345,8 +336,8 @@ fn parse_input(
     cmd_arg_max_voronoi_dimension: f64,
 ) -> Result<
     (
-        Vec<geometry::Point<i64>>,
-        Vec<geometry::Line<i64>>,
+        Vec<BV::Point<i64>>,
+        Vec<BV::Line<i64>>,
         Aabb2<f64>,
         cgmath::Matrix4<f64>,
     ),
@@ -377,8 +368,8 @@ fn parse_input(
     println!("voronoi: data was in plane:{:?} aabb:{:?}", plane, aabb);
     //println!("input Lines:{:?}", input_pb_model.vertices);
 
-    let mut vor_lines = Vec::<geometry::Line<i64>>::with_capacity(input_pb_model.faces.len());
-    let vor_vertices: Vec<geometry::Point<i64>> = input_pb_model
+    let mut vor_lines = Vec::<BV::Line<i64>>::with_capacity(input_pb_model.faces.len());
+    let vor_vertices: Vec<BV::Point<i64>> = input_pb_model
         .vertices
         .iter()
         .map(|vertex| {
@@ -387,7 +378,7 @@ fn parse_input(
                 y: vertex.y,
                 z: vertex.z,
             }));
-            geometry::Point {
+            BV::Point {
                 x: p.x as i64,
                 y: p.y as i64,
             }
@@ -402,7 +393,7 @@ fn parse_input(
                 let v0 = face.vertices[0] as usize;
                 let v1 = face.vertices[1] as usize;
 
-                vor_lines.push(geometry::Line {
+                vor_lines.push(BV::Line {
                     start: vor_vertices[v0],
                     end: vor_vertices[v1],
                 });
@@ -415,7 +406,7 @@ fn parse_input(
         }
     }
     // save the unused vertices as points
-    let vor_vertices: Vec<geometry::Point<i64>> = vor_vertices
+    let vor_vertices: Vec<BV::Point<i64>> = vor_vertices
         .into_iter()
         .enumerate()
         .filter(|x| !used_vertices.get_f(x.0))
@@ -439,10 +430,12 @@ fn voronoi(
 ) -> Result<PB_Model, TBError> {
     let (vor_vertices, vor_lines, vor_aabb2, inverted_transform) =
         parse_input(input_pb_model, cmd_arg_max_voronoi_dimension)?;
-    let mut vb = VB::Builder::default();
-    vb.with_vertices(vor_vertices.iter())?;
-    vb.with_segments(vor_lines.iter())?;
-    let vor_diagram = vb.build()?;
+    let vor_diagram = {
+        BV::Builder::default()
+            .with_vertices(vor_vertices.iter())?
+            .with_segments(vor_lines.iter())?
+            .build()?
+    };
     //println!("diagram:{:?}", vor_diagram);
     println!("aabb2:{:?}", vor_aabb2);
     let mut diagram_helper = DiagramHelper {

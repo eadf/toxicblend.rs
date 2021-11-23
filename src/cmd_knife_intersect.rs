@@ -62,7 +62,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
                 y: v.z as f64,
             })
             .collect(),
-        Plane::ZY => input_pb_model
+        Plane::YZ => input_pb_model
             .vertices
             .iter()
             .map(|v| cgmath::Point2 {
@@ -158,7 +158,7 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
                         y: 0.0,
                         z: new_vertex.y as f64,
                     },
-                    Plane::ZY => PB_Vertex {
+                    Plane::YZ => PB_Vertex {
                         x: 0.0,
                         y: new_vertex.y as f64,
                         z: new_vertex.x as f64,
