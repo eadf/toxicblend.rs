@@ -250,8 +250,8 @@ impl DiagramHelperRo {
             } else {
                 let z_comp = if cell.contains_point() {
                     -linestring::linestring_2d::distance_to_point_squared(
-                        &cell_point,
-                        &cgmath::Point2 {
+                        cell_point,
+                        cgmath::Point2 {
                             x: start_point.x,
                             y: start_point.y,
                         },
@@ -259,9 +259,9 @@ impl DiagramHelperRo {
                     .sqrt()
                 } else {
                     -linestring::linestring_2d::distance_to_line_squared_safe(
-                        &segment.start,
-                        &segment.end,
-                        &cgmath::Point2 {
+                        segment.start,
+                        segment.end,
+                        cgmath::Point2 {
                             x: start_point.x,
                             y: start_point.y,
                         },
@@ -280,8 +280,8 @@ impl DiagramHelperRo {
             } else {
                 let z_comp = if cell.contains_point() {
                     -linestring::linestring_2d::distance_to_point_squared(
-                        &cell_point,
-                        &cgmath::Point2 {
+                        cell_point,
+                        cgmath::Point2 {
                             x: end_point.x,
                             y: end_point.y,
                         },
@@ -289,9 +289,9 @@ impl DiagramHelperRo {
                     .sqrt()
                 } else {
                     -linestring::linestring_2d::distance_to_line_squared_safe(
-                        &segment.start,
-                        &segment.end,
-                        &cgmath::Point2 {
+                        segment.start,
+                        segment.end,
+                        cgmath::Point2 {
                             x: end_point.x,
                             y: end_point.y,
                         },
@@ -422,8 +422,8 @@ impl DiagramHelperRo {
                 } else {
                     let z_comp = if cell.contains_point() {
                         -linestring::linestring_2d::distance_to_point_squared(
-                            &cell_point,
-                            &cgmath::Point2 {
+                            cell_point,
+                            cgmath::Point2 {
                                 x: start_point.x,
                                 y: start_point.y,
                             },
@@ -431,9 +431,9 @@ impl DiagramHelperRo {
                         .sqrt()
                     } else {
                         -linestring::linestring_2d::distance_to_line_squared_safe(
-                            &segment.start,
-                            &segment.end,
-                            &cgmath::Point2 {
+                            segment.start,
+                            segment.end,
+                            cgmath::Point2 {
                                 x: start_point.x,
                                 y: start_point.y,
                             },
@@ -450,8 +450,8 @@ impl DiagramHelperRo {
                 } else {
                     let z_comp = if cell.contains_point() {
                         -linestring::linestring_2d::distance_to_point_squared(
-                            &cell_point,
-                            &cgmath::Point2 {
+                            cell_point,
+                            cgmath::Point2 {
                                 x: end_point.x,
                                 y: end_point.y,
                             },
@@ -459,9 +459,9 @@ impl DiagramHelperRo {
                         .sqrt()
                     } else {
                         -linestring::linestring_2d::distance_to_line_squared_safe(
-                            &segment.start,
-                            &segment.end,
-                            &cgmath::Point2 {
+                            segment.start,
+                            segment.end,
+                            cgmath::Point2 {
                                 x: end_point.x,
                                 y: end_point.y,
                             },
@@ -712,11 +712,11 @@ fn parse_input(
 > {
     let mut aabb = linestring::linestring_3d::Aabb3::<f64>::default();
     for v in input_pb_model.vertices.iter() {
-        aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
+        aabb.update_point(cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
 
     let (plane, transform, vor_aabb)= centerline::get_transform_relaxed(
-        &aabb,
+        aabb,
         cmd_arg_max_voronoi_dimension,
         super::EPSILON,
         f64::default_max_ulps(),

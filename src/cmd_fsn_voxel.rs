@@ -34,7 +34,7 @@ fn parse_input_pb_model(
         )));
     }
     for vertex in obj.vertices.iter() {
-        aabb.update_point(&cgmath::Point3 {
+        aabb.update_point(cgmath::Point3 {
             x: vertex.x,
             y: vertex.y,
             z: vertex.z,

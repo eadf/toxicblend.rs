@@ -42,11 +42,11 @@ fn parse_input(
 > {
     let mut aabb = linestring_3d::Aabb3::<f64>::default();
     for v in input_pb_model.vertices.iter() {
-        aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
+        aabb.update_point(cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
 
     let plane =
-        Plane::get_plane_relaxed(&aabb, super::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
+        Plane::get_plane_relaxed(aabb, super::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
             let aabbe_d = aabb.get_high().unwrap() - aabb.get_low().unwrap();
             let aabbe_c = (aabb.get_high().unwrap().to_vec() + aabb.get_low().unwrap().to_vec())/2.0;
             TBError::InputNotPLane(format!(
@@ -460,7 +460,7 @@ pub(crate) fn command(
     let lines = centerline::divide_into_shapes(edges, points)?;
     println!("-> get_transform_relaxed");
     let (_plane, transform, _voronoi_input_aabb) = centerline::get_transform_relaxed(
-        &total_aabb,
+        total_aabb,
         cmd_arg_max_voronoi_dimension,
         super::EPSILON,
         f64::default_max_ulps(),

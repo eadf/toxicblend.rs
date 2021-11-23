@@ -14,7 +14,7 @@ fn make_edge_key(v0: usize, v1: usize) -> (usize, usize) {
     }
 }
 
-//#[allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity)]
 /// remove internal edges from the input model
 fn remove_internal_edges(obj: &PB_Model) -> Result<(Vec<(usize, usize)>, Vec<PB_Vertex>), TBError> {
     let mut all_edges = ahash::AHashSet::<(usize, usize)>::default();
@@ -24,10 +24,10 @@ fn remove_internal_edges(obj: &PB_Model) -> Result<(Vec<(usize, usize)>, Vec<PB_
 
     let mut aabb = linestring_3d::Aabb3::<f64>::default();
     for v in obj.vertices.iter() {
-        aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
+        aabb.update_point(cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
     let plane =
-        linestring_3d::Plane::get_plane_relaxed(&aabb, crate::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
+        linestring_3d::Plane::get_plane_relaxed(aabb, crate::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
             let aabbe_d = aabb.get_high().unwrap() - aabb.get_low().unwrap();
             let aabbe_c = (aabb.get_high().unwrap().to_vec() + aabb.get_low().unwrap().to_vec())/2.0;
             TBError::InputNotPLane(format!(

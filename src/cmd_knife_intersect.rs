@@ -28,10 +28,10 @@ fn transmute_to_u64(a: cgmath::Point2<f64>) -> (u64, u64) {
 fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
     let mut aabb = linestring::linestring_3d::Aabb3::<f64>::default();
     for v in input_pb_model.vertices.iter() {
-        aabb.update_point(&cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
+        aabb.update_point(cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
     }
 
-    let plane = Plane::get_plane_relaxed(&aabb, super::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
+    let plane = Plane::get_plane_relaxed(aabb, super::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
         let aabbe_d = aabb.get_high().unwrap() - aabb.get_low().unwrap();
         let aabbe_c = (aabb.get_high().unwrap().to_vec() + aabb.get_low().unwrap().to_vec())/2.0;
         TBError::InputNotPLane(format!(

@@ -296,7 +296,7 @@ fn simplify_rdp_percent(
 ) -> Result<Vec<(usize, linestring_3d::LineString3<f64>, usize)>, TBError> {
     let mut aabb = linestring::linestring_3d::Aabb3::<f64>::default();
     for v in pb_model.vertices.iter() {
-        aabb.update_point(&cgmath::Point3::new(v.x, v.y, v.z))
+        aabb.update_point(cgmath::Point3::new(v.x, v.y, v.z))
     }
     let dimension = aabb.get_high().unwrap() - aabb.get_low().unwrap();
     let dimension = dimension.x.max(dimension.y).max(dimension.z);

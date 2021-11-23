@@ -460,7 +460,7 @@ fn build_output_bp_model(
         let i0 = *vertices_map.entry(key).or_insert_with(|| {
             let n = pb_vertices.len();
 
-            src_aabb.update_point(&p0);
+            src_aabb.update_point(p0);
             pb_vertices.push(PB_Vertex {
                 x: p0.x,
                 y: p0.y,
@@ -473,7 +473,7 @@ fn build_output_bp_model(
         let i1 = *vertices_map.entry(key).or_insert_with(|| {
             let n = pb_vertices.len();
 
-            src_aabb.update_point(&p1);
+            src_aabb.update_point(p1);
             pb_vertices.push(PB_Vertex {
                 x: p1.x,
                 y: p1.y,
