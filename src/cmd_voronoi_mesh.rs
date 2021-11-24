@@ -4,7 +4,7 @@ use crate::{
 };
 
 use boostvoronoi as BV;
-use cgmath::{EuclideanSpace, SquareMatrix, Transform, UlpsEq};
+use cgmath::{EuclideanSpace, MetricSpace, SquareMatrix, Transform, UlpsEq};
 use itertools::Itertools;
 use linestring::linestring_2d::{Aabb2, VoronoiParabolicArc};
 use std::collections::HashMap;
@@ -249,14 +249,7 @@ impl DiagramHelperRo {
                 samples.push([start_point.x, start_point.y, start_point.z]);
             } else {
                 let z_comp = if cell.contains_point() {
-                    -linestring::linestring_2d::distance_to_point_squared(
-                        cell_point,
-                        cgmath::Point2 {
-                            x: start_point.x,
-                            y: start_point.y,
-                        },
-                    )
-                    .sqrt()
+                    -cell_point.distance(cgmath::Point2::new(start_point.x, start_point.y))
                 } else {
                     -linestring::linestring_2d::distance_to_line_squared_safe(
                         segment.start,
@@ -279,22 +272,12 @@ impl DiagramHelperRo {
                 samples.push([end_point.x, end_point.y, end_point.z]);
             } else {
                 let z_comp = if cell.contains_point() {
-                    -linestring::linestring_2d::distance_to_point_squared(
-                        cell_point,
-                        cgmath::Point2 {
-                            x: end_point.x,
-                            y: end_point.y,
-                        },
-                    )
-                    .sqrt()
+                    -cell_point.distance(cgmath::Point2::new(end_point.x, end_point.y))
                 } else {
                     -linestring::linestring_2d::distance_to_line_squared_safe(
                         segment.start,
                         segment.end,
-                        cgmath::Point2 {
-                            x: end_point.x,
-                            y: end_point.y,
-                        },
+                        cgmath::Point2::new(end_point.x, end_point.y),
                     )
                     .sqrt()
                 };
@@ -323,10 +306,8 @@ impl DiagramHelperRo {
         } else {
             self.retrieve_segment(cell_id)?
         };
-        let vertex0 = edge.vertex0();
-        let vertex1 = self.diagram.edge_get_vertex1(edge_id)?;
 
-        let (start_point, startpoint_is_internal) = if let Some(vertex0) = vertex0 {
+        let (start_point, startpoint_is_internal) = if let Some(vertex0) = edge.vertex0() {
             let vertex0 = self.diagram.vertex_get(vertex0)?.get();
 
             let start_point = if vertex0.is_site_point() {
@@ -354,30 +335,31 @@ impl DiagramHelperRo {
             )));
         };
 
-        let (end_point, end_point_is_internal) = if let Some(vertex1) = vertex1 {
-            let vertex1 = self.diagram.vertex_get(vertex1)?.get();
+        let (end_point, end_point_is_internal) =
+            if let Some(vertex1) = self.diagram.edge_get_vertex1(edge_id)? {
+                let vertex1 = self.diagram.vertex_get(vertex1)?.get();
 
-            let end_point = if vertex1.is_site_point() {
-                cgmath::Point3 {
-                    x: vertex1.x(),
-                    y: vertex1.y(),
-                    z: 0.0,
-                }
+                let end_point = if vertex1.is_site_point() {
+                    cgmath::Point3 {
+                        x: vertex1.x(),
+                        y: vertex1.y(),
+                        z: 0.0,
+                    }
+                } else {
+                    cgmath::Point3 {
+                        x: vertex1.x(),
+                        y: vertex1.y(),
+                        z: f64::NAN,
+                    }
+                };
+                (end_point, self.internal_vertices.get_f(vertex1.get_id().0))
             } else {
-                cgmath::Point3 {
-                    x: vertex1.x(),
-                    y: vertex1.y(),
-                    z: f64::NAN,
-                }
+                return Err(TBError::InternalError(format!(
+                    "Edge vertex1 could not be found. {}:{}",
+                    file!(),
+                    line!()
+                )));
             };
-            (end_point, self.internal_vertices.get_f(vertex1.get_id().0))
-        } else {
-            return Err(TBError::InternalError(format!(
-                "Edge vertex1 could not be found. {}:{}",
-                file!(),
-                line!()
-            )));
-        };
 
         let cell_point = if cell.contains_point() {
             self.retrieve_point(cell_id)?
@@ -421,14 +403,7 @@ impl DiagramHelperRo {
                     samples.push([start_point.x, start_point.y, start_point.z]);
                 } else {
                     let z_comp = if cell.contains_point() {
-                        -linestring::linestring_2d::distance_to_point_squared(
-                            cell_point,
-                            cgmath::Point2 {
-                                x: start_point.x,
-                                y: start_point.y,
-                            },
-                        )
-                        .sqrt()
+                        -cell_point.distance(cgmath::Point2::new(start_point.x, start_point.y))
                     } else {
                         -linestring::linestring_2d::distance_to_line_squared_safe(
                             segment.start,
@@ -449,22 +424,12 @@ impl DiagramHelperRo {
                     samples.push([end_point.x, end_point.y, end_point.z]);
                 } else {
                     let z_comp = if cell.contains_point() {
-                        -linestring::linestring_2d::distance_to_point_squared(
-                            cell_point,
-                            cgmath::Point2 {
-                                x: end_point.x,
-                                y: end_point.y,
-                            },
-                        )
-                        .sqrt()
+                        -cell_point.distance(cgmath::Point2::new(end_point.x, end_point.y))
                     } else {
                         -linestring::linestring_2d::distance_to_line_squared_safe(
                             segment.start,
                             segment.end,
-                            cgmath::Point2 {
-                                x: end_point.x,
-                                y: end_point.y,
-                            },
+                            cgmath::Point2::new(end_point.x, end_point.y),
                         )
                         .sqrt()
                     };

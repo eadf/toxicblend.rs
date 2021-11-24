@@ -2,8 +2,7 @@
 
 [![crates.io](https://img.shields.io/crates/v/toxicblend.svg)](https://crates.io/crates/toxicblend)
 [![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Rust/badge.svg)
-[![Workflow](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)](https://github.com/eadf/toxicblend.rs/workflows/Clippy/badge.svg)
-[![dependency status](https://deps.rs/crate/toxicblend/0.0.20/status.svg)](https://deps.rs/crate/toxicblend/0.0.20)
+[![dependency status](https://deps.rs/crate/toxicblend/0.0.21/status.svg)](https://deps.rs/crate/toxicblend/0.0.21)
 ![license](https://img.shields.io/crates/l/toxicblend)
 
 It is a [client-server](https://grpc.io) based addon for [Blender](https://www.blender.org/) written in Rust (and Python for the client side parts).  
@@ -189,6 +188,10 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 ### 0.0.21
 - Added benchmark code
 - saft 0.26
+- boostvoronoi 0.10
+- linestring 0.8
+- centerline 0.7
+- tokio 1.14
 ### 0.0.20
 - tokio 1.13
 - saft 0.25

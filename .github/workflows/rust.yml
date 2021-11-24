@@ -19,7 +19,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libpango1.0-dev libx11-dev libxext-dev libxft-dev libxinerama-dev libxcursor-dev libxrender-dev libxfixes-dev
       - uses: actions/checkout@v2
       - name: install stable
-        run: rustup toolchain install stable --component rustfmt --allow-downgrade
+        run: rustup toolchain install stable --component rustfmt,clippy --allow-downgrade
       - name: Build
         run: cargo +stable build --verbose
       - name: Run tests
