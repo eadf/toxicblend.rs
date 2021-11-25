@@ -4,9 +4,15 @@
 To install these blender addons you need to install the pip packages `toxicblend`, `protobuf` and `grpcio` to the blender python installation.
 This is an example of how this can be done.
 
+**MacOs warning**: It seems that whenever something is installed to the blender builtin Python packages the Blender installation will forever be marked as "damaged" on MacOs.
+You can still run Blender, but it needs to be run from the command line:
+```sh
+$ /Applications/Blender.app/Contents/MacOS/Blender
+```
+
 Run blender from the console so that you can see the console output. Then open the script tab in blender and run this:
 
-```
+```python
 import subprocess
 import sys
 import os
@@ -47,7 +53,7 @@ The addon-files needs to be updated for each version: remove them from the Blend
 
 # Uninstall
 From blender script tab:
-```
+```python
 import subprocess
 import sys
 
@@ -59,7 +65,7 @@ assert(subprocess.call([sys.executable, "-m", "pip", "uninstall", "-y", "protobu
 
 or from a terminal (try without sudo first):
 
-```
+```sh
 sudo <path to the blender built in python>/python3.7m -m pip uninstall toxicblend 
 # and maybe uninstall the dependencies protobuf and grpcio too
 sudo <path to the blender built in python>/python3.7m -m pip uninstall protobuf grpcio
