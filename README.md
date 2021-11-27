@@ -185,6 +185,8 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 - [ ] When everything has stabilized, remove the gRPC layer and publish as a Python package using the Rust binaries directly.  
 
 ## Changelog:
+### 0.0.22
+- saft 0.27
 ### 0.0.21
 - Added benchmark code
 - saft 0.26

@@ -1,6 +1,6 @@
 [package]
 name = "toxicblend"
-version = "0.0.21"
+version = "0.0.22"
 authors = ["eadf <lacklustr@protonmail.com>"]
 edition = "2021"
 description = "gRPC based Blender-addons. WIP"
@@ -38,7 +38,7 @@ logos = "0.12"
 ilattice = { version="0.1", default-features = false, features = ["glam"]}
 fast-surface-nets = "0.1"
 bytemuck = "1.7"
-saft_cr = { package="saft", version="0.26", optional = true, features = ["with_rayon"]}
+saft_cr = { package="saft", version="0.27", optional = true, features = ["with_rayon"]}
 # The glam version used by saft/macaw (the glam version used by ilattice is "pub use", and picked up from there)
 glam_saft = { package="glam", version="0.18", optional = true}
 

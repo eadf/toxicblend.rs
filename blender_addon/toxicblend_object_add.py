@@ -50,7 +50,7 @@ from bpy_extras.object_utils import AddObjectHelper
 bl_info = {
     'name': "Toxicblend - Add parametric objects",
     "author": "EADF",
-    "version": (0, 0, 21),
+    "version": (0, 0, 22),
     "blender": (2, 92, 0),
     "warning": "Communicates with a gRPC server on localhost",
     'description': 'Generates a parametric objects.',
