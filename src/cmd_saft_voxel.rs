@@ -3,7 +3,7 @@ use crate::{
     TBError,
 };
 
-use glam_saft::Vec3;
+use macaw::Vec3;
 use saft::BoundingBox;
 use std::collections::HashMap;
 use std::time;
