@@ -24,7 +24,7 @@ saft = ["saft_cr", "macaw"]
 tonic = "0.6"
 prost = "0.9"
 ahash = "0.7"
-tokio = { version = "1.14", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.15", features = ["macros", "rt-multi-thread"] }
 thiserror = "1.0"
 linestring = "0.8"
 centerline = "0.7"

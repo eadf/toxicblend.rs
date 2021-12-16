@@ -115,33 +115,45 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "boostvoronoi"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb72cd05c7047d1cab3085ac3d6ee389a9d6c7fc84606aa87934dc9ba3c71b87"
+checksum = "90f2410c7da607fe0dc50f0996a852e7702d52e9f67b764710f59244d3f7625f"
 dependencies = [
  "boostvoronoi_core",
+ "boostvoronoi_ext",
 ]
 
 [[package]]
 name = "boostvoronoi_core"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "881f2c9573eb71f3ba3e6f375a1d54936109ffa08621cee0d1d47cc1c5cc2a39"
+checksum = "19aa3a077ba0f291016260aceae9e23b468fe8881860b7b96b335a20d1490d6d"
 dependencies = [
  "ahash",
  "approx 0.5.0",
  "bitflags",
+ "boostvoronoi_ext",
  "cgmath",
  "cpp_map",
  "itertools",
- "libm",
- "num",
  "num-traits",
  "ordered-float",
- "smallvec",
  "thiserror",
  "version_check",
  "vob",
+]
+
+[[package]]
+name = "boostvoronoi_ext"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c834e7c00a771cf712283bb77c22f350d97527d4f265f90e2bf0a15d8b8168a5"
+dependencies = [
+ "approx 0.5.0",
+ "libm",
+ "num-traits",
+ "ordered-float",
+ "smallvec",
 ]
 
 [[package]]
@@ -164,9 +176,9 @@ checksum = "8f1e260c3a9040a7c19a12468758f4c16f31a81a1fe087482be9570ec864bb6c"
 
 [[package]]
 name = "bytemuck"
-version = "1.7.2"
+version = "1.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72957246c41db82b8ef88a5486143830adeb8227ef9837740bdec67724cf2c5b"
+checksum = "439989e6b8c38d1b6570a384ef1e49c8848128f5a97f3914baef02920842712f"
 
 [[package]]
 name = "byteorder"
@@ -1391,11 +1403,10 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.14.0"
+version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70e992e41e0d2fb9f755b37446f20900f64446ef54874f40a60c78f021ac6144"
+checksum = "fbbf1c778ec206785635ce8ad57fe52b3009ae9e0c9f574a728f3049d3e55838"
 dependencies = [
- "autocfg",
  "bytes",
  "libc",
  "memchr",
@@ -1418,9 +1429,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-macros"
-version = "1.6.0"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9efc1aba077437943f7515666aa2b882dfabfbfdf89c819ea75a8d6e9eaba5e"
+checksum = "b557f72f448c511a979e2564e55d74e6c4432fc96ff4f6241bc6bded342643b7"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -187,6 +187,8 @@ Checks a mesh for anomalies, double edges etc. Will print results to the console
 ## Changelog:
 ### 0.0.22
 - saft 0.27
+- tokio 1.15
+- boostvoronoi 0.10.2
 ### 0.0.21
 - Added benchmark code
 - saft 0.26
