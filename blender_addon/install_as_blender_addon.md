@@ -13,6 +13,9 @@ $ /Applications/Blender.app/Contents/MacOS/Blender
 Run blender from the console so that you can see the console output. Then open the script tab in blender and run this:
 
 ```python
+# Only run this if you executed Blender from the console, or else you will 
+# not be able to see potentioal error messages and the print output.
+
 import subprocess
 import sys
 import os
@@ -31,7 +34,7 @@ assert( subprocess.call([sys.executable, "-m", "pip", "install", "--upgrade", "t
 # check that the installed toxicblend version is 0.2.0 
 assert(subprocess.call([sys.executable, "-m", "pip", "list"]) == 0)
 ```
-Note that you can't install [grpcio](https://github.com/grpc/grpc) on Blender MacOS Arm 2.93.4 (grpcio does not contain the Arm binaries, and Blender is missing Python.h). 
+Note that you can't install [grpcio](https://github.com/grpc/grpc) on Blender MacOS Arm 2.93.4 or 3.0.0 (grpcio does not contain the Arm binaries, and Blender is missing Python.h). 
 But the x64 version of Blender can install grpcio.
 
 If you run into permission problems, you will have to run the pip commands on the blender python executable with raised privileges (e.g. sudo)
