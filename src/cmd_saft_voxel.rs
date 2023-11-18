@@ -62,7 +62,7 @@ fn build_voxel(
 
     let radius = max_dimension * radius_multiplier; // unscaled
     let thickness = radius * 2.0; // unscaled
-    let scale = (divisions / max_dimension) as f32;
+    let scale = divisions / max_dimension;
 
     if verbose {
         println!(
@@ -75,7 +75,7 @@ fn build_voxel(
             divisions,
             max_dimension,
             scale,
-            (max_dimension as f32) * scale
+            max_dimension * scale
         );
         println!();
 

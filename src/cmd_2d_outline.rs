@@ -24,7 +24,7 @@ fn remove_internal_edges(obj: &PB_Model) -> Result<(Vec<(usize, usize)>, Vec<PB_
 
     let mut aabb = linestring_3d::Aabb3::<f64>::default();
     for v in obj.vertices.iter() {
-        aabb.update_point(cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
+        aabb.update_point(cgmath::Point3::new(v.x, v.y, v.z))
     }
     let plane =
         linestring_3d::Plane::get_plane_relaxed(aabb, crate::EPSILON, f64::default_max_ulps()).ok_or_else(|| {

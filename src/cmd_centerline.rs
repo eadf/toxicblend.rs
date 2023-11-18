@@ -42,7 +42,7 @@ fn parse_input(
 > {
     let mut aabb = linestring_3d::Aabb3::<f64>::default();
     for v in input_pb_model.vertices.iter() {
-        aabb.update_point(cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
+        aabb.update_point(cgmath::Point3::new(v.x, v.y, v.z))
     }
 
     let plane =
@@ -67,7 +67,7 @@ fn parse_input(
                 "Points are not supported for this operation".to_string(),
             ));
         }
-        let v0 = *face.vertices.get(0).unwrap() as usize;
+        let v0 = *face.vertices.first().unwrap() as usize;
         let v1 = *face.vertices.get(1).unwrap() as usize;
         let key = make_edge_key(v0, v1);
         let _ = edge_set.insert(key);

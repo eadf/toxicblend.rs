@@ -5,6 +5,11 @@
 [![dependency status](https://deps.rs/crate/toxicblend/0.0.22/status.svg)](https://deps.rs/crate/toxicblend/0.0.22)
 ![license](https://img.shields.io/crates/l/toxicblend)
 
+# Package no longer maintained
+Use an alternative version from [here.](https://github.com/eadf/hallr)
+
+
+# Description
 It is a [client-server](https://grpc.io) based addon for [Blender](https://www.blender.org/) written in Rust (and Python for the client side parts).  
 
 ## Blender addon installation
@@ -12,8 +17,6 @@ Follow instructions in [install_as_blender_addon.md](blender_addon/install_as_bl
 
 ## Rust requirement
 Rust 1.56+
-
-Will automatically make use of the fast(er) features `hash_drain_filter` and `map_first_last` if run on `rust +nightly`
 
 ## Run local server
 A blender addon based on a client-server model using [grpc](https://grpc.io) and [tonic](https://github.com/hyperium/tonic).

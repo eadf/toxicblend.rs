@@ -121,7 +121,7 @@ fn build_voxel(
         dimensions.x.max(dimensions.y).max(dimensions.z)
     };
 
-    let scale = (divisions / max_dimension) as f32;
+    let scale = divisions / max_dimension;
 
     if verbose {
         println!(
@@ -129,7 +129,7 @@ fn build_voxel(
             divisions,
             max_dimension,
             scale,
-            (max_dimension as f32) * scale
+            (max_dimension) * scale
         );
         println!();
     }

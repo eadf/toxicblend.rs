@@ -331,9 +331,6 @@ impl TurtleRules {
 
             #[regex(r"[ \t\f(),\?;]+", logos::skip)]
             Skip,
-
-            #[error]
-            Error,
         }
 
         #[derive(Debug, PartialEq)]
@@ -352,7 +349,7 @@ impl TurtleRules {
         let mut state = ParseState::Start;
         let mut line = 0_i32;
 
-        while let Some(token) = lex.next() {
+        while let Some(Ok(token)) = lex.next() {
             match token {
                 ParseToken::Token => {
                     if state != ParseState::Start {

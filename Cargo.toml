@@ -23,18 +23,18 @@ saft = ["saft_cr", "macaw"]
 [dependencies]
 tonic = "~0.6"
 prost = "~0.9"
-ahash = "~0.7"
+ahash = "0.8"
 tokio = { version = "~1.15", features = ["macros", "rt-multi-thread"] }
-thiserror = "~1.0"
-linestring = "~0.8"
-centerline = "~0.7"
-vob = "~3.0"
-boostvoronoi = {version="~0.10",features=["cgmath"]}
-rayon = "~1.5"
-smallvec = "~1.7"
+thiserror = "1.0"
+linestring = "0.8.1"
+centerline = "0.7.1"
+vob = "3.0"
+boostvoronoi = {version="0.11",features=["cgmath"]}
+rayon = "1.8"
+smallvec = "1.7"
 cgmath = "~0.18"
-itertools = "~0.10"
-logos = "~0.12"
+itertools = "0.12"
+logos = "0.13"
 ilattice = { version="~0.1", default-features = false, features = ["glam"]}
 fast-surface-nets = "~0.1"
 bytemuck = "~1.7"
@@ -51,7 +51,7 @@ tonic-build = "~0.6"
 version_check = "~0.9"
 
 [dev-dependencies]
-criterion = "~0.3"
+criterion = "0.5"
 
 [[bench]]
 name = "bench"

@@ -28,7 +28,7 @@ fn transmute_to_u64(a: cgmath::Point2<f64>) -> (u64, u64) {
 fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
     let mut aabb = linestring::linestring_3d::Aabb3::<f64>::default();
     for v in input_pb_model.vertices.iter() {
-        aabb.update_point(cgmath::Point3::new(v.x as f64, v.y as f64, v.z as f64))
+        aabb.update_point(cgmath::Point3::new(v.x, v.y, v.z))
     }
 
     let plane = Plane::get_plane_relaxed(aabb, super::EPSILON, f64::default_max_ulps()).ok_or_else(|| {
@@ -50,24 +50,24 @@ fn knife_intersect(input_pb_model: &PB_Model) -> Result<PB_Model, TBError> {
             .vertices
             .iter()
             .map(|v| cgmath::Point2 {
-                x: v.x as f64,
-                y: v.y as f64,
+                x: v.x,
+                y: v.y,
             })
             .collect(),
         Plane::XZ => input_pb_model
             .vertices
             .iter()
             .map(|v| cgmath::Point2 {
-                x: v.x as f64,
-                y: v.z as f64,
+                x: v.x,
+                y: v.z,
             })
             .collect(),
         Plane::YZ => input_pb_model
             .vertices
             .iter()
             .map(|v| cgmath::Point2 {
-                x: v.z as f64,
-                y: v.y as f64,
+                x: v.z,
+                y: v.y,
             })
             .collect(),
     };

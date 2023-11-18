@@ -12,8 +12,6 @@
     unused_imports,
     unused_variables
 )]
-#![cfg_attr(feature = "hash_drain_filter", feature(hash_drain_filter))]
-#![cfg_attr(feature = "map_first_last", feature(map_first_last))]
 
 #[cfg(feature = "saft")]
 extern crate saft_cr as saft;
